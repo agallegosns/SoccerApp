@@ -1,0 +1,11 @@
+node_modules
+dist
+coverage
+*.tsbuildinfo
+playwright-report
+test-results
+.env
+.env.*
+!.env.example
+.DS_Store
+e2e/artifacts

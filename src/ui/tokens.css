@@ -1,0 +1,78 @@
+/*
+ * Tokens de diseño de futbol-sim. ÚNICA fuente de colores, espacios, tipografía y movimiento
+ * para la interfaz. El resto de CSS solo usa var(--token). Los pares de contraste se verifican
+ * en src/test/contrast.test.ts (WCAG AA).
+ */
+:root {
+  color-scheme: dark;
+
+  /* Superficies */
+  --color-bg: #0b1220;
+  --color-surface: #121b30;
+  --color-surface-2: #1a2540;
+  --color-border: #2c3a5e;
+  --color-control-border: #6f84b0; /* bordes de controles interactivos: ≥ 3:1 (WCAG 1.4.11) */
+
+  /* Texto */
+  --color-text: #eaf0fb;
+  --color-text-muted: #a3b1cf;
+
+  /* Acentos */
+  --color-accent: #34d399;
+  --color-accent-contrast: #04130d;
+  --color-accent-soft: #0f3a2d;
+  --color-warning: #fbbf24;
+  --color-warning-soft: #3a2c06;
+  --color-danger: #fca5a5;
+  --color-danger-soft: #3d1618;
+  --color-focus: #93c5fd;
+
+  /* Tipografía */
+  --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --text-xs: 0.8125rem;
+  --text-sm: 0.9375rem;
+  --text-md: 1rem;
+  --text-lg: 1.25rem;
+  --text-xl: 1.625rem;
+  --text-2xl: 2.125rem;
+  --leading: 1.5;
+
+  /* Espacios y formas */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --space-7: 3rem;
+  --radius-sm: 0.5rem;
+  --radius-md: 0.875rem;
+  --radius-lg: 1.25rem;
+  --radius-pill: 999px;
+  --gutter: 1rem;
+  --content-max: 72rem;
+
+  /* Interacción */
+  --tap: 2.75rem; /* 44 px: zona táctil mínima */
+  --focus-ring: 0 0 0 3px var(--color-focus);
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4), 0 8px 24px rgb(0 0 0 / 0.25);
+
+  /* Movimiento */
+  --motion-fast: 120ms;
+  --motion-base: 200ms;
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+@media (min-width: 48rem) {
+  :root {
+    --gutter: 1.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-fast: 0ms;
+    --motion-base: 0ms;
+  }
+}
