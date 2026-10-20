@@ -21,6 +21,10 @@
   --color-accent: #34d399;
   --color-accent-contrast: #04130d;
   --color-accent-soft: #0f3a2d;
+  --color-success: #4ade80; /* partido ya descargado */
+  --color-success-soft: #123f27;
+  --color-select: #93c5fd; /* elemento elegido (liga, partido) */
+  --color-select-soft: #14305c;
   --color-warning: #fbbf24;
   --color-warning-soft: #3a2c06;
   --color-danger: #fca5a5;

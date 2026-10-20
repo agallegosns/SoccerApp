@@ -2,7 +2,7 @@ import { ballAt, phaseAt, statsAt } from '../../engine/animate.ts';
 import { clamp, smoothstep } from '../../engine/geometry.ts';
 import { mulberry32 } from '../../engine/rng.ts';
 import type { FrameState, ResolvedTeam, ScriptEvent, Simulation } from '../../engine/index.ts';
-import { ARENA, BALL_PX, DISC_R, GATE_DEPTH, MOUTH_HALF, cameraAngle, ballRoll, fieldToScreen, smoothBall, smoothDiscPositions } from './arena.ts';
+import { ARENA, BALL_PX, DISC_R, GATE_DEPTH, MOUTH_HALF, cameraAngle, ballRoll, ballScreen, fieldToScreen, smoothBall, smoothDiscPositions } from './arena.ts';
 import { drawCrest } from './crest.ts';
 import { drawCard, drawCompetitionPill, drawIntro, fitFont, font, roundRect, type Ctx2D, type RenderMeta } from './render.ts';
 import { CANVAS_THEME as C, VIDEO_HEIGHT, VIDEO_WIDTH } from './theme.ts';
@@ -273,9 +273,9 @@ function drawBall(ctx: Ctx2D, frame: FrameState, t: number, sim: Simulation): vo
   const trail: { x: number; y: number }[] = [];
   for (let k = 7; k >= 1; k -= 1) {
     const tk = Math.max(0, t - k * 0.035);
-    const b = smoothBall(sim, tk);
+    const b = ballScreen(sim, tk);
     if (!b.visible) continue;
-    trail.push(fieldToScreen(b.x, b.y, tk));
+    trail.push(b);
   }
   for (const [i, p] of trail.entries()) {
     ctx.fillStyle = `rgba(255,255,255,${String(0.05 + (0.22 * (i + 1)) / trail.length)})`;
@@ -284,7 +284,7 @@ function drawBall(ctx: Ctx2D, frame: FrameState, t: number, sim: Simulation): vo
     ctx.fill();
   }
   const sb = smoothBall(sim, t);
-  const p = fieldToScreen(sb.x, sb.y, t);
+  const p = ballScreen(sim, t);
   const lift = sb.z * 10;
   const r = BALL_PX * (1 + sb.z * 0.06);
   ctx.fillStyle = 'rgba(0,0,0,0.35)';
@@ -303,12 +303,8 @@ function drawBall(ctx: Ctx2D, frame: FrameState, t: number, sim: Simulation): vo
   ctx.stroke();
   // Dibujo que rueda: tres manchas oscuras que giran alrededor de un eje perpendicular al avance (más estrechas cuanto más de canto).
   const roll = ballRoll(sim, t) / r;
-  const at = (tt: number): { x: number; y: number } => {
-    const b = smoothBall(sim, tt);
-    return fieldToScreen(b.x, b.y, tt);
-  };
-  const ahead = at(t + 0.03);
-  const behind = at(t - 0.03);
+  const ahead = ballScreen(sim, t + 0.03);
+  const behind = ballScreen(sim, t - 0.03);
   const heading = Math.atan2(ahead.y - behind.y, ahead.x - behind.x);
   ctx.fillStyle = '#0b1220';
   for (let k = 0; k < 3; k += 1) {

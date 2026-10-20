@@ -1,4 +1,4 @@
-import { AlertTriangle, Clock, FileUp, RefreshCw, Search, WifiOff } from 'lucide-react';
+import { AlertTriangle, CalendarDays, Clock, FileUp, RefreshCw, Search, WifiOff } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 import { formatDateEs, todayLocal } from '../../data/dates.ts';
@@ -7,10 +7,12 @@ import type { MatchService } from '../../data/registry.ts';
 import type { League, Match } from '../../data/types.ts';
 import { DEFAULT_FILTERS, filterMatches, groupByDate, type Filters, type Scope } from './filters.ts';
 import { ImportDialog, type ImportPreset } from './ImportDialog.tsx';
+import { LeaguePicker } from './LeaguePicker.tsx';
 import { MatchCard } from './MatchCard.tsx';
 import { SelectedMatch } from './SelectedMatch.tsx';
 import { useLeagueMatches } from './useLeagueMatches.ts';
 import { readJson, writeJson } from '../../data/cache.ts';
+import { useDownloaded } from '../../ui/useDownloaded.ts';
 import './calendar.css';
 
 const PAGE_SIZE = 60;
@@ -36,12 +38,14 @@ interface Props {
 }
 
 export function CalendarView({ service, imported, selected, onSelect, onSimulate }: Props) {
+  const downloaded = useDownloaded();
   const [version, setVersion] = useState(0);
   const leagues = useMemo(() => service.listLeagues(), [service, version]); // eslint-disable-line react-hooks/exhaustive-deps -- `version` fuerza la relectura tras importar/eliminar
   const [leagueId, setLeagueId] = useState(() => initialLeague(service.listLeagues()));
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
   const [visible, setVisible] = useState(PAGE_SIZE);
   const [importOpen, setImportOpen] = useState(false);
+  const [datesOpen, setDatesOpen] = useState(false); // en el móvil las fechas se despliegan a demanda
   const [preset, setPreset] = useState<{ value?: ImportPreset; nonce: number }>({ nonce: 0 });
 
   function openImport(value?: ImportPreset): void {
@@ -87,24 +91,7 @@ export function CalendarView({ service, imported, selected, onSelect, onSimulate
           <p className="muted">Datos reales de fuentes abiertas. Las simulaciones que generes serán ficticias.</p>
         </div>
 
-        <div className="chips" role="group" aria-label="Competición">
-          {leagues.map((l) => (
-            <button
-              key={l.id}
-              type="button"
-              className="chip-btn"
-              aria-pressed={l.id === activeId}
-              onClick={() => { chooseLeague(l.id); }}
-            >
-              <span>{l.name}</span>
-              <span className="chip-btn__season">{l.season}</span>
-            </button>
-          ))}
-          <button type="button" className="chip-btn chip-btn--ghost" onClick={() => { openImport(); }}>
-            <FileUp aria-hidden="true" size={18} />
-            Importar calendario
-          </button>
-        </div>
+        <LeaguePicker leagues={leagues} activeId={activeId} onChoose={chooseLeague} onImport={() => { openImport(); }} />
 
         <form className="filters" role="search" aria-label="Filtros" onSubmit={(e) => { e.preventDefault(); }}>
           <label className="field field--search">
@@ -129,7 +116,16 @@ export function CalendarView({ service, imported, selected, onSelect, onSimulate
               </button>
             ))}
           </div>
-          <div className="filters__dates">
+          <button
+            type="button"
+            className="btn filters__toggle"
+            aria-expanded={datesOpen || filters.from !== '' || filters.to !== ''}
+            onClick={() => { setDatesOpen((o) => !o); }}
+          >
+            <CalendarDays aria-hidden="true" size={18} />
+            Filtrar por fechas
+          </button>
+          <div className="filters__dates" data-open={datesOpen || filters.from !== '' || filters.to !== ''}>
             <label className="field">
               <span>Desde</span>
               <input type="date" value={filters.from} max={filters.to || undefined} onChange={(e) => { updateFilters({ from: e.target.value }); }} />
@@ -248,7 +244,7 @@ export function CalendarView({ service, imported, selected, onSelect, onSimulate
                     <ul className="plain-list">
                       {group.matches.map((m) => (
                         <li key={m.id}>
-                          <MatchCard match={m} selected={selected?.id === m.id} onSelect={onSelect} />
+                          <MatchCard match={m} selected={selected?.id === m.id} downloaded={downloaded.has(m.id)} onSelect={onSelect} />
                         </li>
                       ))}
                     </ul>

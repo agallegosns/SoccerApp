@@ -173,3 +173,10 @@ Dos estilos de vídeo sobre **la misma simulación** (`src/features/simulation/r
 Medido en 4 semillas: aceleración del balón p95 12,5 → 4,3 px/fotograma², salto máximo del disco 38 px/fotograma, ≈ 0,1 ms por fotograma.
 `smoothBall` usa una ventana propia de ±0,2 s con pesos triangulares (el balón acelera y frena con suavidad: aceleración p95 12,5 → 3,6 px/fotograma²). `ballRoll` acumula la distancia rodada
 (tabla a 60 Hz por guion) y el balón del vídeo gira su dibujo (tres manchas) según esa distancia y la dirección de avance, como si rodase.
+
+## Balón «por libre», descargas y selector de ligas (móvil)
+- `ballScreen` (`arena.ts`): mientras un equipo conduce (segmento `carry`) el balón dibujado se adelanta al disco y se desvía a los lados (pulso de 1,1 Hz, ≤ 108 px, nunca fuera del aro) y el disco lo persigue. Efecto sólo visual: no toca sucesos ni marcador.
+  Medido: aceleración p95 15 px/fotograma², máx. 30; el balón gira (`ballRoll`) según el camino dibujado.
+- `src/data/downloaded.ts`: ids de partidos con algún vídeo descargado (localStorage `futbol-sim:v1:downloaded`) + `useDownloaded` (`useSyncExternalStore`). `ExportPanel` y `BatchPanel` marcan al descargar; `MatchCard` pinta
+  `match--downloaded` (tokens `--color-success*`) con el texto «Descargado» (no sólo color). La selección pasa a azul (`--color-select*`) para no confundirse con el verde.
+- `LeaguePicker`: tarjetas de ≥ 64 px con insignia (UCL, LL…), tira con scroll horizontal e «imán» en móvil (centra la elegida) y rejilla fluida en pantallas ≥ 48 rem. En móvil las fechas se despliegan a demanda.

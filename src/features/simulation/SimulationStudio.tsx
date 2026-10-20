@@ -219,6 +219,7 @@ export function SimulationStudio({ match, onBack }: Props) {
             style={style}
             fileName={exportFileName({ competition: match.competition, home: match.home, away: match.away, date: kickoff.date, seed })}
             title={`Simulación ficticia: ${match.home} vs ${match.away}`}
+            matchId={match.id}
           />
 
           <BatchPanel

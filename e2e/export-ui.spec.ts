@@ -59,6 +59,13 @@ test('exporta un MP4 vertical real: progreso, vídeo reproducible y descarga val
   expect(info.streams[0]).toMatchObject({ codec_name: 'vp9', width: 1080, height: 1920, r_frame_rate: '30/1' });
   expect(Number(info.streams[0]?.nb_read_frames)).toBe(Math.ceil(expectedSeconds * 30));
   expect(Math.abs(Number(info.format.duration) - expectedSeconds)).toBeLessThan(0.1);
+
+  // Tras descargar, la tarjeta del partido se pinta de verde en el calendario (y se recuerda al recargar).
+  await page.getByRole('button', { name: 'Volver al calendario' }).click();
+  await expect(page.locator('.match--downloaded')).toHaveCount(1);
+  await expect(page.locator('.match--downloaded')).toContainText('Descargado');
+  await page.reload();
+  await expect(page.locator('.match--downloaded')).toHaveCount(1);
 });
 
 test('se puede cancelar una exportación en curso y volver a intentarlo', async ({ page }) => {

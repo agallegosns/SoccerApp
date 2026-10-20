@@ -1,6 +1,7 @@
 import { AlertTriangle, Download, Film, RotateCw, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
+import { markDownloaded } from '../../data/downloaded.ts';
 import type { Simulation } from '../../engine/index.ts';
 import type { RenderMeta } from '../simulation/render.ts';
 import type { VideoStyle } from '../simulation/renderers.ts';
@@ -16,6 +17,8 @@ interface Props {
   readonly style: VideoStyle;
   readonly fileName: string;
   readonly title: string;
+  /** Partido al que pertenece el vídeo: se marca como descargado (tarjeta verde en el calendario). */
+  readonly matchId: string;
 }
 
 type Job =
@@ -27,7 +30,7 @@ type Job =
 const mb = (bytes: number): string => `${(bytes / 1e6).toFixed(1)} MB`;
 
 /** Exporta la simulación mostrada a un MP4 vertical 9:16. El estado se reinicia remontando el componente (key) al cambiar la simulación. */
-export function ExportPanel({ sim, meta, style, fileName, title }: Props) {
+export function ExportPanel({ sim, meta, style, fileName, title, matchId }: Props) {
   const support = useExportSupport();
   const [job, setJob] = useState<Job>({ phase: 'idle' });
   const abortRef = useRef<AbortController | null>(null);
@@ -80,8 +83,7 @@ export function ExportPanel({ sim, meta, style, fileName, title }: Props) {
     <div className="card export" aria-label="Exportar vídeo">
       <h2>Exportar vídeo</h2>
       <p className="muted">
-        MP4 vertical 1080×1920 (9:16) · {VIDEO_FPS} fps · {codecLabel(PRODUCT_CODEC)} · {sim.script.duration.toFixed(0)} s. La etiqueta «Simulación ficticia» va
-        incluida en todo el vídeo. Después lo subes tú a TikTok.
+        MP4 vertical 1080×1920 (9:16) · {VIDEO_FPS} fps · {codecLabel(PRODUCT_CODEC)} · {sim.script.duration.toFixed(0)} s. Después lo subes tú a TikTok.
       </p>
 
       {support.state === 'no' && (
@@ -151,7 +153,7 @@ export function ExportPanel({ sim, meta, style, fileName, title }: Props) {
             </span>
           </p>
           <video className="export__video" src={job.url} controls playsInline muted data-testid="export-video" />
-          <a className="btn btn--primary" href={job.url} download={fileName} data-testid="download-link">
+          <a className="btn btn--primary" href={job.url} download={fileName} data-testid="download-link" onClick={() => { markDownloaded(matchId); }}>
             <Download aria-hidden="true" size={20} />
             Descargar MP4
           </a>

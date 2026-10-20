@@ -140,3 +140,12 @@ Leyenda: ✅ hecho y probado · 🟡 hecho, pendiente de verificar · ⬜ por ha
 ## Ajuste: balón que rueda (a petición del usuario)
 - ✅ Trayectoria del balón más suave (ventana ±0,2 s, pesos triangulares; aceleración p95 3,6 px/fotograma²) y dibujo del balón que **gira según la distancia recorrida** y su dirección. Test unitario del giro.
 - 🟡 Pendiente de verificar a ojo en un vídeo exportado; **no desplegado** (hay que pedir un redespliegue).
+
+## Ajustes: balón libre, tarjeta verde y selector de ligas (a petición del usuario)
+- ✅ **Balón «por libre»**: se adelanta y se desvía mientras lo conducen; el disco lo persigue (visual). Test unitario (dentro del aro, ≥ 10 % de fotogramas «libres», aceleración < 60).
+  🟡 Interpretación mía de «que la pelota vaya por libre»: si querías otra cosa (rebotes en el aro, balón suelto sin dueño…), dímelo. Pendiente de verificar a ojo en un vídeo exportado.
+- ✅ **Tarjeta verde al descargar**: probado con exportación real (VP9) → descarga → calendario con `Descargado` y tras recargar; test unitario del almacén y de la tarjeta.
+  La selección de partido pasa a azul para distinguirla. Se marca al descargar (suelto, desde el lote o ZIP), no al exportar.
+- ✅ **Selector de ligas para móvil**: tarjetas grandes con insignia y scroll horizontal; fechas plegables; avisos compactos; axe y zonas táctiles ≥ 44 px siguen en verde. 🟡 Pendiente de verlo en un móvil real.
+- 🟡 **Sin desplegar**: hay que pedir un redespliegue.
+- ✅ Corregido el texto del panel de exportación (decía que el vídeo lleva «Simulación ficticia»).

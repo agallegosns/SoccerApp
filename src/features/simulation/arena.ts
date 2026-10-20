@@ -175,6 +175,54 @@ export function smoothBall(sim: BallSource, t: number): { x: number; y: number; 
   return { x: x / total, y: y / total, z: z / total, visible: true };
 }
 
+/** Frecuencia (Hz) a la que el balón «se escapa» del jugador que lo conduce y éste lo recoge. */
+const DRIBBLE_HZ = 1.1;
+/** Ventana (s) para la dirección de avance: ancha, para que el balón no se desvíe a tirones cuando el rumbo cambia. */
+const HEADING_SPAN = 0.3;
+
+/**
+ * Posición en pantalla del balón que se dibuja: el balón suavizado más un movimiento «por libre» mientras un equipo lo conduce
+ * (el balón se adelanta al disco y se desvía a los lados, y el disco lo persigue), para que no parezca pegado al escudo.
+ * Es un efecto sólo visual: no cambia los sucesos ni el marcador. Los pases y tiros ya viajan solos y no se tocan.
+ */
+export function ballScreen(sim: BallSource, t: number): { x: number; y: number; visible: boolean } {
+  const base = smoothBall(sim, t);
+  const p = fieldToScreen(base.x, base.y, t);
+  if (!base.visible) return { ...p, visible: false };
+  let carry = 0;
+  for (const d of BALL_OFFSETS) {
+    const seg = ballAt(sim.script, clamp(t + d, 0, sim.script.duration)).seg;
+    if (seg?.kind === 'carry') carry += 1;
+  }
+  const w = smoothstep(carry / BALL_OFFSETS.length);
+  if (w <= 0) return { ...p, visible: true };
+  const a = smoothBall(sim, t - HEADING_SPAN);
+  const b = smoothBall(sim, t + HEADING_SPAN);
+  const pa = fieldToScreen(a.x, a.y, t - HEADING_SPAN);
+  const pb = fieldToScreen(b.x, b.y, t + HEADING_SPAN);
+  const hx = pb.x - pa.x;
+  const hy = pb.y - pa.y;
+  const len = Math.hypot(hx, hy);
+  if (len < 1e-3) return { ...p, visible: true };
+  const ux = hx / len;
+  const uy = hy / len;
+  const moving = smoothstep(len / 90); // casi parado: sin desvío (la dirección sería inestable)
+  const kick = Math.sin(Math.PI * t * DRIBBLE_HZ) ** 2;
+  const lead = w * moving * (24 + 84 * kick);
+  const side = w * moving * 30 * Math.sin(2 * Math.PI * 0.6 * t + 1.3);
+  let x = p.x + ux * lead - uy * side;
+  let y = p.y + uy * lead + ux * side;
+  const dx = x - ARENA.cx;
+  const dy = y - ARENA.cy;
+  const r = Math.hypot(dx, dy);
+  const limit = ARENA.radius * 0.92;
+  if (r > limit) {
+    x = ARENA.cx + (dx / r) * limit;
+    y = ARENA.cy + (dy / r) * limit;
+  }
+  return { x, y, visible: true };
+}
+
 const ROLL_STEP = 1 / 60;
 const rollCache = new WeakMap<object, Float32Array>();
 
@@ -188,8 +236,8 @@ export function ballRoll(sim: BallSource, t: number): number {
     let sum = 0;
     for (let i = 0; i < n; i += 1) {
       const tt = Math.min(i * ROLL_STEP, sim.script.duration);
-      const b = smoothBall(sim, tt);
-      const p = b.visible ? fieldToScreen(b.x, b.y, tt) : null;
+      const b = ballScreen(sim, tt);
+      const p = b.visible ? b : null;
       if (p !== null && prev !== null) sum += Math.hypot(p.x - prev.x, p.y - prev.y);
       prev = p;
       table[i] = sum;

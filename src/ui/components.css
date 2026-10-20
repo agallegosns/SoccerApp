@@ -129,6 +129,12 @@
   font-weight: 700;
 }
 
+.chip--done {
+  gap: var(--space-1);
+  background: var(--color-success);
+  color: var(--color-accent-contrast);
+}
+
 .chip--real {
   background: var(--color-accent-soft);
   color: var(--color-accent);

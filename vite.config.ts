@@ -8,6 +8,6 @@ export default defineConfig({
   build: { target: 'es2023', sourcemap: true },
   test: {
     environment: 'node',
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.{ts,tsx}'],
   },
 });

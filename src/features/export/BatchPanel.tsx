@@ -8,6 +8,7 @@ import type { VideoStyle } from '../simulation/renderers.ts';
 import { BatchQueue, type BatchJob, type JobRunner } from './batchQueue.ts';
 import { exportVideo } from './exportVideo.ts';
 import { exportFileName, zipFileName } from './fileName.ts';
+import { markDownloaded } from '../../data/downloaded.ts';
 import { downloadBlob, useExportSupport } from './useExportSupport.ts';
 import { buildZip, zipReadme } from './zip.ts';
 
@@ -125,6 +126,7 @@ export function BatchPanel({ match, date, currentSeed, style, fixedScore, pace, 
         done.flatMap((j) => (j.result === null ? [] : [{ name: j.fileName, blob: j.result.blob }])),
         zipReadme([`Partido: ${match.home} vs ${match.away} - ${match.competition} - ${date}`, '', ...lines]),
       );
+      markDownloaded(match.id);
       downloadBlob(blob, zipFileName({ competition: match.competition, home: match.home, away: match.away, date }, done.length));
     } catch (error) {
       setZipError(error instanceof Error ? error.message : 'No se pudo crear el ZIP.');
@@ -252,7 +254,7 @@ export function BatchPanel({ match, date, currentSeed, style, fixedScore, pace, 
                   )}
                   <div className="row job__actions">
                     {job.result !== null && (
-                      <button type="button" className="btn btn--small" onClick={() => { if (job.result !== null) downloadBlob(job.result.blob, job.fileName); }} data-testid="job-download">
+                      <button type="button" className="btn btn--small" onClick={() => { if (job.result !== null) { markDownloaded(match.id); downloadBlob(job.result.blob, job.fileName); } }} data-testid="job-download">
                         <Download aria-hidden="true" size={16} />
                         Descargar
                       </button>

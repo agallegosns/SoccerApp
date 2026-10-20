@@ -4,7 +4,7 @@ import { ballAt, frameAt } from '../../engine/animate.ts';
 import { PITCH_L, PITCH_W } from '../../engine/geometry.ts';
 import { simulate } from '../../engine/index.ts';
 import { generateScript } from '../../engine/script.ts';
-import { ARENA, BALL_R, DISC_R, MOUTH_HALF, ballRoll, cameraAngle, discScreenPositions, smoothBall, smoothDiscPositions, fieldToScreen, fieldToUnit, maxRadius, rotate, toScreen } from './arena.ts';
+import { ARENA, BALL_R, DISC_R, MOUTH_HALF, ballRoll, ballScreen, cameraAngle, discScreenPositions, smoothBall, smoothDiscPositions, fieldToScreen, fieldToUnit, maxRadius, rotate, toScreen } from './arena.ts';
 import { crestPattern } from './crest.ts';
 
 describe('geometría de la arena', () => {
@@ -166,5 +166,35 @@ describe('balón que rueda', () => {
     }
     expect(prev).toBeGreaterThan(2000);
     expect(maxStep).toBeLessThan(120);
+  });
+});
+
+describe('balón «por libre»', () => {
+  it('se adelanta a la trayectoria mientras lo conducen, queda dentro del aro y sigue siendo suave', () => {
+    const sim = simulate({ seed: 2024, home: 'Real Madrid', away: 'RB Leipzig', score: { home: 2, away: 1 } });
+    let free = 0;
+    let frames = 0;
+    let maxAcc = 0;
+    let prev: { x: number; y: number }[] = [];
+    for (let t = 0; t < sim.script.duration; t += 1 / 30) {
+      const b = ballScreen(sim, t);
+      if (!b.visible) {
+        prev = [];
+        continue;
+      }
+      const base = smoothBall(sim, t);
+      const p = fieldToScreen(base.x, base.y, t);
+      frames += 1;
+      if (Math.hypot(b.x - p.x, b.y - p.y) > 20) {
+        free += 1;
+        expect(Math.hypot(b.x - ARENA.cx, b.y - ARENA.cy)).toBeLessThanOrEqual(ARENA.radius); // el desvío nunca saca el balón del aro
+      }
+      prev.push(b);
+      if (prev.length > 3) prev.shift();
+      const [a, m, c] = prev;
+      if (a !== undefined && m !== undefined && c !== undefined) maxAcc = Math.max(maxAcc, Math.hypot(c.x - 2 * m.x + a.x, c.y - 2 * m.y + a.y));
+    }
+    expect(free / frames).toBeGreaterThan(0.1);
+    expect(maxAcc).toBeLessThan(60);
   });
 });

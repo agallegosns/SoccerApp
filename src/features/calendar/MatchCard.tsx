@@ -1,4 +1,4 @@
-import { Check } from 'lucide-react';
+import { Check, CircleCheck } from 'lucide-react';
 
 import { kickoffOf } from '../../data/dates.ts';
 import type { Match } from '../../data/types.ts';
@@ -6,16 +6,18 @@ import type { Match } from '../../data/types.ts';
 interface Props {
   readonly match: Match;
   readonly selected: boolean;
+  /** Ya se ha descargado algún vídeo de este partido: la tarjeta se pinta de verde. */
+  readonly downloaded: boolean;
   readonly onSelect: (match: Match) => void;
 }
 
-export function MatchCard({ match, selected, onSelect }: Props) {
+export function MatchCard({ match, selected, downloaded, onSelect }: Props) {
   const kickoff = kickoffOf(match);
   const scoreText = match.realScore === null ? null : `${String(match.realScore.home)}–${String(match.realScore.away)}`;
   return (
     <button
       type="button"
-      className="match"
+      className={downloaded ? 'match match--downloaded' : 'match'}
       aria-pressed={selected}
       onClick={() => { onSelect(match); }}
     >
@@ -30,6 +32,12 @@ export function MatchCard({ match, selected, onSelect }: Props) {
       </span>
       <span className="match__meta">
         <span className="match__round">{match.round}</span>
+        {downloaded && (
+          <span className="chip chip--done">
+            <CircleCheck aria-hidden="true" size={14} />
+            Descargado
+          </span>
+        )}
         {scoreText !== null && (
           <span className="chip chip--real" title="Resultado real, no simulado">
             Real {scoreText}

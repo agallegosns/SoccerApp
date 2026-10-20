@@ -24,10 +24,11 @@ El estudio de la captura se hizo en un navegador sin codificador H.264, por eso 
 | ![Arena](docs/img/video-arena.png) | ![Arena en juego](docs/img/video-arena-juego.png) | ![Táctico](docs/img/video-tactico.png) |
 
 ## Cómo se usa
-1. **Calendario**: elige competición, filtra por fecha («Próximos/Jugados/Todos»), busca un equipo y pulsa un partido → *Crear simulaciones*.
+1. **Calendario**: elige competición en la tira de tarjetas (desliza en el móvil), filtra por fecha («Próximos/Jugados/Todos»), busca un equipo y pulsa un partido → *Crear simulaciones*.
 2. **Estudio**: reproduce la vista previa, cambia el estilo (*Arena* o *Táctico*), el **ritmo** (*rápido* por defecto, ~26 s; *normal*, ~50 s), la semilla («Otra semilla») o fija el marcador (0–9 por equipo). En *Escudos* puedes subir el escudo de cada equipo.
 3. **Exportar MP4**: un vídeo con los parámetros actuales. **Generar varias simulaciones**: de 1 a 10 vídeos con semillas distintas, con progreso, cancelar,
    reintentar y *Descargar todo (ZIP)*.
+4. Cuando descargas un vídeo (suelto o en ZIP) la tarjeta de ese partido se pone **verde** con «Descargado» en el calendario (se recuerda en tu navegador).
 4. Sube el vídeo a TikTok tú mismo.
 
 ### Ritmo y escudos

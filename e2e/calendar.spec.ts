@@ -150,7 +150,7 @@ test.describe('competiciones 2026-27: LaLiga, Champions, Europa League y Confere
   test('el orden de pestañas es LaLiga, Champions, Europa League y Conference League', async ({ page }) => {
     await mockOpenFootball(page);
     await page.goto('/');
-    const names = await page.locator('.chips .chip-btn:not(.chip-btn--ghost)').allInnerTexts();
+    const names = await page.locator('.leagues .league:not(.league--import) .league__text').allInnerTexts();
     expect(names.slice(0, 4).map((n) => n.replace(/\s+/g, ' '))).toEqual([
       'LaLiga 2026-27',
       'Champions League 2026-27',
