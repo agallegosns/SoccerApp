@@ -120,4 +120,5 @@ Leyenda: ✅ hecho y probado · 🟡 hecho, pendiente de verificar · ⬜ por ha
 - 🟡 **Escudos oficiales: no incluidos** (marcas registradas; el brief original pedía escudos genéricos). Cada usuario sube los suyos bajo su responsabilidad.
 - 🟡 Los escudos se guardan por navegador (no se comparten entre dispositivos). El ritmo rápido aumenta la velocidad aparente de jugadores y balón: valorar a ojo si se prefiere un factor
   distinto de 0,6 (`FAST_PLAY_SCALE` en `src/engine/pace.ts`).
-- 🟡 **No redesplegado**: los cambios están en la rama; la web publicada sigue en la versión anterior hasta que se vuelva a lanzar el workflow.
+- ✅ **Redesplegado** (a petición del usuario): ejecución 2 del workflow de Pages con el commit `aa9dd45` (ritmo rápido y escudos), `build` y `deploy` correctos.
+- 🟡 Pendiente de verificar en un navegador: que la web publicada muestre el ritmo rápido y el panel de escudos (desde el sandbox no se puede abrir `github.io`).
