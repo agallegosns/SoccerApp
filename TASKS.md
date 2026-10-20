@@ -104,7 +104,8 @@ Leyenda: ✅ hecho y probado · 🟡 hecho, pendiente de verificar · ⬜ por ha
 - ✅ Memoria: sin fugas (heap tras GC 18,0 MB → 18,1 MB tras dos exportaciones; pico +38 MB).
 - ✅ Despliegue preparado: `VITE_BASE`, prueba e2e bajo `/SoccerApp/` (recursos, Excel de la Champions y trozo diferido sin 404), workflow de Pages **solo manual**.
 - ✅ Documentación: README con capturas, ARCHITECTURE, TASKS, CLAUDE, `docs/DESPLIEGUE.md` y `docs/football-data-org.md`.
-- 🟡 **No desplegado**: pendiente de que el usuario active Pages (Settings → Pages → GitHub Actions) y lance el workflow.
+- ✅ **Desplegado en GitHub Pages** (a petición del usuario): el workflow «Deploy a GitHub Pages» (ejecución 1, rama `claude/blissful-davinci-1xqg19`, commit `1faca99`) terminó con éxito: `npm ci`, `npm run ci`, subida del artefacto y `deploy-pages`. URL esperada: https://agallegosns.github.io/SoccerApp/
+- 🟡 **Pendiente de verificar: la web publicada.** Desde el sandbox no se puede acceder a `github.io`, así que no se ha abierto la URL; sí se verificó antes la compilación bajo `/SoccerApp/` con la prueba e2e de subruta. Comprobar en un navegador: que carga el calendario, que aparece la Champions 2026-27 (Excel bajo la subruta) y que el estudio se abre.
 - 🟡 Los workflows de GitHub Actions (`ci.yml` con job e2e, `deploy.yml`) están escritos pero **no se han podido ejecutar** aquí.
 - 🟡 **H.264 real**: no verificado en un navegador con codificador H.264 (ver Fase 4). Recomendado antes de publicar: abrir la app en Chrome/Edge/Safari, exportar un vídeo y
   comprobarlo con `ffprobe` (códec `h264`, 1080×1920, 30 fps).

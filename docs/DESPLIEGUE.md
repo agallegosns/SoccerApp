@@ -2,7 +2,7 @@
 
 La aplicación es 100 % estática (sin backend): `npm run build` genera `dist/` y basta con servirlo desde cualquier hosting estático.
 
-> **Nada se ha desplegado.** El workflow `.github/workflows/deploy.yml` sólo se ejecuta a mano (`workflow_dispatch`). Hasta que lo lances
+> **Estado:** desplegado una vez (ejecución manual del workflow, ver `TASKS.md`); URL esperada <https://agallegosns.github.io/SoccerApp/>. El workflow `.github/workflows/deploy.yml` sólo se ejecuta a mano (`workflow_dispatch`). Hasta que lo lances
 > tú desde la pestaña *Actions*, no se publica nada.
 
 ## Subruta (`base`)
