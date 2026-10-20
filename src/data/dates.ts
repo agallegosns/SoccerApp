@@ -58,9 +58,14 @@ export function formatDateEs(date: string): string {
   }).format(instant);
 }
 
+/** Letras latinas que NFD no descompone (ø, æ, ß…): se transliteran para no perderlas en ids y nombres de archivo. */
+const TRANSLITERATE: Readonly<Record<string, string>> = { ø: 'o', æ: 'ae', œ: 'oe', ß: 'ss', đ: 'd', ð: 'd', þ: 'th', ł: 'l', ı: 'i', ħ: 'h' };
+
 /** Texto para nombres de archivo y ids: minúsculas, sin acentos, sólo `[a-z0-9-]`. */
 export function slug(text: string): string {
   return text
+    .toLowerCase()
+    .replace(/[øæœßđðþłıħ]/g, (c) => TRANSLITERATE[c] ?? c)
     .normalize('NFD')
     .replace(/[̀-ͯ]/g, '')
     .toLowerCase()

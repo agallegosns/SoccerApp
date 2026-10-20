@@ -4,6 +4,8 @@ import { useMemo, useState } from 'react';
 import { formatDateEs, kickoffOf } from '../../data/dates.ts';
 import type { Match } from '../../data/types.ts';
 import { MAX_GOALS_PER_TEAM, simulate, type Score } from '../../engine/index.ts';
+import { ExportPanel } from '../export/ExportPanel.tsx';
+import { exportFileName } from '../export/fileName.ts';
 import { SimulationPreview } from './SimulationPreview.tsx';
 import { DEFAULT_STYLE, VIDEO_STYLES, type VideoStyle } from './renderers.ts';
 import type { RenderMeta } from './render.ts';
@@ -187,6 +189,15 @@ export function SimulationStudio({ match, onBack }: Props) {
               <p className="muted">Con muchos goles el vídeo dura más (aprox. {Math.round(sim.script.duration)} s).</p>
             )}
           </div>
+
+          <ExportPanel
+            key={`${String(seed)}|${fixed ? `${String(fixedHome)}-${String(fixedAway)}` : 'r'}|${style}`}
+            sim={sim}
+            meta={meta}
+            style={style}
+            fileName={exportFileName({ competition: match.competition, home: match.home, away: match.away, date: kickoff.date, seed })}
+            title={`Simulación ficticia: ${match.home} vs ${match.away}`}
+          />
 
           <div className="card" aria-label="Resultado de la simulación">
             <h2>Esta simulación</h2>

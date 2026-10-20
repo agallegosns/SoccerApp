@@ -37,6 +37,8 @@ describe('dates', () => {
   });
   it('slug elimina acentos y símbolos', () => {
     expect(slug('Atlético de Madrid, FC!')).toBe('atletico-de-madrid-fc');
+    expect(slug('Bodø/Glimt')).toBe('bodo-glimt');
+    expect(slug('Fenerbahçe Łódź Straße')).toBe('fenerbahce-lodz-strasse');
   });
   it('league-local no se convierte', () => {
     expect(kickoffOf({ date: '2026-08-15', time: '19:30', timeKind: 'league-local' }, 'Asia/Tokyo')).toEqual({

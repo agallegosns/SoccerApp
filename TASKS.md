@@ -73,6 +73,17 @@ Leyenda: ✅ hecho y probado · 🟡 hecho, pendiente de verificar · ⬜ por ha
 - ✅ Inspección visual de fotogramas reales (intro, juego, córner, descanso con estadísticas, final).
 - 🟡 La estética del vídeo (tamaño de jugadores, ritmo) está validada solo a ojo en capturas; pendiente de ver en un móvil real.
 - 🟡 Reproducción en tiempo real a 60 fps no medida (solo en Chromium headless del sandbox).
-## Fase 4 — Renderizado y exportación MP4 vertical ⬜
+## Fase 4 — Renderizado y exportación MP4 vertical
+- ✅ Exportador real (`exportVideo`): render fotograma a fotograma + WebCodecs + mediabunny → MP4 1080×1920, 30 fps, fastStart.
+- ✅ **Verificado con ffprobe** (`npm run verify:export`, 13/13): MP4 con VP9 de un partido 2–1 (51,8 s): `1080×1920`, `30/1`, 1555 fotogramas
+  (= esperados), duración 51,83 s vs 51,81 s, `ftyp,moov,mdat`, decodifica sin errores; fotogramas extraídos del MP4 coinciden con la
+  vista previa. Tardó 76 s en el sandbox (VP9 por software) y pesó 35,2 MB.
+- ✅ Empaquetado H.264 de mediabunny verificado (fotogramas de la app → libx264 → remux): `h264/avc1 High`, `yuv420p`, 1080×1920, 30 fps.
+- ✅ Soporte de códec detectado con `canEncodeVideo`: en el sandbox muestra el error claro con navegadores recomendados y desactiva el botón.
+- ✅ Errores de memoria/códec/cancelación tipados y probados; nombres de archivo `liga_local_vs_visitante_fecha_semilla.mp4`.
+- ✅ e2e (proyecto VP9): exportar → progreso → `<video>` reproducible (1080×1920) → descarga validada con ffprobe; cancelar y reintentar.
+- 🟡 **Pendiente de verificar: la codificación H.264 en un navegador real** (Chrome/Edge/Safari). El Chromium del sandbox no tiene
+  codificador H.264; el código es el mismo que en VP9 salvo el códec (`avc`), pero no se ha ejecutado.
+- 🟡 Sin audio en el vídeo (ver Fase 3). Rendimiento de la exportación en móviles no medido.
 ## Fase 5 — Lotes, descargas y errores ⬜
 ## Fase 6 — e2e, optimización, documentación y despliegue (preparado, sin desplegar) ⬜

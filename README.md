@@ -11,7 +11,7 @@ Aplicación web (100 % cliente, coste 0 €) que:
 > Todas las simulaciones y vídeos llevan la etiqueta visible **«Simulación ficticia»**. No son predicciones.
 
 ## Estado
-Fase 3 de 6 completada: base del proyecto, calendario real y motor de simulación 2D con vista previa (estilo «Arena» como los vídeos virales, o estilo táctico con 22 jugadores) (LaLiga, Premier, Bundesliga, Serie A, Ligue 1 2026-27 y Champions League 2025-26) con filtros, buscador y selección de partido. Consulta [TASKS.md](TASKS.md) para ver qué funciona (probado) y qué
+Fase 4 de 6 completada: calendario real, motor de simulación 2D con vista previa y exportación a MP4 vertical 1080×1920 (estilo «Arena» como los vídeos virales, o estilo táctico con 22 jugadores) (LaLiga, Premier, Bundesliga, Serie A, Ligue 1 2026-27 y Champions League 2025-26) con filtros, buscador y selección de partido. Consulta [TASKS.md](TASKS.md) para ver qué funciona (probado) y qué
 está pendiente, y [ARCHITECTURE.md](ARCHITECTURE.md) para el diseño.
 
 ## Requisitos
@@ -23,7 +23,8 @@ está pendiente, y [ARCHITECTURE.md](ARCHITECTURE.md) para el diseño.
 npm ci            # instala las dependencias exactas
 npm run dev       # servidor de desarrollo
 npm run ci        # typecheck + lint + tests + build
-npm run test:e2e  # pruebas e2e con Playwright (Chromium)
+npm run test:e2e  # pruebas e2e con Playwright (Chromium); incluye una exportación real (~2 min)
+npm run verify:export  # exporta un MP4 en Chromium y lo valida con ffprobe/ffmpeg (necesitan estar instalados)
 ```
 
 ### Competiciones 2026-27

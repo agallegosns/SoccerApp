@@ -1,6 +1,6 @@
 # Arquitectura de futbol-sim
 
-> Estado: Fase 3. Las secciones marcadas **(planificado)** describen el diseño objetivo y todavía no están implementadas.
+> Estado: Fase 4. Las secciones marcadas **(planificado)** describen el diseño objetivo y todavía no están implementadas.
 
 ## Principios
 1. Todo en el cliente, coste 0 €: sin backend ni cuentas.
@@ -101,14 +101,28 @@ Dos estilos de vídeo sobre **la misma simulación** (`src/features/simulation/r
 - Estudio (`SimulationStudio`): selector de estilo, vista previa con reproducir/pausar/posición, semilla, marcador aleatorio o fijado y
   lista de sucesos (al pulsar uno salta a ese momento). Respeta `prefers-reduced-motion` (no reproduce solo).
 
-## Exportación (planificado)
-- Exportación: `VideoEncoder` (WebCodecs, H.264 `avc1`) + `mediabunny` para muxear a MP4, 30 fps, frame a frame
-  (no en tiempo real). Si `VideoEncoder.isConfigSupported` falla para H.264 se muestra un error claro
-  recomendando Chrome/Edge/Safari recientes; nunca se simula una exportación.
-- **Verificación del export:** el Chromium del sandbox no incluye el codificador H.264 (VP9/AV1/VP8 sí). El
-  exportador recibe el códec como parámetro (H.264 por defecto en producción). La prueba en sandbox ejecuta el
-  mismo pipeline con VP9 en contenedor MP4 y valida con `ffprobe` (1080×1920, fps, duración); además se valida
-  el empaquetado H.264 codificando los mismos frames con `ffmpeg`/`libx264`. Ver `TASKS.md` para el estado real.
+## Exportación MP4 (implementado en Fase 4, `src/features/export`)
+- `exportVideo()`: renderiza **fotograma a fotograma** (no en tiempo real) con `drawVideoFrame` (la misma función que la vista previa) sobre
+  un `OffscreenCanvas` 1080×1920 y lo codifica con WebCodecs a través de `mediabunny` (`CanvasSource` → `Output` con `Mp4OutputFormat`
+  `fastStart: 'in-memory'`, o sea `moov` al principio del archivo, mejor para subirlo a TikTok). 30 fps, ~6 Mbps VBR, fotograma clave cada
+  2 s, sin pérdida de fotogramas (`latencyMode: 'quality'`). Metadatos: título y «Simulación ficticia».
+- **Códec del producto: H.264 (`avc`)**. `checkExportSupport()` comprueba `VideoEncoder` y `canEncodeVideo(avc, 1080×1920, 30 fps)`; si no hay
+  soporte lanza `ExportError` con el mensaje «Este navegador no puede codificar vídeo H.264 a 1080×1920. Usa Chrome, Edge o Safari
+  recientes.» y el botón de exportar queda desactivado. Nunca se finge una exportación.
+- Errores tipados (`ExportError`): `unsupported-browser`, `codec-unsupported`, `out-of-memory` (RangeError/cuota → «cierra otras pestañas…»),
+  `cancelled` (AbortSignal, libera el codificador) y `encode-failed`.
+- Progreso por fotograma (+ tiempo restante estimado), cancelación y reintento en `ExportPanel`; el resultado se muestra en un `<video>`
+  y se descarga con nombre `liga_local_vs_visitante_fecha_semilla.mp4` (`exportFileName`: minúsculas, sin acentos, ø/æ/ß transliterados).
+- Memoria: el MP4 se arma en memoria (≈ 35 MB para 52 s a 6 Mbps) y el `ImageBitmap`/frames no se acumulan (cada fotograma se codifica y
+  se descarta; `CanvasSource.add` aplica contrapresión).
+- **Verificación (`npm run verify:export`, `scripts/verify-export.ts`)**: el Chromium del sandbox **no codifica H.264** pero sí VP9. Se
+  ejecuta el exportador real en Chromium con VP9 en MP4 y se valida con ffprobe/ffmpeg (contenedor, códec, 1080×1920, 30 fps, nº de
+  fotogramas, duración, fastStart y decodificación sin errores). Para H.264 se comprueba el empaquetado: fotogramas de la app →
+  `libx264` → desmux con mediabunny → remux con la misma configuración del exportador → ffprobe (`h264/avc1 High`, 1080×1920,
+  `yuv420p`, 30 fps, `moov` primero). **Lo que no se puede probar en el sandbox es el codificador H.264 del navegador del usuario.**
+- `VITE_EXPORT_CODEC` (sólo al compilar) cambia el códec para probar la interfaz en navegadores sin H.264; el producto compila con
+  `avc`. Playwright tiene un proyecto `chromium-export-vp9` que compila con VP9 y ejecuta el flujo completo (progreso, cancelar, vídeo
+  reproducible, descarga validada con ffprobe).
 
 ## Calidad
 - TypeScript estricto + `noUncheckedIndexedAccess`; ESLint `strictTypeChecked`; sin `any`, sin `catch {}` vacío.

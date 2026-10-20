@@ -149,10 +149,29 @@ test.describe('estudio de simulación', () => {
     await expect(page.getByTestId('play-toggle')).toHaveAttribute('aria-label', 'Reproducir');
   });
 
+  test('exportar: sin H.264 el navegador lo explica con claridad; con H.264 exporta de verdad', async ({ page }) => {
+    await openStudio(page);
+    const h264 = await page.evaluate(
+      async () =>
+        typeof VideoEncoder !== 'undefined' &&
+        (await VideoEncoder.isConfigSupported({ codec: 'avc1.640028', width: 1080, height: 1920, bitrate: 6_000_000, framerate: 30 })).supported,
+    );
+    if (!h264) {
+      await expect(page.getByTestId('export-unsupported')).toContainText('H.264');
+      await expect(page.getByTestId('export-unsupported')).toContainText('Chrome, Edge o Safari recientes');
+      await expect(page.getByTestId('export-button')).toBeDisabled();
+    } else {
+      await expect(page.getByTestId('export-button')).toBeEnabled();
+      await page.getByTestId('export-button').click();
+      await expect(page.getByTestId('export-result')).toBeVisible({ timeout: 300_000 });
+      await expect(page.getByTestId('download-link')).toHaveAttribute('download', /\.mp4$/);
+    }
+  });
+
   test('una semilla no válida muestra un aviso y no rompe la simulación', async ({ page }) => {
     await openStudio(page);
     await setSeed(page, 'abc');
-    await expect(page.getByRole('alert')).toContainText('entero');
+    await expect(page.getByRole('alert').filter({ hasText: 'entero' })).toBeVisible();
     await expect(page.getByTestId('preview-canvas')).toBeVisible();
   });
 
