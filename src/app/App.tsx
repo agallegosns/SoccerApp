@@ -1,10 +1,12 @@
 import { Trophy } from 'lucide-react';
-import { useState } from 'react';
+import { Suspense, lazy, useState } from 'react';
 
 import { createServices } from '../data/registry.ts';
 import type { Match } from '../data/types.ts';
 import { CalendarView } from '../features/calendar/CalendarView.tsx';
-import { SimulationStudio } from '../features/simulation/SimulationStudio.tsx';
+
+// El estudio (motor, render, exportador y mediabunny) pesa mucho más que el calendario: se carga sólo al abrirlo.
+const SimulationStudio = lazy(() => import('../features/simulation/SimulationStudio.tsx').then((m) => ({ default: m.SimulationStudio })));
 
 export function App() {
   const [services] = useState(createServices);
@@ -26,12 +28,20 @@ export function App() {
         {studioMatch === null ? (
           <CalendarView service={services.service} imported={services.imported} selected={selected} onSelect={setSelected} onSimulate={setStudioMatch} />
         ) : (
-          <SimulationStudio
-            match={studioMatch}
-            onBack={() => {
-              setStudioMatch(null);
-            }}
-          />
+          <Suspense
+            fallback={
+              <p className="muted" role="status">
+                Cargando el estudio de simulación…
+              </p>
+            }
+          >
+            <SimulationStudio
+              match={studioMatch}
+              onBack={() => {
+                setStudioMatch(null);
+              }}
+            />
+          </Suspense>
         )}
       </main>
     </div>

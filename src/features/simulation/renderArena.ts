@@ -13,7 +13,7 @@ const BALL_PX = BALL_R * R * 1.15;
 const GOLD = '#fde047';
 
 type Layer = HTMLCanvasElement | OffscreenCanvas;
-let glowLayer: Layer | null = null;
+let staticLayer: Layer | null = null;
 
 function makeLayer(): Layer {
   if (typeof OffscreenCanvas !== 'undefined') return new OffscreenCanvas(VIDEO_WIDTH, VIDEO_HEIGHT);
@@ -23,12 +23,18 @@ function makeLayer(): Layer {
   return canvas;
 }
 
-/** Capa fija (no depende de la rotación): suelo de la arena y halo del aro. */
+/** Capa fija (no depende de la rotación ni del tiempo): degradado de fondo, halo del aro y suelo de la arena. Una sola copia por fotograma. */
 function arenaLayer(): Layer {
-  if (glowLayer !== null) return glowLayer;
+  if (staticLayer !== null) return staticLayer;
   const layer = makeLayer();
   const ctx: Ctx2D | null = layer.getContext('2d');
   if (ctx === null) throw new Error('No se pudo crear el lienzo de la arena');
+  const bg = ctx.createLinearGradient(0, 0, 0, VIDEO_HEIGHT);
+  bg.addColorStop(0, '#070d1c');
+  bg.addColorStop(0.5, '#0b1530');
+  bg.addColorStop(1, '#070d1c');
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, VIDEO_WIDTH, VIDEO_HEIGHT);
   const halo = ctx.createRadialGradient(ARENA.cx, ARENA.cy, R * 0.9, ARENA.cx, ARENA.cy, R * 1.45);
   halo.addColorStop(0, 'rgba(96, 165, 250, 0.42)');
   halo.addColorStop(1, 'rgba(96, 165, 250, 0)');
@@ -44,7 +50,7 @@ function arenaLayer(): Layer {
   ctx.beginPath();
   ctx.arc(ARENA.cx, ARENA.cy, R, 0, Math.PI * 2);
   ctx.fill();
-  glowLayer = layer;
+  staticLayer = layer;
   return layer;
 }
 
@@ -52,24 +58,21 @@ function other(side: 'home' | 'away'): 'home' | 'away' {
   return side === 'home' ? 'away' : 'home';
 }
 
+const GLOW_R = 440;
+
 function drawBackground(ctx: Ctx2D, sim: Simulation, frame: FrameState): void {
-  const g = ctx.createLinearGradient(0, 0, 0, VIDEO_HEIGHT);
-  g.addColorStop(0, '#070d1c');
-  g.addColorStop(0.5, '#0b1530');
-  g.addColorStop(1, '#070d1c');
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, VIDEO_WIDTH, VIDEO_HEIGHT);
-  // Resplandor del equipo con la posesión.
+  ctx.drawImage(arenaLayer(), 0, 0);
+  // Resplandor del equipo con la posesión (sólo se rellena el cuadrado que lo contiene).
   for (const side of ['home', 'away'] as const) {
     const team = sim.script.teams[side];
     const x = side === 'home' ? 140 : VIDEO_WIDTH - 140;
-    const y = side === 'home' ? 700 : 1400;
-    const glow = ctx.createRadialGradient(x, y, 0, x, y, 620);
+    const y = side === 'home' ? 760 : 1380;
+    const glow = ctx.createRadialGradient(x, y, 0, x, y, GLOW_R);
     glow.addColorStop(0, team.style.primary);
     glow.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.globalAlpha = 0.1 + 0.2 * frame.possession[side];
     ctx.fillStyle = glow;
-    ctx.fillRect(0, 0, VIDEO_WIDTH, VIDEO_HEIGHT);
+    ctx.fillRect(x - GLOW_R, y - GLOW_R, 2 * GLOW_R, 2 * GLOW_R);
   }
   ctx.globalAlpha = 1;
   // Polvo de estadio: puntos que derivan despacio (función pura del tiempo).
@@ -558,7 +561,6 @@ export function drawArenaFrame(ctx: Ctx2D, sim: Simulation, t: number, meta: Ren
   const shake = shakeOffset(sim, frame.t);
   ctx.save();
   ctx.translate(shake.x, shake.y);
-  ctx.drawImage(arenaLayer(), 0, 0);
   drawFloorMarks(ctx, angle);
   drawRing(ctx, angle);
   // La portería de arriba es la del equipo que defiende ese lado (cambian de campo en la 2.ª parte).

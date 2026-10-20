@@ -18,7 +18,6 @@ export function MatchCard({ match, selected, onSelect }: Props) {
       className="match"
       aria-pressed={selected}
       onClick={() => { onSelect(match); }}
-      aria-label={`${match.home} contra ${match.away}, ${kickoff.time ?? 'hora por confirmar'}${scoreText === null ? '' : `, resultado real ${scoreText}`}`}
     >
       <span className="match__time">
         {kickoff.time ?? <span className="match__tbc">Hora por confirmar</span>}
@@ -26,6 +25,7 @@ export function MatchCard({ match, selected, onSelect }: Props) {
       </span>
       <span className="match__teams">
         <span className="match__team">{match.home}</span>
+        <span className="visually-hidden"> contra </span>
         <span className="match__team">{match.away}</span>
       </span>
       <span className="match__meta">

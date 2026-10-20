@@ -142,7 +142,7 @@
 }
 
 .dialog::backdrop {
-  background: rgb(0 0 0 / 0.65);
+  background: var(--color-overlay);
 }
 
 .dialog__body {

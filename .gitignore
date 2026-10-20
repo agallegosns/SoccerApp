@@ -10,3 +10,4 @@ test-results
 .DS_Store
 e2e/artifacts
 dist-vp9
+dist-base

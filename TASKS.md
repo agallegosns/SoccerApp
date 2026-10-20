@@ -96,4 +96,17 @@ Leyenda: ✅ hecho y probado · 🟡 hecho, pendiente de verificar · ⬜ por ha
 - ✅ Con el navegador sin H.264 (sandbox) el lote lo explica y desactiva «Generar».
 - 🟡 La pausa por falta de memoria está probada con el generador falso (RangeError), **no con una falta de memoria real** del navegador.
 - 🟡 El ZIP de un lote grande (10 × ~35 MB) no se ha medido en memoria; el tope de 10 vídeos es una estimación prudente.
-## Fase 6 — e2e, optimización, documentación y despliegue (preparado, sin desplegar) ⬜
+## Fase 6 — e2e, optimización, documentación y despliegue (preparado, sin desplegar)
+- ✅ e2e Playwright: calendario, filtros, errores y caché, importación, estudio, estilos, exportación real, lotes con ZIP, accesibilidad (axe) y subruta.
+- ✅ Accesibilidad con axe (WCAG A/AA): 6 escenarios sin violaciones; axe encontró y se corrigió un fallo real (nombre accesible de los partidos, WCAG 2.5.3).
+- ✅ Reglas del proyecto como tests (`rules.test.ts`): detectó un `rgb()` suelto fuera de `tokens.css` (corregido con `--color-overlay`).
+- ✅ Optimización medida: JS inicial 533 → 274 kB (carga diferida del estudio); dibujado Arena 40 → 19 ms; exportación de 52 s de vídeo 76 → 41 s en el sandbox.
+- ✅ Memoria: sin fugas (heap tras GC 18,0 MB → 18,1 MB tras dos exportaciones; pico +38 MB).
+- ✅ Despliegue preparado: `VITE_BASE`, prueba e2e bajo `/SoccerApp/` (recursos, Excel de la Champions y trozo diferido sin 404), workflow de Pages **solo manual**.
+- ✅ Documentación: README con capturas, ARCHITECTURE, TASKS, CLAUDE, `docs/DESPLIEGUE.md` y `docs/football-data-org.md`.
+- 🟡 **No desplegado**: pendiente de que el usuario active Pages (Settings → Pages → GitHub Actions) y lance el workflow.
+- 🟡 Los workflows de GitHub Actions (`ci.yml` con job e2e, `deploy.yml`) están escritos pero **no se han podido ejecutar** aquí.
+- 🟡 **H.264 real**: no verificado en un navegador con codificador H.264 (ver Fase 4). Recomendado antes de publicar: abrir la app en Chrome/Edge/Safari, exportar un vídeo y
+  comprobarlo con `ffprobe` (códec `h264`, 1080×1920, 30 fps).
+- 🟡 El rendimiento en móviles reales y el tiempo de exportación con H.264 por hardware no se han medido.
+- 🟡 Sin audio; escudos genéricos; Europa League/Conference League sin datos hasta que se aporten los Excel; faltan las eliminatorias de la Champions 2026-27.

@@ -1,6 +1,6 @@
 # Arquitectura de futbol-sim
 
-> Estado: Fase 5. Las secciones marcadas **(planificado)** describen el diseño objetivo y todavía no están implementadas.
+> Estado: las seis fases completadas. Las secciones marcadas **(planificado)** describen el diseño objetivo y todavía no están implementadas.
 
 ## Principios
 1. Todo en el cliente, coste 0 €: sin backend ni cuentas.
@@ -137,6 +137,21 @@ Dos estilos de vídeo sobre **la misma simulación** (`src/features/simulation/r
   ya está comprimido; cada vídeo se lee por trozos). Incluye `LEEME.txt` («SIMULACIONES FICTICIAS…») y el nombre es `…_N-videos.zip`.
 - Gestión de errores del producto: red del calendario (reintentos + caché), códec no soportado (mensaje con navegadores recomendados y botones
   desactivados), memoria insuficiente (pausa de la cola / mensaje), cancelación (libera el codificador) y fallos del ZIP (mensaje + reintento).
+
+## Rendimiento, memoria y accesibilidad (Fase 6)
+- **Carga**: el estudio (motor, render, exportador, mediabunny y fflate) se carga de forma diferida (`React.lazy`): JS inicial 533 kB → 274 kB (160 → 88 kB gzip);
+  el calendario no paga el coste del motor ni del exportador.
+- **Dibujado** (medido con `npm run bench`, rasterización forzada, Chromium sin GPU): Arena ≈ 19 ms/fotograma de media (p95 25 ms), Táctico ≈ 7 ms; `simulate()` 5 ms y
+  `frame()` 0,02 ms. Optimizaciones: una sola capa estática (fondo + halo + suelo), resplandores acotados al cuadrado que los contiene y escudos precalculados como
+  sprites (40 → 19 ms).
+- **Exportación**: 1555 fotogramas (52 s de vídeo) en ≈ 41 s (≈ 37 fps) con VP9 por software en el sandbox; con H.264 por hardware en un móvil/PC debería ser más
+  rápido (no medido). **Memoria**: el montón de JS sube ≈ 38 MB mientras codifica y vuelve a ≈ 18 MB tras el GC, igual tras la 2.ª exportación (no hay fugas). El MP4 final
+  (≈ 35 MB) se arma en un `ArrayBuffer` fuera del montón de JS.
+- **Accesibilidad**: axe-core (WCAG 2.x A/AA, incluido contraste) en e2e: calendario, calendario con selección, diálogo de importación, estudio (Arena y Táctico) y móvil sin
+  violaciones; tokens con contraste AA comprobado en unitarias. Los nombres accesibles se derivan del contenido visible (WCAG 2.5.3).
+- **Reglas del proyecto como tests** (`src/test/rules.test.ts`): sin emojis, colores sólo en `tokens.css`, sin `any`/`@ts-ignore`/`catch {}` vacíos, iconos SVG con
+  `aria-hidden` y zonas táctiles con `--tap`.
+- **Subruta/despliegue**: `VITE_BASE` + prueba e2e (`chromium-subpath`); workflow de Pages sólo manual (ver `docs/DESPLIEGUE.md`).
 
 ## Calidad
 - TypeScript estricto + `noUncheckedIndexedAccess`; ESLint `strictTypeChecked`; sin `any`, sin `catch {}` vacío.

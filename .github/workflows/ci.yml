@@ -16,3 +16,23 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run ci
+
+  e2e:
+    # Pruebas de navegador (Chromium) incluida una exportación real de vídeo validada con ffprobe. Tarda varios minutos.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg
+      - run: npx playwright install --with-deps chromium
+      - run: npx playwright test
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-traces
+          path: test-results

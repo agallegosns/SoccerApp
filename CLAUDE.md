@@ -35,7 +35,14 @@ La publicación en TikTok es manual. Idioma de la interfaz y de la documentació
 - `src/features/{calendar,simulation,export}`: funcionalidades de la interfaz.
 - `src/ui`: componentes y estilos compartidos. `src/app`: composición de la aplicación. `src/test`: utilidades de prueba.
 
+## Estado
+Las seis fases están hechas (ver `TASKS.md` para lo probado y lo pendiente de verificar). Lo no verificado más importante: la **codificación H.264 en un
+navegador real** (el Chromium del sandbox no tiene codificador H.264; se verificó con VP9 y el empaquetado H.264 aparte), el uso del calendario real desde un navegador
+con red y los importadores de football-data.org / fixturedownload.com con archivos reales.
+
 ## Comandos
 - `npm run dev` · `npm run build` · `npm run preview`
-- `npm run ci` → typecheck + lint + test + build (obligatorio antes de commit)
-- `npm run test:e2e` → Playwright (construye y sirve `dist`)
+- `npm run ci` → typecheck + lint + test + build (obligatorio antes de commit; incluye `src/test/rules.test.ts`, que vigila emojis, colores fuera de `tokens.css`, `any` y `catch {}`)
+- `npm run test:e2e` → Playwright, proyectos: `chromium-desktop` (incluye accesibilidad con axe), `chromium-subpath` y `chromium-export-vp9` (exportación real, lenta)
+- `npm run verify:export` · `npm run bench` → verificación con ffprobe y medición de rendimiento/memoria (necesitan Chromium y ffmpeg)
+- El despliegue (`.github/workflows/deploy.yml`) es **solo manual**; no publicar sin avisar al usuario.

@@ -50,8 +50,39 @@ function drawPattern(ctx: Ctx2D, pattern: CrestPattern, secondary: string, r: nu
   }
 }
 
+type Sprite = HTMLCanvasElement | OffscreenCanvas;
+const sprites = new Map<string, Sprite>();
+
+function makeSprite(size: number): Sprite {
+  if (typeof OffscreenCanvas !== 'undefined') return new OffscreenCanvas(size, size);
+  const canvas = document.createElement('canvas');
+  canvas.width = size;
+  canvas.height = size;
+  return canvas;
+}
+
+/** Escudo ya dibujado (sprite) para no repetir recortes y degradados en cada fotograma. */
+function crestSprite(team: ResolvedTeam, r: number): { sprite: Sprite; pad: number } {
+  const pad = Math.ceil(r * 0.2);
+  const key = `${team.name}|${team.style.primary}|${String(r)}`;
+  const cached = sprites.get(key);
+  if (cached !== undefined) return { sprite: cached, pad };
+  const size = Math.ceil(2 * r + 2 * pad);
+  const sprite = makeSprite(size);
+  const sctx: Ctx2D | null = sprite.getContext('2d');
+  if (sctx === null) throw new Error('No se pudo crear el sprite del escudo');
+  paintCrest(sctx, team, size / 2, size / 2, r);
+  sprites.set(key, sprite);
+  return { sprite, pad };
+}
+
 /** Escudo circular genérico del equipo: colores del equipo, patrón propio y abreviatura. */
 export function drawCrest(ctx: Ctx2D, team: ResolvedTeam, cx: number, cy: number, r: number): void {
+  const { sprite, pad } = crestSprite(team, r);
+  ctx.drawImage(sprite, cx - r - pad, cy - r - pad);
+}
+
+function paintCrest(ctx: Ctx2D, team: ResolvedTeam, cx: number, cy: number, r: number): void {
   ctx.save();
   ctx.translate(cx, cy);
   // Sombra de contacto.

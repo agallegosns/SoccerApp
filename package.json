@@ -13,7 +13,8 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "ci": "npm run typecheck && npm run lint && npm run test && npm run build",
-    "verify:export": "node --experimental-transform-types --no-warnings scripts/verify-export.ts"
+    "verify:export": "node --experimental-transform-types --no-warnings scripts/verify-export.ts",
+    "bench": "node --experimental-transform-types --no-warnings scripts/bench.ts"
   },
   "dependencies": {
     "fflate": "0.8.3",
@@ -23,6 +24,7 @@
     "react-dom": "19.3.1"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.14.0",
     "@eslint/js": "10.0.1",
     "@playwright/test": "1.56.1",
     "@types/node": "26.6.5",

@@ -1,36 +1,67 @@
 # futbol-sim
 
-Aplicación web (100 % cliente, coste 0 €) que:
+Aplicación web **100 % en el navegador** (sin backend, sin cuentas, coste 0 €) que:
 
-1. muestra un **calendario de partidos reales**,
+1. muestra un **calendario de partidos reales** (LaLiga, Premier, Bundesliga, Serie A, Ligue 1, Champions League 2026-27 y 2025-26; Europa League y
+   Conference League 2026-27 preparadas para importar),
 2. permite elegir un partido,
-3. genera **simulaciones 2D ficticias** (campo, jugadores, balón, ocasiones, goles, marcador),
-4. exporta cada simulación como **MP4 vertical 9:16 (1080×1920)** listo para TikTok,
-5. permite descargar los vídeos (la publicación en TikTok es manual).
+3. genera **simulaciones 2D ficticias** con jugadas coherentes con el marcador (que puedes fijar o dejar aleatorio),
+4. permite generar **varias simulaciones distintas** del mismo partido (cada semilla da un partido diferente),
+5. exporta cada una como **MP4 vertical 9:16 (1080×1920, 30 fps)** listo para TikTok,
+6. permite descargar los vídeos uno a uno o en **ZIP** (la publicación en TikTok es manual).
 
-> Todas las simulaciones y vídeos llevan la etiqueta visible **«Simulación ficticia»**. No son predicciones.
+> Todas las simulaciones y todos los vídeos llevan la etiqueta visible **«Simulación ficticia»**. Los partidos (equipos, fechas) son reales; los resultados y
+> las jugadas son inventados. Nunca son una predicción.
 
-## Estado
-Fase 5 de 6 completada: calendario real, motor de simulación 2D, exportación a MP4 vertical 1080×1920 y generación por lotes con descarga individual o en ZIP (estilo «Arena» como los vídeos virales, o estilo táctico con 22 jugadores) (LaLiga, Premier, Bundesliga, Serie A, Ligue 1 2026-27 y Champions League 2025-26) con filtros, buscador y selección de partido. Consulta [TASKS.md](TASKS.md) para ver qué funciona (probado) y qué
-está pendiente, y [ARCHITECTURE.md](ARCHITECTURE.md) para el diseño.
+| Calendario real | Estudio de simulación |
+| --- | --- |
+| ![Calendario](docs/img/calendario.png) | ![Estudio](docs/img/estudio.png) |
+
+El estudio de la captura se hizo en un navegador sin codificador H.264, por eso muestra el aviso de exportación; en Chrome, Edge o Safari recientes el botón está activo.
+
+| Estilo Arena (por defecto) | Arena en juego | Estilo táctico (22 jugadores) |
+| --- | --- | --- |
+| ![Arena](docs/img/video-arena.png) | ![Arena en juego](docs/img/video-arena-juego.png) | ![Táctico](docs/img/video-tactico.png) |
+
+## Cómo se usa
+1. **Calendario**: elige competición, filtra por fecha («Próximos/Jugados/Todos»), busca un equipo y pulsa un partido → *Crear simulaciones*.
+2. **Estudio**: reproduce la vista previa, cambia el estilo (*Arena* o *Táctico*), la semilla («Otra semilla») o fija el marcador (0–9 por equipo).
+3. **Exportar MP4**: un vídeo con los parámetros actuales. **Generar varias simulaciones**: de 1 a 10 vídeos con semillas distintas, con progreso, cancelar,
+   reintentar y *Descargar todo (ZIP)*.
+4. Sube el vídeo a TikTok tú mismo.
+
+### Competiciones
+- **LaLiga, Premier, Bundesliga, Serie A y Ligue 1 (2026-27)**: datos abiertos de [openfootball](https://github.com/openfootball/football.json) (sin clave).
+  Los horarios están en **hora local de la competición, sin zona horaria declarada**; la app no los convierte y lo avisa. Muchos partidos aún no tienen hora.
+- **Champions League 2026-27**: fase de liga (144 partidos) incluida desde el Excel aportado (`public/data/champions-league-2026-27.xlsx`). Faltan las eliminatorias.
+- **Champions League 2025-26**: temporada anterior (finalizada) de openfootball.
+- **Europa League y Conference League 2026-27**: ninguna fuente libre las publica aún. Pulsa su pestaña → *Importar calendario* y sube un Excel con las columnas
+  `Jornada · Fecha · Hora · Equipo Local · Equipo Visitante` (como el de la Champions), o un JSON/TXT (openfootball, football-data.org o fixturedownload.com).
+  Se guarda sólo en tu navegador. Otros orígenes: ver [docs/football-data-org.md](docs/football-data-org.md) (no activado).
 
 ## Requisitos
-- Node.js ≥ 22 y npm ≥ 10.
-- Para exportar vídeo: un navegador con WebCodecs y codificación H.264 (Chrome, Edge o Safari recientes).
+- Node.js ≥ 22 y npm ≥ 10 para desarrollar.
+- Para **exportar vídeo**: un navegador con WebCodecs que codifique **H.264** (Chrome, Edge o Safari recientes). Si no, la app lo explica y desactiva la exportación.
+  El vídeo sale **sin audio** (puedes añadir sonido al publicarlo en TikTok).
 
-## Uso
+## Comandos
 ```bash
-npm ci            # instala las dependencias exactas
-npm run dev       # servidor de desarrollo
-npm run ci        # typecheck + lint + tests + build
-npm run test:e2e  # pruebas e2e con Playwright (Chromium); incluye una exportación real (~2 min)
-npm run verify:export  # exporta un MP4 en Chromium y lo valida con ffprobe/ffmpeg (necesitan estar instalados)
+npm ci                # instala las dependencias exactas
+npm run dev           # servidor de desarrollo
+npm run ci            # typecheck + lint + tests unitarios + build (obligatorio antes de cada commit)
+npm run test:e2e      # e2e con Playwright (Chromium): calendario, estudio, accesibilidad (axe), subruta y exportaciones reales (~8 min)
+npm run verify:export # exporta un MP4 en Chromium y lo valida con ffprobe/ffmpeg (deben estar instalados)
+npm run bench         # rendimiento del dibujado (BENCH_EXPORT=1 añade la medición de memoria en exportaciones)
 ```
 
-### Competiciones 2026-27
-- **LaLiga**: datos de openfootball (sin clave).
-- **Champions League**: fase de liga incluida desde el Excel aportado (`public/data/champions-league-2026-27.xlsx`).
-- **Europa League y Conference League**: preparadas. Pulsa su pestaña → *Importar calendario* y sube un Excel con las columnas
-  `Jornada · Fecha · Hora · Equipo Local · Equipo Visitante` (como el de la Champions), o un JSON/TXT. Se guarda solo en tu navegador.
+## Documentación
+- [ARCHITECTURE.md](ARCHITECTURE.md): diseño (datos, motor, render, exportación, lotes, calidad).
+- [TASKS.md](TASKS.md): qué está hecho y **probado**, qué queda **pendiente de verificar** y límites conocidos.
+- [CLAUDE.md](CLAUDE.md): reglas permanentes del proyecto.
+- [docs/DESPLIEGUE.md](docs/DESPLIEGUE.md): publicación en GitHub Pages (preparada, **sin desplegar**).
+- [docs/football-data-org.md](docs/football-data-org.md): cómo enchufar football-data.org (no activado).
 
-Las reglas del proyecto están en [CLAUDE.md](CLAUDE.md).
+## Calidad (resumen medido)
+- 125+ tests unitarios (motor determinista, coherencia marcador/goles, datos reales, cola de lotes, ZIP, reglas del proyecto) y e2e en Chromium.
+- Accesibilidad: axe (WCAG 2.x A/AA, incluido contraste) sin violaciones en calendario, diálogo y estudio, en escritorio y móvil.
+- Exportación de ~52 s de vídeo en ≈ 41 s en un Chromium sin GPU; el montón de JS vuelve a su nivel tras cada exportación (sin fugas).
