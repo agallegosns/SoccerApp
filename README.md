@@ -28,7 +28,7 @@ El estudio de la captura se hizo en un navegador sin codificador H.264, por eso 
 2. **Estudio**: reproduce la vista previa, cambia el estilo (*Arena* o *Táctico*), el **ritmo** (*rápido* por defecto, ~26 s; *normal*, ~50 s), la semilla («Otra semilla») o fija el marcador (0–9 por equipo). En *Escudos* puedes subir el escudo de cada equipo.
 3. **Exportar MP4**: un vídeo con los parámetros actuales. **Generar varias simulaciones**: de 1 a 10 vídeos con semillas distintas, con progreso, cancelar,
    reintentar y *Descargar todo (ZIP)*.
-4. Cuando descargas un vídeo (suelto o en ZIP) la tarjeta de ese partido se pone **verde** con «Descargado» en el calendario (se recuerda en tu navegador).
+4. Cuando descargas un vídeo (suelto o en ZIP) la tarjeta de ese partido se pone **verde** con «Hecho» en el calendario (se recuerda en tu navegador). Los partidos que ya hiciste por tu cuenta los marcas a mano con el círculo de la esquina de cada tarjeta (otra pulsación lo quita).
 4. Sube el vídeo a TikTok tú mismo.
 
 ### Ritmo y escudos
@@ -39,12 +39,16 @@ El estudio de la captura se hizo en un navegador sin codificador H.264, por eso 
 
 ### Competiciones
 - **LaLiga, Premier, Bundesliga, Serie A y Ligue 1 (2026-27)**: datos abiertos de [openfootball](https://github.com/openfootball/football.json) (sin clave).
-  Los horarios están en **hora local de la competición, sin zona horaria declarada**; la app no los convierte y lo avisa. Muchos partidos aún no tienen hora.
+  Los horarios están en **hora local de la competición, sin zona horaria declarada**; la app no los convierte (ya no lo muestra como aviso en pantalla). Muchos partidos aún no tienen hora.
 - **Champions League 2026-27**: fase de liga (144 partidos) incluida desde el Excel aportado (`public/data/champions-league-2026-27.xlsx`). Faltan las eliminatorias.
 - **Champions League 2025-26**: temporada anterior (finalizada) de openfootball.
 - **Europa League y Conference League 2026-27**: ninguna fuente libre las publica aún. Pulsa su pestaña → *Importar calendario* y sube un Excel con las columnas
   `Jornada · Fecha · Hora · Equipo Local · Equipo Visitante` (como el de la Champions), o un JSON/TXT (openfootball, football-data.org o fixturedownload.com).
   Se guarda sólo en tu navegador. Otros orígenes: ver [docs/football-data-org.md](docs/football-data-org.md) (no activado).
+
+## Instalar en el móvil y actualizaciones
+- **Añadir a la pantalla de inicio** (Safari: Compartir → «Añadir a pantalla de inicio»; Chrome: menú → «Instalar app» o «Añadir a pantalla de inicio»): se abre como una app, con su icono.
+- **Se actualiza sola**: al abrirla, al volver a ella, al recuperar la conexión y cada 5 minutos comprueba `version.json`; si hay versión nueva se recarga sola. Si estás exportando, espera a que termine.
 
 ## Requisitos
 - Node.js ≥ 22 y npm ≥ 10 para desarrollar.

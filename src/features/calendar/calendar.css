@@ -226,15 +226,6 @@
   .calendar__title .muted {
     display: none;
   }
-  .infos .notice {
-    font-size: var(--text-xs);
-    padding: var(--space-2) var(--space-3);
-  }
-}
-
-.infos {
-  display: grid;
-  gap: var(--space-2);
 }
 
 .count {
@@ -274,6 +265,35 @@
   gap: var(--space-2);
 }
 
+.match-wrap {
+  position: relative;
+}
+
+/* Marcar a mano como «hecho»: botón aparte (zona táctil de 44 px) sobre la esquina de la tarjeta. */
+.match__done {
+  position: absolute;
+  right: var(--space-1);
+  bottom: var(--space-1);
+  display: grid;
+  place-items: center;
+  width: var(--tap);
+  height: var(--tap);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.match__done:hover {
+  background: var(--color-surface-2);
+}
+
+.match__done[aria-pressed='true'] {
+  color: var(--color-success);
+}
+
 .match {
   position: relative;
   display: grid;
@@ -282,6 +302,7 @@
   width: 100%;
   min-height: var(--tap);
   padding: var(--space-3) var(--space-4);
+  padding-right: calc(var(--tap) + var(--space-2));
   text-align: left;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);

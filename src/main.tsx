@@ -6,6 +6,7 @@ import './ui/base.css';
 import './ui/components.css';
 import './app/app.css';
 import { App } from './app/App.tsx';
+import { startAutoUpdate } from './app/autoUpdate.ts';
 
 const container = document.getElementById('root');
 if (container === null) {
@@ -17,3 +18,5 @@ createRoot(container).render(
     <App />
   </StrictMode>,
 );
+
+startAutoUpdate();

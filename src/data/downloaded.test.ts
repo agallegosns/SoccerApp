@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { getDownloaded, markDownloaded, resetDownloadedForTests, subscribeDownloaded } from './downloaded.ts';
+import { getDownloaded, markDownloaded, resetDownloadedForTests, subscribeDownloaded, toggleDownloaded, unmarkDownloaded } from './downloaded.ts';
 
 describe('partidos descargados', () => {
   it('marca un partido, avisa a los suscriptores una sola vez y no duplica', () => {
@@ -22,5 +22,18 @@ describe('partidos descargados', () => {
     const before = getDownloaded();
     markDownloaded('x');
     expect(getDownloaded()).not.toBe(before);
+  });
+
+  it('se puede marcar y desmarcar a mano', () => {
+    resetDownloadedForTests();
+    const listener = vi.fn();
+    const off = subscribeDownloaded(listener);
+    toggleDownloaded('p');
+    expect(getDownloaded().has('p')).toBe(true);
+    toggleDownloaded('p');
+    expect(getDownloaded().has('p')).toBe(false);
+    unmarkDownloaded('p'); // ya no está: no avisa
+    expect(listener).toHaveBeenCalledTimes(2);
+    off();
   });
 });

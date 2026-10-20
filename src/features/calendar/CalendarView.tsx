@@ -1,4 +1,4 @@
-import { AlertTriangle, CalendarDays, Clock, FileUp, RefreshCw, Search, WifiOff } from 'lucide-react';
+import { AlertTriangle, CalendarDays, FileUp, RefreshCw, Search, WifiOff } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 import { formatDateEs, todayLocal } from '../../data/dates.ts';
@@ -12,6 +12,7 @@ import { MatchCard } from './MatchCard.tsx';
 import { SelectedMatch } from './SelectedMatch.tsx';
 import { useLeagueMatches } from './useLeagueMatches.ts';
 import { readJson, writeJson } from '../../data/cache.ts';
+import { toggleDownloaded } from '../../data/downloaded.ts';
 import { useDownloaded } from '../../ui/useDownloaded.ts';
 import './calendar.css';
 
@@ -74,6 +75,10 @@ export function CalendarView({ service, imported, selected, onSelect, onSimulate
     } catch (error) {
       console.warn('No se pudo recordar la liga elegida', error);
     }
+  }
+
+  function toggleDone(match: Match): void {
+    toggleDownloaded(match.id);
   }
 
   function updateFilters(patch: Partial<Filters>): void {
@@ -142,32 +147,19 @@ export function CalendarView({ service, imported, selected, onSelect, onSimulate
           )}
         </form>
 
-        {league !== undefined && (
-          <div className="infos">
-            {league.note !== undefined && (
-              <p className="notice notice--soft">
-                <AlertTriangle aria-hidden="true" size={18} />
-                <span>{league.note}</span>
-              </p>
-            )}
-            <p className="notice notice--soft">
-              <Clock aria-hidden="true" size={18} />
-              <span>{league.timeNote}</span>
-            </p>
-            {state.status === 'ready' && state.stale && (
-              <p className="notice notice--warn" role="status">
-                <WifiOff aria-hidden="true" size={18} />
-                <span>
-                  Sin conexión con la fuente: mostrando la copia guardada el{' '}
-                  {new Date(state.savedAt).toLocaleString('es-ES')}.
-                </span>
-                <button type="button" className="btn btn--small" onClick={state.reload}>
-                  <RefreshCw aria-hidden="true" size={16} />
-                  Reintentar
-                </button>
-              </p>
-            )}
-          </div>
+        {/* Único aviso que se conserva: la copia sin conexión (afecta a lo que se ve). */}
+        {state.status === 'ready' && state.stale && (
+          <p className="notice notice--warn" role="status">
+            <WifiOff aria-hidden="true" size={18} />
+            <span>
+              Sin conexión con la fuente: mostrando la copia guardada el{' '}
+              {new Date(state.savedAt).toLocaleString('es-ES')}.
+            </span>
+            <button type="button" className="btn btn--small" onClick={state.reload}>
+              <RefreshCw aria-hidden="true" size={16} />
+              Reintentar
+            </button>
+          </p>
         )}
 
         {awaiting && (
@@ -244,7 +236,7 @@ export function CalendarView({ service, imported, selected, onSelect, onSimulate
                     <ul className="plain-list">
                       {group.matches.map((m) => (
                         <li key={m.id}>
-                          <MatchCard match={m} selected={selected?.id === m.id} downloaded={downloaded.has(m.id)} onSelect={onSelect} />
+                          <MatchCard match={m} selected={selected?.id === m.id} done={downloaded.has(m.id)} onSelect={onSelect} onToggleDone={toggleDone} />
                         </li>
                       ))}
                     </ul>
@@ -261,9 +253,11 @@ export function CalendarView({ service, imported, selected, onSelect, onSimulate
         )}
       </div>
 
-      <div className="calendar__side">
-        <SelectedMatch match={selected} onClear={() => { onSelect(null); }} onSimulate={onSimulate} />
-      </div>
+      {selected !== null && (
+        <div className="calendar__side">
+          <SelectedMatch match={selected} onClear={() => { onSelect(null); }} onSimulate={onSimulate} />
+        </div>
+      )}
 
       <ImportDialog
         key={preset.nonce}

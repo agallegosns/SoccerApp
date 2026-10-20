@@ -63,7 +63,7 @@ test('exporta un MP4 vertical real: progreso, vídeo reproducible y descarga val
   // Tras descargar, la tarjeta del partido se pinta de verde en el calendario (y se recuerda al recargar).
   await page.getByRole('button', { name: 'Volver al calendario' }).click();
   await expect(page.locator('.match--downloaded')).toHaveCount(1);
-  await expect(page.locator('.match--downloaded')).toContainText('Descargado');
+  await expect(page.locator('.match--downloaded')).toContainText('Hecho');
   await page.reload();
   await expect(page.locator('.match--downloaded')).toHaveCount(1);
 });

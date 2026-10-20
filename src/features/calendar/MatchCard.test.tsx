@@ -11,16 +11,24 @@ const match: Match = {
 };
 
 describe('tarjeta de partido', () => {
-  it('sin descarga no es verde ni dice «Descargado»', () => {
-    const html = renderToStaticMarkup(<MatchCard match={match} selected={false} downloaded={false} onSelect={() => undefined} />);
+  it('sin marcar no es verde ni dice «Hecho»', () => {
+    const html = renderToStaticMarkup(<MatchCard match={match} selected={false} done={false} onSelect={() => undefined} onToggleDone={() => undefined} />);
     expect(html).not.toContain('match--downloaded');
-    expect(html).not.toContain('Descargado');
+    expect(html).not.toContain('Hecho');
   });
 
-  it('con descarga es verde y lo dice con texto (no sólo con color)', () => {
-    const html = renderToStaticMarkup(<MatchCard match={match} selected={false} downloaded onSelect={() => undefined} />);
+  it('hecho es verde y lo dice con texto (no sólo con color)', () => {
+    const html = renderToStaticMarkup(<MatchCard match={match} selected={false} done onSelect={() => undefined} onToggleDone={() => undefined} />);
     expect(html).toContain('match--downloaded');
-    expect(html).toContain('Descargado');
+    expect(html).toContain('Hecho');
+  });
+});
+
+describe('marca manual', () => {
+  it('tiene su propio botón con nombre accesible y estado', () => {
+    const html = renderToStaticMarkup(<MatchCard match={match} selected={false} done onSelect={() => undefined} onToggleDone={() => undefined} />);
+    expect(html).toContain('aria-label="Marcar Real Madrid contra FC Barcelona como hecho"');
+    expect(html).toMatch(/aria-pressed="true"[^>]*aria-label="Marcar/);
   });
 });
 

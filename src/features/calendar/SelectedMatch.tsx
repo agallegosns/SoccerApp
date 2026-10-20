@@ -1,4 +1,4 @@
-import { CalendarDays, Clapperboard, X } from 'lucide-react';
+import { Clapperboard, X } from 'lucide-react';
 
 import { formatDateEs, kickoffOf } from '../../data/dates.ts';
 import type { Match } from '../../data/types.ts';
@@ -10,14 +10,7 @@ interface Props {
 }
 
 export function SelectedMatch({ match, onClear, onSimulate }: Props) {
-  if (match === null) {
-    return (
-      <aside className="selected selected--empty" aria-label="Partido seleccionado">
-        <CalendarDays aria-hidden="true" size={24} />
-        <p>Selecciona un partido del calendario para generar simulaciones ficticias.</p>
-      </aside>
-    );
-  }
+  if (match === null) return null;
   const kickoff = kickoffOf(match);
   return (
     <aside className="selected" aria-label="Partido seleccionado" data-testid="selected-match">

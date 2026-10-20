@@ -1,6 +1,7 @@
 import { AlertTriangle, Download, Film, RotateCw, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
+import { setBusy } from '../../app/busy.ts';
 import { markDownloaded } from '../../data/downloaded.ts';
 import type { Simulation } from '../../engine/index.ts';
 import type { RenderMeta } from '../simulation/render.ts';
@@ -36,8 +37,13 @@ export function ExportPanel({ sim, meta, style, fileName, title, matchId }: Prop
   const abortRef = useRef<AbortController | null>(null);
   const urlRef = useRef<string | null>(null);
 
+  useEffect(() => {
+    setBusy('export', job.phase === 'running'); // mientras se exporta, la app no se recarga sola para actualizarse
+  }, [job.phase]);
+
   useEffect(
     () => () => {
+      setBusy('export', false);
       abortRef.current?.abort();
       if (urlRef.current !== null) URL.revokeObjectURL(urlRef.current);
     },

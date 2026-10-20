@@ -149,3 +149,12 @@ Leyenda: ✅ hecho y probado · 🟡 hecho, pendiente de verificar · ⬜ por ha
 - ✅ **Selector de ligas para móvil**: tarjetas grandes con insignia y scroll horizontal; fechas plegables; avisos compactos; axe y zonas táctiles ≥ 44 px siguen en verde. 🟡 Pendiente de verlo en un móvil real.
 - 🟡 **Sin desplegar**: hay que pedir un redespliegue.
 - ✅ Corregido el texto del panel de exportación (decía que el vídeo lleva «Simulación ficticia»).
+
+## Ajustes finales (a petición del usuario)
+- ✅ **Actualización automática**: `version.json` por compilación + comprobación al abrir/volver/reconectar/cada 5 min + recarga sola (espera si hay exportación en curso, sin bucles). Probado: tests unitarios (5) y e2e (se recarga una sola vez con versión nueva; no se recarga con la misma).
+  🟡 Pendiente de verificar en el móvil real y en la web publicada (desde el sandbox no se abre github.io): la primera vez hay que abrir la versión que ya incluye el actualizador; las siguientes se actualizan solas. Sin service worker: no hay modo sin conexión.
+- ✅ **Marca manual «hecho»**: círculo en cada tarjeta (zona táctil 44 px) que marca/desmarca; se recuerda al recargar; test e2e. Etiqueta «Hecho» (antes «Descargado») porque cubre descargados y marcados a mano.
+- ✅ **Quitados los avisos tras el filtro de fechas** (zona horaria, nota de la liga). Se conserva el aviso de «sin conexión: copia guardada». 🟡 Consecuencia: la app ya no explica en pantalla que las horas de openfootball/Excel no llevan zona horaria (sigue en el README).
+- ✅ **Quitado el banner flotante «Selecciona un partido»**; el panel inferior sólo sale al elegir uno.
+- ✅ **Instalable en el móvil**: manifest + iconos (🟡 no verificado en un móvil real; sin service worker puede que Chrome ofrezca «Añadir a pantalla de inicio» en vez de «Instalar»).
+- 🟡 **Sin desplegar**: hay que pedir un redespliegue.

@@ -8,6 +8,7 @@ import type { VideoStyle } from '../simulation/renderers.ts';
 import { BatchQueue, type BatchJob, type JobRunner } from './batchQueue.ts';
 import { exportVideo } from './exportVideo.ts';
 import { exportFileName, zipFileName } from './fileName.ts';
+import { setBusy } from '../../app/busy.ts';
 import { markDownloaded } from '../../data/downloaded.ts';
 import { downloadBlob, useExportSupport } from './useExportSupport.ts';
 import { buildZip, zipReadme } from './zip.ts';
@@ -136,6 +137,10 @@ export function BatchPanel({ match, date, currentSeed, style, fixedScore, pace, 
   }
 
   const { jobs, running, paused } = snapshot;
+  useEffect(() => {
+    setBusy('batch', running);
+    return () => { setBusy('batch', false); };
+  }, [running]);
   const doneCount = jobs.filter((j) => j.status === 'done').length;
   const failedCount = jobs.filter((j) => j.status === 'error' || j.status === 'cancelled').length;
   const pendingCount = jobs.filter((j) => j.status === 'pending' || j.status === 'running').length;

@@ -19,7 +19,6 @@ test.describe('calendario real', () => {
     const shown = Number(/^(\d+)/.exec(text)?.[1]);
     expect(shown).toBeGreaterThan(0);
     expect(shown).toBeLessThan(380);
-    await expect(page.getByText(/Horarios en hora local de la competición/)).toBeVisible();
   });
 
   test('«Jugados» muestra resultados reales etiquetados como tal', async ({ page }) => {
@@ -67,11 +66,10 @@ test.describe('calendario real', () => {
     await expect(panel).toHaveCount(0);
   });
 
-  test('Champions League 2025-26 se carga (temporada anterior, avisada) y muestra la final con penaltis', async ({ page }) => {
+  test('Champions League 2025-26 se carga (temporada anterior) y muestra la final con penaltis', async ({ page }) => {
     await mockOpenFootball(page);
     await page.goto('/');
     await page.getByRole('button', { name: 'Champions League 2025-26' }).click();
-    await expect(page.getByText(/Temporada anterior \(finalizada\)/)).toBeVisible();
     // Todos los partidos son anteriores a hoy: «Próximos» está vacío y ofrece ver todos.
     await expect(page.getByText('No hay partidos con estos filtros.')).toBeVisible();
     await page.getByRole('button', { name: 'Ver todos los partidos' }).click();
@@ -129,7 +127,6 @@ test.describe('calendario real', () => {
     await expect(page.getByRole('button', { name: 'Copa de prueba 2026-27', exact: true })).toHaveAttribute('aria-pressed', 'true');
     await expect(page.locator('.match')).toHaveCount(2);
     await expect(page.locator('.match').first()).toContainText('tu hora');
-    await expect(page.locator('.infos').getByText(/UTC y se muestran en tu zona horaria/)).toBeVisible();
     // Persiste tras recargar.
     await page.reload();
     await expect(page.getByRole('button', { name: 'Copa de prueba 2026-27', exact: true })).toBeVisible();
@@ -165,7 +162,6 @@ test.describe('competiciones 2026-27: LaLiga, Champions, Europa League y Confere
     await page.getByRole('button', { name: 'Champions League 2026-27', exact: true }).click();
     await page.getByRole('button', { name: 'Todos' }).click();
     await expect(page.getByTestId('count')).toContainText('144 partidos');
-    await expect(page.getByText(/aportado por ti en Excel/)).toBeVisible();
     const first = page.locator('.match').first();
     await expect(first).toContainText('AEK');
     await expect(first).toContainText('LASK');
@@ -225,5 +221,49 @@ test.describe('móvil', () => {
       return bad;
     });
     expect(small).toEqual([]);
+  });
+});
+
+test.describe('ajustes del calendario', () => {
+  test('sin avisos tras el filtro de fechas, sin banner flotante y con marca manual de «hecho»', async ({ page }) => {
+    await mockOpenFootball(page);
+    await page.goto('/');
+    await expect(page.locator('.match').first()).toBeVisible();
+    await expect(page.locator('.notice')).toHaveCount(0);
+    await expect(page.getByText('Selecciona un partido')).toHaveCount(0);
+    await expect(page.locator('.calendar__side')).toHaveCount(0);
+
+    const first = page.locator('.match-wrap').first();
+    await expect(first.locator('.match--downloaded')).toHaveCount(0);
+    await first.getByRole('button', { name: /como hecho$/ }).click();
+    await expect(first.locator('.match--downloaded')).toHaveCount(1);
+    await expect(first).toContainText('Hecho');
+    await page.reload();
+    await expect(page.locator('.match--downloaded')).toHaveCount(1);
+    await page.locator('.match-wrap').first().getByRole('button', { name: /como hecho$/ }).click(); // desmarcar
+    await expect(page.locator('.match--downloaded')).toHaveCount(0);
+
+    await page.locator('.match').first().click();
+    await expect(page.getByTestId('selected-match')).toBeVisible();
+  });
+
+  test('se actualiza sola cuando el servidor publica una versión nueva', async ({ page }) => {
+    await mockOpenFootball(page);
+    await page.route('**/version.json*', (route) => route.fulfill({ contentType: 'application/json', body: JSON.stringify({ id: 'version-nueva-de-prueba' }) }));
+    const loads: string[] = [];
+    page.on('load', () => { loads.push(page.url()); });
+    await page.goto('/');
+    await expect.poll(() => loads.length, { timeout: 15_000 }).toBeGreaterThanOrEqual(2); // se recargó sola
+    await page.waitForTimeout(1500);
+    expect(loads.length).toBe(2); // y sólo una vez (no entra en bucle)
+  });
+
+  test('con la misma versión no se recarga', async ({ page }) => {
+    await mockOpenFootball(page);
+    const loads: string[] = [];
+    page.on('load', () => { loads.push(page.url()); });
+    await page.goto('/');
+    await page.waitForTimeout(2500);
+    expect(loads.length).toBe(1);
   });
 });

@@ -5,7 +5,7 @@ const KEY = 'downloaded';
 const isIdList = (v: unknown): v is string[] => Array.isArray(v) && v.every((x) => typeof x === 'string');
 
 /**
- * Partidos de los que el usuario ya ha descargado algún vídeo (por id de partido). Se guarda sólo en el navegador (localStorage)
+ * Partidos «hechos» (por id): los de los que se ha descargado algún vídeo y los que el usuario marca a mano. Se guarda sólo en el navegador (localStorage)
  * y avisa a los suscriptores al cambiar, para que el calendario pinte de verde la tarjeta sin recargar.
  */
 let current: ReadonlySet<string> = new Set(readStored());
@@ -41,6 +41,24 @@ export function markDownloaded(matchId: string): void {
     console.warn('No se pudo recordar la descarga', error);
   }
   for (const l of listeners) l();
+}
+
+/** Quita la marca (p. ej. si se marcó por error). */
+export function unmarkDownloaded(matchId: string): void {
+  if (!current.has(matchId)) return;
+  current = new Set([...current].filter((id) => id !== matchId));
+  try {
+    writeJson(KEY, [...current]);
+  } catch (error) {
+    console.warn('No se pudo guardar el cambio', error);
+  }
+  for (const l of listeners) l();
+}
+
+/** Marca o desmarca a mano un partido que ya has hecho por tu cuenta. */
+export function toggleDownloaded(matchId: string): void {
+  if (current.has(matchId)) unmarkDownloaded(matchId);
+  else markDownloaded(matchId);
 }
 
 /** Sólo para pruebas: reinicia el estado en memoria. */

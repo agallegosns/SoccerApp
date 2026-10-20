@@ -180,3 +180,11 @@ Medido en 4 semillas: aceleración del balón p95 12,5 → 4,3 px/fotograma², s
 - `src/data/downloaded.ts`: ids de partidos con algún vídeo descargado (localStorage `futbol-sim:v1:downloaded`) + `useDownloaded` (`useSyncExternalStore`). `ExportPanel` y `BatchPanel` marcan al descargar; `MatchCard` pinta
   `match--downloaded` (tokens `--color-success*`) con el texto «Descargado» (no sólo color). La selección pasa a azul (`--color-select*`) para no confundirse con el verde.
 - `LeaguePicker`: tarjetas de ≥ 64 px con insignia (UCL, LL…), tira con scroll horizontal e «imán» en móvil (centra la elegida) y rejilla fluida en pantallas ≥ 48 rem. En móvil las fechas se despliegan a demanda.
+
+## Actualización automática, marca «hecho» manual y limpieza de avisos
+- `vite.config.ts` inyecta `__BUILD_ID__` (commit en CI o la hora) y emite `dist/version.json` con el mismo id. `src/app/updater.ts` (puro, con pruebas) consulta `version.json?t=…` (`cache: 'no-store'`) y, si difiere, recarga;
+  `src/app/busy.ts` registra trabajos no interrumpibles (`ExportPanel`, `BatchPanel`): con uno en curso espera a que termine (aviso `UpdateNotice`). Marca en `localStorage` anti-bucle (2 min) por si el servidor aún sirve la versión vieja.
+  `src/app/autoUpdate.ts` lo arranca al abrir, en `visibilitychange`, `online` y cada 5 min; en desarrollo no hace nada. **Sin service worker** a propósito (nunca hay copia vieja en caché; a cambio, no funciona sin conexión).
+- `public/manifest.webmanifest` + iconos PNG (192, 512, apple-touch 180) permiten añadirla a la pantalla de inicio.
+- `src/data/downloaded.ts` ahora es el conjunto de partidos «hechos»: lo llenan las descargas y el botón de cada tarjeta (`toggleDownloaded`).
+- Calendario: sin avisos de zona horaria/«temporada anterior»/nota de la liga (sólo se mantiene el de copia sin conexión) y sin el banner «Selecciona un partido» (el panel inferior sólo aparece con un partido elegido).
