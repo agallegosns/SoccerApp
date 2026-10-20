@@ -1,4 +1,4 @@
-import { CalendarDays, X } from 'lucide-react';
+import { CalendarDays, Clapperboard, X } from 'lucide-react';
 
 import { formatDateEs, kickoffOf } from '../../data/dates.ts';
 import type { Match } from '../../data/types.ts';
@@ -6,9 +6,10 @@ import type { Match } from '../../data/types.ts';
 interface Props {
   readonly match: Match | null;
   readonly onClear: () => void;
+  readonly onSimulate: (match: Match) => void;
 }
 
-export function SelectedMatch({ match, onClear }: Props) {
+export function SelectedMatch({ match, onClear, onSimulate }: Props) {
   if (match === null) {
     return (
       <aside className="selected selected--empty" aria-label="Partido seleccionado">
@@ -43,11 +44,11 @@ export function SelectedMatch({ match, onClear }: Props) {
           {match.realScore.note !== undefined && ` (${match.realScore.note})`}
         </p>
       )}
-      <p className="notice notice--soft">
-        <span>
-          La generación de simulaciones se incorpora en la Fase 3. Toda simulación será <strong>ficticia</strong>, nunca una predicción.
-        </span>
-      </p>
+      <button type="button" className="btn btn--primary" onClick={() => { onSimulate(match); }} data-testid="open-studio">
+        <Clapperboard aria-hidden="true" size={20} />
+        Crear simulaciones
+      </button>
+      <p className="muted">Las simulaciones son <strong>ficticias</strong>, nunca una predicción.</p>
     </aside>
   );
 }

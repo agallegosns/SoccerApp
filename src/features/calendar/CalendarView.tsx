@@ -32,9 +32,10 @@ interface Props {
   readonly imported: ImportedProvider;
   readonly selected: Match | null;
   readonly onSelect: (match: Match | null) => void;
+  readonly onSimulate: (match: Match) => void;
 }
 
-export function CalendarView({ service, imported, selected, onSelect }: Props) {
+export function CalendarView({ service, imported, selected, onSelect, onSimulate }: Props) {
   const [version, setVersion] = useState(0);
   const leagues = useMemo(() => service.listLeagues(), [service, version]); // eslint-disable-line react-hooks/exhaustive-deps -- `version` fuerza la relectura tras importar/eliminar
   const [leagueId, setLeagueId] = useState(() => initialLeague(service.listLeagues()));
@@ -265,7 +266,7 @@ export function CalendarView({ service, imported, selected, onSelect }: Props) {
       </div>
 
       <div className="calendar__side">
-        <SelectedMatch match={selected} onClear={() => { onSelect(null); }} />
+        <SelectedMatch match={selected} onClear={() => { onSelect(null); }} onSimulate={onSimulate} />
       </div>
 
       <ImportDialog

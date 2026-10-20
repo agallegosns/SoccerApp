@@ -1,6 +1,6 @@
 # Arquitectura de futbol-sim
 
-> Estado: Fase 2. Las secciones marcadas **(planificado)** describen el diseño objetivo y todavía no están implementadas.
+> Estado: Fase 3. Las secciones marcadas **(planificado)** describen el diseño objetivo y todavía no están implementadas.
 
 ## Principios
 1. Todo en el cliente, coste 0 €: sin backend ni cuentas.
@@ -54,16 +54,41 @@ e2e/                   pruebas Playwright
 - Orden de pestañas (`MatchService.listLeagues`): LaLiga, Champions, Europa League, Conference League y el resto.
 - Datos de prueba reales en `src/data/__fixtures__` (muestras) y `e2e/fixtures` (archivos completos).
 
-## Motor de simulación (planificado)
-- PRNG determinista `mulberry32(semilla)`. Misma semilla + mismos parámetros ⇒ misma simulación; semillas
-  distintas ⇒ simulaciones distintas del mismo partido.
-- Fase 1: **guion** de eventos (posesiones, ocasiones, paradas, faltas, goles) coherente con el marcador
-  (fijado por el usuario o aleatorio), minutos plausibles y ordenados.
-- Fase 2: **animación** de 22 jugadores con formaciones y roles, balón (pases, conducciones, tiros),
-  marcador y cronómetro, derivada del guion.
+## Motor de simulación (implementado en Fase 3, `src/engine`)
+Puro y sin dependencias de React (ESLint lo impide). Entrada: `SimulationInput { seed, home, away, score | null }`.
+- **Determinismo:** `mulberry32(seed ^ hash(local|visitante))`. Misma entrada ⇒ mismo guion y mismos fotogramas (probado por
+  igualdad de JSON). Cada semilla cambia formaciones, marcador (si es aleatorio), qué equipo ataca, resultado de cada jugada,
+  jugadores implicados y minutos. Mezclar los nombres hace que la misma semilla difiera entre partidos.
+- **Guion (`generateScript`)**: línea de tiempo en segundos de vídeo: `intro → 1.ª parte → descanso → 2.ª parte → final`.
+  Cada parte es una secuencia de *momentos*: ataque (con resultado `goal | saved | miss | post | blocked`), falta o córner (tras
+  un bloqueo). Cada ataque incluye su fase de posesión (circulación del balón) y su remate. Marcador: o fijado por el usuario (0–9
+  por equipo) o `Poisson(1,45 | 1,15)` sembrado. **Coherencia:** hay exactamente `score.home + score.away` ataques con resultado
+  `goal` (cada uno con su evento `goal` del equipo correcto); cada equipo acaba con ≥ 2 disparos aunque no marque; los goles se
+  reparten entre partes (46 % / 54 %) y a lo largo de ellas; los minutos salen del reloj, que mapea linealmente cada parte a
+  0–45+x y 45–90+y (x ∈ 1–3, y ∈ 2–5), con etiquetas «45+2'», «90+3'».
+- **Eventos** (`ScriptEvent`): `kickoff, shot, goal, save, miss, post, block, foul, corner, halftime, fulltime`, ordenados por
+  tiempo, con minuto, etiqueta de reloj, equipo, dorsal y texto en español.
+- **Animación (`frameAt(script, t)`)**: función pura de `t` (permite pausar, retroceder y renderizar fotograma a fotograma).
+  Balón: segmentos con parábola. Jugadores: posición «de forma» (puesto de la formación 4-3-3, 4-4-2, 4-2-3-1, 3-5-2 o 3-4-3,
+  desplazado según el balón, un peso de posesión continuo y movimiento de reposo) mezclada con *actores* (jugadores que reciben,
+  conducen, corren o se lanzan) mediante rampas suaves; las rampas se dimensionan por distancia para no superar ~36 m/s. Los
+  equipos cambian de campo en la 2.ª parte (el salto queda oculto bajo la tarjeta de descanso).
+- Qué es **ficticio**: todo lo que sale del motor. Los dorsales y colores son genéricos (los colores se derivan del nombre del
+  equipo; no hay escudos ni equipaciones reales).
+- Duración del vídeo: ~35–65 s con 0–3 goles; crece con los goles (hasta ~100 s con 9–9).
+- Tests (`src/engine/engine.test.ts`): PRNG, estilos, formaciones, determinismo, coherencia marcador/goles (incluidos 0–0 y 9–9),
+  eventos ordenados, fases contiguas, minutos plausibles, continuidad de la animación (balón < 60 m/s, jugadores < 36 m/s) y
+  robustez con marcadores extremos.
 
-## Render y exportación (planificado)
-- Canvas 2D a 1080×1920, campo vertical, marcador, cronómetro, banner de gol y etiqueta «Simulación ficticia».
+## Render (implementado en Fase 3) y exportación (planificado)
+- `src/features/simulation/render.ts`: `drawFrame(ctx, sim, t, meta)` dibuja un fotograma 1080×1920 en Canvas 2D (campo vertical,
+  marcador, cronómetro, banner de gol, tarjetas de intro/descanso/final y la etiqueta «SIMULACIÓN FICTICIA» arriba y un pie
+  «Simulación ficticia · Resultado inventado, no es una predicción»). La misma función sirve para la vista previa y para la
+  exportación. El campo se cachea en una capa fuera de pantalla. Los colores del vídeo viven en `theme.ts` (no son tokens de la UI).
+- Zonas seguras de TikTok: el contenido clave está entre y≈150 y y≈1700 (la interfaz de TikTok cubre la parte superior y la
+  inferior).
+- Estudio (`SimulationStudio`): vista previa con reproducir/pausar/posición, semilla, marcador aleatorio o fijado y lista de
+  sucesos (al pulsar uno salta a ese momento). Respeta `prefers-reduced-motion` (no reproduce solo).
 - Exportación: `VideoEncoder` (WebCodecs, H.264 `avc1`) + `mediabunny` para muxear a MP4, 30 fps, frame a frame
   (no en tiempo real). Si `VideoEncoder.isConfigSupported` falla para H.264 se muestra un error claro
   recomendando Chrome/Edge/Safari recientes; nunca se simula una exportación.

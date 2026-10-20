@@ -4,10 +4,12 @@ import { useState } from 'react';
 import { createServices } from '../data/registry.ts';
 import type { Match } from '../data/types.ts';
 import { CalendarView } from '../features/calendar/CalendarView.tsx';
+import { SimulationStudio } from '../features/simulation/SimulationStudio.tsx';
 
 export function App() {
   const [services] = useState(createServices);
   const [selected, setSelected] = useState<Match | null>(null);
+  const [studioMatch, setStudioMatch] = useState<Match | null>(null);
 
   return (
     <div className="app">
@@ -21,7 +23,16 @@ export function App() {
         </div>
       </header>
       <main className="app__main">
-        <CalendarView service={services.service} imported={services.imported} selected={selected} onSelect={setSelected} />
+        {studioMatch === null ? (
+          <CalendarView service={services.service} imported={services.imported} selected={selected} onSelect={setSelected} onSimulate={setStudioMatch} />
+        ) : (
+          <SimulationStudio
+            match={studioMatch}
+            onBack={() => {
+              setStudioMatch(null);
+            }}
+          />
+        )}
       </main>
     </div>
   );

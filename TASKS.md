@@ -23,7 +23,7 @@ Leyenda: ✅ hecho y probado · 🟡 hecho, pendiente de verificar · ⬜ por ha
   sin scroll horizontal y con zonas táctiles ≥ 44 px) y aviso permanente de zona horaria.
 - ✅ Los resultados reales se muestran como «Real 2–1», separados de lo ficticio.
 - ✅ Importar calendario (JSON/TXT) con autodetección de formato y almacenamiento solo en el navegador.
-- ✅ 66 tests unitarios + 15 e2e (Playwright, Chromium) en verde: carga, filtros, selección, error + reintento, copia en caché
+- ✅ 66 tests unitarios + 15 e2e (en la Fase 2) (Playwright, Chromium) en verde: carga, filtros, selección, error + reintento, copia en caché
   sin red, importación, archivo inválido, móvil.
 - ✅ **Champions League 2026-27** (fase de liga, 144 partidos, 8 jornadas, 36 equipos, 8/09/2026–27/01/2027) incluida en la app
   desde el Excel aportado por el usuario (`public/data/champions-league-2026-27.xlsx`). Ninguna fuente libre accesible la publica
@@ -55,7 +55,17 @@ Leyenda: ✅ hecho y probado · 🟡 hecho, pendiente de verificar · ⬜ por ha
   Estrategia de verificación en la Fase 4: ver `ARCHITECTURE.md` → «Verificación del export».
 - ESPN, TheSportsDB y football-data.org no son accesibles desde el sandbox: no se dependerá de ellos.
 
-## Fase 3 — Motor de simulación 2D y vista previa ⬜
+## Fase 3 — Motor de simulación 2D y vista previa
+- ✅ Motor determinista por semilla (`src/engine`): guion de eventos + animación de 22 jugadores con 5 formaciones, balón con
+  pases/conducciones/centros/tiros, paradas, postes, bloqueos, faltas, córners, goles con celebración, descanso y final.
+- ✅ Coherencia marcador/goles verificada con marcadores fijos (0–0, 1–0, 0–3, 2–2, 5–4, 9–9) y aleatorios (200 semillas).
+- ✅ 35 tests del motor (determinismo, coherencia, eventos ordenados, fases contiguas, minutos, continuidad < 36 m/s, robustez).
+- ✅ Render Canvas 2D 1080×1920 (`drawFrame`) y vista previa con reproducción, pausa, posición y sucesos clicables.
+- ✅ 8 e2e del estudio (misma semilla ⇒ misma simulación, marcador fijado, píxel de la etiqueta ficticia en 7 momentos del vídeo,
+  semilla inválida, móvil).
+- ✅ Inspección visual de fotogramas reales (intro, juego, córner, descanso con estadísticas, final).
+- 🟡 La estética del vídeo (tamaño de jugadores, ritmo) está validada solo a ojo en capturas; pendiente de ver en un móvil real.
+- 🟡 Reproducción en tiempo real a 60 fps no medida (solo en Chromium headless del sandbox).
 ## Fase 4 — Renderizado y exportación MP4 vertical ⬜
 ## Fase 5 — Lotes, descargas y errores ⬜
 ## Fase 6 — e2e, optimización, documentación y despliegue (preparado, sin desplegar) ⬜
