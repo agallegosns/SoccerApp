@@ -1,8 +1,9 @@
 import { execFileSync } from 'node:child_process';
-import { mkdirSync, statSync } from 'node:fs';
+import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { expect, test, type Page } from '@playwright/test';
+import { strFromU8, unzipSync } from 'fflate';
 
 import { mockOpenFootball } from './helpers.ts';
 
@@ -72,4 +73,84 @@ test('se puede cancelar una exportación en curso y volver a intentarlo', async 
   await expect(page.getByTestId('export-progress')).toBeVisible();
   await page.getByTestId('export-cancel').click();
   await expect(page.getByTestId('export-error')).toContainText('cancelada');
+});
+
+test.describe('lotes', () => {
+  test('cancelar todo, reintentar, quitar y ver una semilla en la vista previa', async ({ page }) => {
+    await openStudio(page);
+    await page.getByTestId('batch-count').fill('3');
+    await page.getByTestId('batch-generate').click();
+    const jobs = page.getByTestId('batch-job');
+    await expect(jobs).toHaveCount(3);
+    await expect(jobs.first()).toHaveAttribute('data-status', 'running');
+    await expect(jobs.first().locator('progress')).toBeVisible();
+    // Sólo uno a la vez.
+    await expect(page.locator('[data-testid=batch-job][data-status=running]')).toHaveCount(1);
+    // La primera semilla del lote es la actual.
+    await expect(jobs.first()).toContainText('Semilla 2024');
+    await page.getByTestId('batch-cancel').click();
+    await expect(page.locator('[data-testid=batch-job][data-status=cancelled]')).toHaveCount(3);
+    await expect(page.getByTestId('batch-retry-all')).toBeVisible();
+    // Reintentar uno: vuelve a correr y se cancela otra vez.
+    await jobs.nth(1).getByTestId('job-retry').click();
+    await expect(jobs.nth(1)).toHaveAttribute('data-status', 'running');
+    await jobs.nth(1).getByTestId('job-remove').click(); // «Cancelar» (en curso) = quita y aborta
+    await expect(jobs).toHaveCount(2);
+    // «Ver en la vista previa» cambia la semilla del estudio.
+    const seedOfSecond = (await jobs.nth(1).textContent())?.match(/Semilla (\d+)/)?.[1] ?? '';
+    await jobs.nth(1).getByTestId('job-view').click();
+    await expect(page.getByTestId('seed-input')).toHaveValue(seedOfSecond);
+    await page.getByTestId('batch-clear').click();
+    await expect(jobs).toHaveCount(0);
+  });
+
+  test('genera 2 vídeos distintos, los descarga uno a uno y en ZIP, y los valida con ffprobe', async ({ page }) => {
+    await openStudio(page);
+    await page.getByTestId('fix-score').click();
+    await page.getByTestId('score-home').fill('0');
+    await page.getByTestId('score-away').fill('0');
+    await page.getByTestId('batch-count').fill('2');
+    await page.getByTestId('batch-generate').click();
+    const jobs = page.getByTestId('batch-job');
+    await expect(jobs).toHaveCount(2);
+    await expect(page.locator('[data-testid=batch-job][data-status=done]')).toHaveCount(2, { timeout: 330_000 });
+    await expect(page.getByTestId('batch-summary')).toContainText('2 de 2 listos');
+
+    // Las dos semillas son distintas y los nombres de archivo también.
+    const names = await jobs.locator('.job__file').allTextContents();
+    expect(new Set(names).size).toBe(2);
+    expect(names.every((n) => /_vs_.*\.mp4$/.test(n))).toBe(true);
+
+    const dir = join(process.cwd(), 'e2e', 'artifacts');
+    mkdirSync(dir, { recursive: true });
+
+    // Descarga individual.
+    const [single] = await Promise.all([page.waitForEvent('download'), jobs.first().getByTestId('job-download').click()]);
+    expect(single.suggestedFilename()).toBe(names[0]);
+    const singleFile = join(dir, `lote-${single.suggestedFilename()}`);
+    await single.saveAs(singleFile);
+
+    // ZIP con todo.
+    const [zipDownload] = await Promise.all([page.waitForEvent('download'), page.getByTestId('batch-zip').click()]);
+    expect(zipDownload.suggestedFilename()).toMatch(/^[a-z0-9._-]+_2-videos\.zip$/);
+    const zipFile = join(dir, zipDownload.suggestedFilename());
+    await zipDownload.saveAs(zipFile);
+    const entries = unzipSync(new Uint8Array(readFileSync(zipFile)));
+    expect(Object.keys(entries).sort()).toEqual(['LEEME.txt', ...names].sort());
+    expect(strFromU8(entries['LEEME.txt'] ?? new Uint8Array())).toContain('SIMULACIONES FICTICIAS');
+    const [a, b] = names;
+    expect(entries[a ?? '']?.length).toBeGreaterThan(500_000);
+    expect(entries[b ?? '']).not.toEqual(entries[a ?? '']); // simulaciones distintas ⇒ vídeos distintos
+    // El MP4 suelto y el del ZIP son idénticos y válidos.
+    expect(Buffer.from(entries[a ?? ''] ?? new Uint8Array()).equals(readFileSync(singleFile))).toBe(true);
+    for (const n of names) {
+      const extracted = join(dir, `zip-${n}`);
+      writeFileSync(extracted, entries[n] ?? new Uint8Array());
+      const info = JSON.parse(execFileSync('ffprobe', ['-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=codec_name,width,height,r_frame_rate', '-of', 'json', extracted], { encoding: 'utf8' })) as {
+        streams: { codec_name: string; width: number; height: number; r_frame_rate: string }[];
+      };
+      expect(info.streams[0]).toMatchObject({ codec_name: 'vp9', width: 1080, height: 1920, r_frame_rate: '30/1' });
+    }
+    await page.getByTestId('batch-clear').click();
+  });
 });

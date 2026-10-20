@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { ExportError, classifyExportError, codecUnsupported, unsupportedBrowser } from './errors.ts';
-import { exportFileName } from './fileName.ts';
+import { exportFileName, zipFileName } from './fileName.ts';
 
 describe('nombre de archivo', () => {
   it('liga_local_vs_visitante_fecha_semilla.mp4', () => {
@@ -13,6 +13,14 @@ describe('nombre de archivo', () => {
     const name = exportFileName({ competition: 'Champions League 2026-27', home: 'Atlético / Madrid', away: 'Bodø/Glimt?', date: '2026-09-15', seed: 7, extension: 'zip' });
     expect(name).toBe('champions-league-2026-27_atletico-madrid_vs_bodo-glimt_2026-09-15_7.zip');
     expect(name).toMatch(/^[a-z0-9._-]+$/);
+  });
+});
+
+describe('nombre del ZIP', () => {
+  it('liga_local_vs_visitante_fecha_N-videos.zip', () => {
+    expect(zipFileName({ competition: 'LaLiga 2026-27', home: 'Real Madrid CF', away: 'FC Barcelona', date: '2026-10-24' }, 3)).toBe(
+      'laliga-2026-27_real-madrid-cf_vs_fc-barcelona_2026-10-24_3-videos.zip',
+    );
   });
 });
 

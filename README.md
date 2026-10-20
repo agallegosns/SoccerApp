@@ -11,7 +11,7 @@ Aplicación web (100 % cliente, coste 0 €) que:
 > Todas las simulaciones y vídeos llevan la etiqueta visible **«Simulación ficticia»**. No son predicciones.
 
 ## Estado
-Fase 4 de 6 completada: calendario real, motor de simulación 2D con vista previa y exportación a MP4 vertical 1080×1920 (estilo «Arena» como los vídeos virales, o estilo táctico con 22 jugadores) (LaLiga, Premier, Bundesliga, Serie A, Ligue 1 2026-27 y Champions League 2025-26) con filtros, buscador y selección de partido. Consulta [TASKS.md](TASKS.md) para ver qué funciona (probado) y qué
+Fase 5 de 6 completada: calendario real, motor de simulación 2D, exportación a MP4 vertical 1080×1920 y generación por lotes con descarga individual o en ZIP (estilo «Arena» como los vídeos virales, o estilo táctico con 22 jugadores) (LaLiga, Premier, Bundesliga, Serie A, Ligue 1 2026-27 y Champions League 2025-26) con filtros, buscador y selección de partido. Consulta [TASKS.md](TASKS.md) para ver qué funciona (probado) y qué
 está pendiente, y [ARCHITECTURE.md](ARCHITECTURE.md) para el diseño.
 
 ## Requisitos

@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { formatDateEs, kickoffOf } from '../../data/dates.ts';
 import type { Match } from '../../data/types.ts';
 import { MAX_GOALS_PER_TEAM, simulate, type Score } from '../../engine/index.ts';
+import { BatchPanel } from '../export/BatchPanel.tsx';
 import { ExportPanel } from '../export/ExportPanel.tsx';
 import { exportFileName } from '../export/fileName.ts';
 import { SimulationPreview } from './SimulationPreview.tsx';
@@ -197,6 +198,19 @@ export function SimulationStudio({ match, onBack }: Props) {
             style={style}
             fileName={exportFileName({ competition: match.competition, home: match.home, away: match.away, date: kickoff.date, seed })}
             title={`Simulación ficticia: ${match.home} vs ${match.away}`}
+          />
+
+          <BatchPanel
+            match={match}
+            date={kickoff.date}
+            currentSeed={seed}
+            style={style}
+            fixedScore={score}
+            meta={meta}
+            onUseSeed={(s) => {
+              setSeed(s);
+              setSeedText(String(s));
+            }}
           />
 
           <div className="card" aria-label="Resultado de la simulación">

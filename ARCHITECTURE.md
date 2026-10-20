@@ -1,6 +1,6 @@
 # Arquitectura de futbol-sim
 
-> Estado: Fase 4. Las secciones marcadas **(planificado)** describen el diseño objetivo y todavía no están implementadas.
+> Estado: Fase 5. Las secciones marcadas **(planificado)** describen el diseño objetivo y todavía no están implementadas.
 
 ## Principios
 1. Todo en el cliente, coste 0 €: sin backend ni cuentas.
@@ -123,6 +123,20 @@ Dos estilos de vídeo sobre **la misma simulación** (`src/features/simulation/r
 - `VITE_EXPORT_CODEC` (sólo al compilar) cambia el códec para probar la interfaz en navegadores sin H.264; el producto compila con
   `avc`. Playwright tiene un proyecto `chromium-export-vp9` que compila con VP9 y ejecuta el flujo completo (progreso, cancelar, vídeo
   reproducible, descarga validada con ffprobe).
+
+## Lotes, descargas y errores (implementado en Fase 5)
+- `BatchQueue<T>` (`batchQueue.ts`, sin React ni navegador; el generador se inyecta): cola **secuencial** (un vídeo cada vez) con estados
+  `pending/running/done/error/cancelled`, progreso por trabajo, `cancel()` (aborta el vídeo en curso y marca las pendientes), `retry(id)` y
+  `retryFailed()`, `remove(id)`/`clear()` (liberan el resultado), `resume()` y `snapshot()` estable para `useSyncExternalStore`. Cada trabajo
+  lleva sus parámetros (`data`: estilo, marcador fijado, partido), fijados al añadirlo.
+- Un fallo no detiene a los demás. **Sin memoria** (`out-of-memory`) la cola se **pausa** conservando las pendientes: el usuario descarga o quita
+  vídeos terminados y pulsa «Reanudar». Tope de 10 vídeos por lote (≈ 35 MB cada uno hasta que se descarga o se quita).
+- Nombres de archivo `liga_local_vs_visitante_fecha_semilla.mp4`, únicos dentro del lote (`-2`, `-3`…). El primer vídeo del lote usa la semilla
+  actual y el resto semillas aleatorias distintas.
+- Descargas: individual (enlace temporal con `Blob`) y **ZIP** (`buildZip`, `fflate` en streaming con `ZipPassThrough`, sin compresión porque el MP4
+  ya está comprimido; cada vídeo se lee por trozos). Incluye `LEEME.txt` («SIMULACIONES FICTICIAS…») y el nombre es `…_N-videos.zip`.
+- Gestión de errores del producto: red del calendario (reintentos + caché), códec no soportado (mensaje con navegadores recomendados y botones
+  desactivados), memoria insuficiente (pausa de la cola / mensaje), cancelación (libera el codificador) y fallos del ZIP (mensaje + reintento).
 
 ## Calidad
 - TypeScript estricto + `noUncheckedIndexedAccess`; ESLint `strictTypeChecked`; sin `any`, sin `catch {}` vacío.

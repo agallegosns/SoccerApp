@@ -85,5 +85,15 @@ Leyenda: ✅ hecho y probado · 🟡 hecho, pendiente de verificar · ⬜ por ha
 - 🟡 **Pendiente de verificar: la codificación H.264 en un navegador real** (Chrome/Edge/Safari). El Chromium del sandbox no tiene
   codificador H.264; el código es el mismo que en VP9 salvo el códec (`avc`), pero no se ha ejecutado.
 - 🟡 Sin audio en el vídeo (ver Fase 3). Rendimiento de la exportación en móviles no medido.
-## Fase 5 — Lotes, descargas y errores ⬜
+## Fase 5 — Lotes, descargas y errores
+- ✅ Cola secuencial `BatchQueue` (progreso, cancelación, reintento, pausa por memoria, liberación de resultados) con 9 tests unitarios
+  (generador falso controlado: orden y no-concurrencia, fallo aislado, cancelar/reintentar, pausa/reanudar, quitar en curso, nombres únicos).
+- ✅ ZIP en streaming (`fflate`) con `LEEME.txt`; test: contenido, bytes idénticos, nombres únicos, archivo vacío.
+- ✅ `BatchPanel`: generar N (1–10) vídeos con semillas distintas, estado y progreso por vídeo, descargar uno / ZIP, cancelar todo, reintentar
+  fallidos, quitar (libera memoria), «ver en la vista previa» y aviso de memoria en uso.
+- ✅ e2e reales (compilación VP9, ~4 min): lote de 2 vídeos **distintos** → descarga individual + ZIP → el MP4 suelto y el del ZIP son idénticos,
+  el ZIP trae `LEEME.txt` + 2 MP4 y ffprobe confirma VP9, 1080×1920, 30 fps; cancelar todo / reintentar / quitar en curso.
+- ✅ Con el navegador sin H.264 (sandbox) el lote lo explica y desactiva «Generar».
+- 🟡 La pausa por falta de memoria está probada con el generador falso (RangeError), **no con una falta de memoria real** del navegador.
+- 🟡 El ZIP de un lote grande (10 × ~35 MB) no se ha medido en memoria; el tope de 10 vídeos es una estimación prudente.
 ## Fase 6 — e2e, optimización, documentación y despliegue (preparado, sin desplegar) ⬜

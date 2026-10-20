@@ -157,6 +157,8 @@ test.describe('estudio de simulación', () => {
         (await VideoEncoder.isConfigSupported({ codec: 'avc1.640028', width: 1080, height: 1920, bitrate: 6_000_000, framerate: 30 })).supported,
     );
     if (!h264) {
+      await expect(page.getByTestId('batch-unsupported')).toContainText('Chrome, Edge o Safari recientes');
+      await expect(page.getByTestId('batch-generate')).toBeDisabled();
       await expect(page.getByTestId('export-unsupported')).toContainText('H.264');
       await expect(page.getByTestId('export-unsupported')).toContainText('Chrome, Edge o Safari recientes');
       await expect(page.getByTestId('export-button')).toBeDisabled();

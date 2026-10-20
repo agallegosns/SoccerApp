@@ -7,7 +7,8 @@ import type { VideoStyle } from '../simulation/renderers.ts';
 import { VIDEO_FPS } from '../simulation/theme.ts';
 import { ExportError, classifyExportError } from './errors.ts';
 import { PRODUCT_CODEC, codecLabel } from './codec.ts';
-import { checkExportSupport, exportVideo, type ExportProgress, type ExportResult } from './exportVideo.ts';
+import { exportVideo, type ExportProgress, type ExportResult } from './exportVideo.ts';
+import { useExportSupport } from './useExportSupport.ts';
 
 interface Props {
   readonly sim: Simulation;
@@ -17,7 +18,6 @@ interface Props {
   readonly title: string;
 }
 
-type Support = { readonly state: 'checking' } | { readonly state: 'ok' } | { readonly state: 'no'; readonly error: ExportError };
 type Job =
   | { readonly phase: 'idle' }
   | { readonly phase: 'running'; readonly progress: ExportProgress; readonly etaSeconds: number | null }
@@ -28,20 +28,10 @@ const mb = (bytes: number): string => `${(bytes / 1e6).toFixed(1)} MB`;
 
 /** Exporta la simulación mostrada a un MP4 vertical 9:16. El estado se reinicia remontando el componente (key) al cambiar la simulación. */
 export function ExportPanel({ sim, meta, style, fileName, title }: Props) {
-  const [support, setSupport] = useState<Support>({ state: 'checking' });
+  const support = useExportSupport();
   const [job, setJob] = useState<Job>({ phase: 'idle' });
   const abortRef = useRef<AbortController | null>(null);
   const urlRef = useRef<string | null>(null);
-
-  useEffect(() => {
-    let alive = true;
-    void checkExportSupport().then((check) => {
-      if (alive) setSupport(check.supported || check.error === null ? { state: 'ok' } : { state: 'no', error: check.error });
-    });
-    return () => {
-      alive = false;
-    };
-  }, []);
 
   useEffect(
     () => () => {
