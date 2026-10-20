@@ -1,6 +1,6 @@
 import { clockLabel, PLAYERS_PER_TEAM, shapePos, sideOf, slotOf } from './animate.ts';
 import { FORMATION_IDS, FORMATIONS, type Role } from './formations.ts';
-import { CENTER, GOAL_HALF_WIDTH, PITCH_L, PITCH_W, attackDir, clamp, dist, goalLineY, toAbs, type Side, type Vec } from './geometry.ts';
+import { CENTER, GOAL_HALF_WIDTH, PITCH_L, PITCH_W, attackDir, clamp, dist, goalLineY, toAbs, toFrame, type Side, type Vec } from './geometry.ts';
 import { Rng, hashString } from './rng.ts';
 import { teamStyles } from './style.ts';
 import type {
@@ -61,9 +61,9 @@ function limitFrom(from: Vec, target: Vec, max: number): Vec {
 }
 
 const inField = (p: Vec): Vec => ({ x: clamp(p.x, 0.5, PITCH_W - 0.5), y: clamp(p.y, 0.5, PITCH_L - 0.5) });
-const passDuration = (a: Vec, b: Vec): number => clamp(dist(a, b) / 24, 0.35, 1.2);
+const passDuration = (a: Vec, b: Vec): number => clamp(dist(a, b) / 24, 0.35, 1.7);
 /** Duración de la rampa para que un jugador cubra `from→to` sin superar ~16 m/s de velocidad media (el pico de smoothstep es ×1,5). */
-const rampFor = (from: Vec, to: Vec): number => clamp((dist(from, to) * 1.5) / 14, 0.5, 3.2);
+const rampFor = (from: Vec, to: Vec): number => clamp((dist(from, to) * 1.5) / 11, 0.5, 3.6);
 const RAMP_OUT = 1.4;
 /** Tras celebrar, los jugadores vuelven desde lejos: rampa de salida larga para no superar la velocidad máxima. */
 const CELEBRATION_RAMP_OUT = 3;
@@ -120,27 +120,36 @@ class Builder {
     this.busyUntil.set(player, Math.max(this.busyUntil.get(player) ?? 0, t1 + 0.8 * rampOut));
   }
 
-  private isFree(side: Side, slot: number): boolean {
-    return (this.busyUntil.get(global(side, slot)) ?? 0) <= this.t + 0.5;
+  /** ¿Puede entrar en acción dentro de `arriveIn` s con una rampa de `ramp` s sin solaparse con su actor anterior? */
+  private isFree(side: Side, slot: number, ramp = 1.2, arriveIn = 0.5): boolean {
+    return (this.busyUntil.get(global(side, slot)) ?? 0) <= this.t + arriveIn - ramp;
+  }
+
+  /** Acota la rampa de entrada para que no invada la liberación del actor anterior del mismo jugador. */
+  private clampRamp(player: number, t0: number, rampIn: number): number {
+    const free = this.busyUntil.get(player) ?? -Infinity;
+    return Math.min(rampIn, Math.max(0.25, t0 - free));
   }
 
   /** Rampa de salida por defecto: la necesaria para volver desde `to` a su posición de forma sin pasar de ~14 m/s medios. */
   private rampOutFrom(player: number, to: Vec): number {
     const home = this.shape(sideOf(player), slotOf(player), false);
-    return clamp((dist(to, home) * 1.5) / 14, RAMP_OUT, 3.2);
+    return clamp((dist(to, home) * 1.5) / 11, RAMP_OUT, 3.6);
   }
 
   carry(player: number, from: Vec, to: Vec, duration: number, rampIn = 0.6, rampOut = this.rampOutFrom(player, to)): void {
+    const ramp = this.clampRamp(player, this.t, rampIn);
     this.mark(player, this.t + duration, rampOut);
-    this.actors.push({ player, t0: this.t, t1: this.t + duration, from, to, rampIn, rampOut, holds: true });
+    this.actors.push({ player, t0: this.t, t1: this.t + duration, from, to, rampIn: ramp, rampOut, holds: true });
     this.segments.push({ t0: this.t, t1: this.t + duration, from, to, arc: 0, kind: 'carry' });
     this.t += duration;
     this.ball = to;
   }
 
   run(player: number, t0: number, t1: number, from: Vec, to: Vec, rampIn = 0.5, rampOut = this.rampOutFrom(player, to)): void {
+    const ramp = this.clampRamp(player, t0, rampIn);
     this.mark(player, t1, rampOut);
-    this.actors.push({ player, t0, t1, from, to, rampIn, rampOut, holds: false });
+    this.actors.push({ player, t0, t1, from, to, rampIn: ramp, rampOut, holds: false });
   }
 
   /** Carrera que termina en `arriveAt` a ~11 m/s (empieza antes si la distancia es larga). */
@@ -164,9 +173,10 @@ class Builder {
     for (let slot = 1; slot < PLAYERS_PER_TEAM; slot += 1) {
       const role = formation[slot]?.role;
       if (exclude.includes(slot) || role === undefined) continue;
-      if (!ignoreBusy && !this.isFree(side, slot)) continue;
       if (only !== undefined && !only.includes(role)) continue;
-      const d = dist(this.shape(side, slot, possessing), to);
+      const candidate = this.shape(side, slot, possessing);
+      const d = dist(candidate, to);
+      if (!ignoreBusy && !this.isFree(side, slot, rampFor(candidate, to))) continue;
       if (d < bestDist) {
         bestDist = d;
         best = slot;
@@ -183,7 +193,7 @@ class Builder {
     for (let slot = 1; slot < PLAYERS_PER_TEAM; slot += 1) {
       const role = formation[slot]?.role;
       if (role === undefined || exclude.includes(slot)) continue;
-      items.push([slot, (weights[role] ?? fallback) * (this.isFree(side, slot) ? 1 : 0.001) + 1e-9]);
+      items.push([slot, (weights[role] ?? fallback) * (this.isFree(side, slot, 1.5) ? 1 : 0.001) + 1e-9]);
     }
     return this.rng.weighted(items);
   }
@@ -197,7 +207,7 @@ class Builder {
     this.gkHeld = null;
     const slot = this.nearest(side, this.ball, true);
     const pos = this.shape(side, slot, true);
-    this.move(pos, clamp(dist(this.ball, pos) / 18, 0.3, 1.4), 'retrieve', 0.4);
+    this.move(pos, clamp(dist(this.ball, pos) / 18, 0.3, 2.4), 'retrieve', 0.4);
     return { slot, pos };
   }
 
@@ -218,6 +228,10 @@ class Builder {
     let holderEnd = this.forward(first.pos, side, rng.float(1, 2.5), rng.float(-1, 1));
     this.carry(global(side, first.slot), first.pos, holderEnd, rng.float(0.35, 0.5));
 
+    // La progresión parte de la altura real del balón (puede empezar ya en campo rival): nunca hay pases largos hacia atrás.
+    const startD = clamp(toFrame(side, half, first.pos).d, 0.06, 0.92);
+    const possTarget = Math.max(startD, 0.55);
+
     const step = (stageD: number, weights: Partial<Record<Role, number>>): void => {
       const slot = this.pickSlot(side, weights, [used.at(-1) ?? first.slot]);
       used.push(slot);
@@ -232,12 +246,12 @@ class Builder {
 
     const nPoss = rng.chance(0.6) ? 1 : 2;
     for (let i = 0; i < nPoss; i += 1) {
-      step(0.32 + (0.22 * (i + 1)) / (nPoss + 1), { CB: 1, LB: 1.2, RB: 1.2, DM: 2, CM: 2, LWB: 1, RWB: 1, LM: 1.2, RM: 1.2 });
+      step(startD + ((possTarget - startD) * (i + 1)) / (nPoss + 1), { CB: 1, LB: 1.2, RB: 1.2, DM: 2, CM: 2, LWB: 1, RWB: 1, LM: 1.2, RM: 1.2 });
     }
     const possEnd = this.t;
     this.phase('possession', side, phaseStart);
 
-    if (rng.chance(0.4)) step(0.64 + rng.float(0, 0.1), { AM: 3, LW: 2, RW: 2, LM: 2, RM: 2, CM: 1.5, ST: 0.6, LWB: 1, RWB: 1 });
+    if (rng.chance(0.4)) step(Math.max(possTarget + 0.06, 0.64) + rng.float(0, 0.08), { AM: 3, LW: 2, RW: 2, LM: 2, RM: 2, CM: 1.5, ST: 0.6, LWB: 1, RWB: 1 });
 
     // Rematador: entra al área y recibe el último pase.
     const finisher = this.pickSlot(side, { ST: 5, LW: 2, RW: 2, AM: 2, CM: 1, LM: 1, RM: 1 }, [used.at(-1) ?? first.slot], 0);
@@ -245,7 +259,7 @@ class Builder {
     const finisherShape = this.shape(side, finisher, true);
     const boxPos = limitFrom(finisherShape, boxTarget, 14);
     const wide = holderEnd.x < PITCH_W * 0.25 || holderEnd.x > PITCH_W * 0.75;
-    this.move(boxPos, wide ? clamp(dist(this.ball, boxPos) / 20, 0.6, 1.2) : passDuration(this.ball, boxPos), wide ? 'cross' : 'pass', wide ? 2.6 : 0.5);
+    this.move(boxPos, wide ? clamp(dist(this.ball, boxPos) / 20, 0.6, 2) : passDuration(this.ball, boxPos), wide ? 'cross' : 'pass', wide ? 2.6 : 0.5);
     const shooterPos = this.forward(boxPos, side, 0.8, 0);
     const shooter = global(side, finisher);
     this.carry(shooter, boxPos, shooterPos, 0.35, rampFor(finisherShape, boxPos));
@@ -277,7 +291,7 @@ class Builder {
     this.counters[side].shots += 1;
     this.emit('shot', side, shirt, `Disparo de ${short} (nº ${String(shirt)})`);
 
-    const flight = (to: Vec, speed: number): number => clamp(dist(from, to) / speed, 0.4, 1.1);
+    const flight = (to: Vec, speed: number): number => clamp(dist(from, to) / speed, 0.4, 1.5);
     // El rematador se queda en su sitio hasta el impacto (así enlaza sin saltos con la celebración).
     const hold = (impactAt: number): void => {
       this.run(global(side, slot), tShot, impactAt, from, from, 0.01, RAMP_OUT);
@@ -343,7 +357,8 @@ class Builder {
         this.move(block, d, 'shot', 0.2);
         hold(this.t);
         this.emit('block', defSide, this.shirt(defSide, blocker), `Disparo bloqueado (${short})`);
-        this.move({ x: rng.chance(0.5) ? 0.8 : PITCH_W - 0.8, y: lineY + inward * 0.8 }, 0.7, 'pass', 0.6);
+        const flagSpot = { x: rng.chance(0.5) ? 0.8 : PITCH_W - 0.8, y: lineY + inward * 0.8 };
+        this.move(flagSpot, clamp(dist(this.ball, flagSpot) / 22, 0.5, 2), 'pass', 0.6);
         break;
       }
     }

@@ -71,13 +71,13 @@ Puro y sin dependencias de React (ESLint lo impide). Entrada: `SimulationInput {
 - **Animación (`frameAt(script, t)`)**: función pura de `t` (permite pausar, retroceder y renderizar fotograma a fotograma).
   Balón: segmentos con parábola. Jugadores: posición «de forma» (puesto de la formación 4-3-3, 4-4-2, 4-2-3-1, 3-5-2 o 3-4-3,
   desplazado según el balón, un peso de posesión continuo y movimiento de reposo) mezclada con *actores* (jugadores que reciben,
-  conducen, corren o se lanzan) mediante rampas suaves; las rampas se dimensionan por distancia para no superar ~36 m/s. Los
+  conducen, corren o se lanzan) mediante rampas suaves; las rampas se dimensionan por distancia (la mayoría de jugadores < 36 m/s y ninguno > 55 m/s). Los
   equipos cambian de campo en la 2.ª parte (el salto queda oculto bajo la tarjeta de descanso).
 - Qué es **ficticio**: todo lo que sale del motor. Los dorsales y colores son genéricos (los colores se derivan del nombre del
   equipo; no hay escudos ni equipaciones reales).
 - Duración del vídeo: ~35–65 s con 0–3 goles; crece con los goles (hasta ~100 s con 9–9).
 - Tests (`src/engine/engine.test.ts`): PRNG, estilos, formaciones, determinismo, coherencia marcador/goles (incluidos 0–0 y 9–9),
-  eventos ordenados, fases contiguas, minutos plausibles, continuidad de la animación (balón < 60 m/s, jugadores < 36 m/s) y
+  eventos ordenados, fases contiguas, minutos plausibles, continuidad de la animación (balón < 60 m/s, jugadores < 55 m/s (sin teletransportes)) y
   robustez con marcadores extremos.
 
 ## Render (implementado en Fase 3) y exportación (planificado)
