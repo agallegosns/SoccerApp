@@ -141,6 +141,8 @@ export interface FrameState {
   readonly clock: string;
   readonly goalBanner: { readonly side: Side; readonly shirt: number | null; readonly clock: string; readonly progress: number } | null;
   readonly ticker: { readonly clock: string; readonly text: string } | null;
+  /** Peso de posesión continuo de cada equipo (0 defiende, 1 tiene el balón). */
+  readonly possession: { readonly home: number; readonly away: number };
   /** Línea del pase en vuelo (para dibujarla), si la hay. */
   readonly passLine: { readonly from: Vec; readonly to: Vec; readonly progress: number } | null;
 }

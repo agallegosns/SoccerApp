@@ -1,6 +1,6 @@
 import { FORMATIONS, type Slot } from './formations.ts';
 import { PITCH_L, PITCH_W, attackDir, clamp, dist, lerp, lerpVec, smoothstep, toAbs, toFrame, type Side, type Vec } from './geometry.ts';
-import type { Actor, BallSegment, ClockSegment, FrameState, MatchScript, Phase, PlayerFrame, ResolvedTeam, ScriptEvent } from './types.ts';
+import type { Actor, BallSegment, ClockSegment, FrameState, MatchScript, Phase, PlayerFrame, ResolvedTeam, ScriptEvent, TeamStats } from './types.ts';
 
 export const PLAYERS_PER_TEAM = 11;
 
@@ -140,6 +140,25 @@ export function scoreAt(events: readonly ScriptEvent[], t: number): { home: numb
   return { home, away };
 }
 
+/** Estadísticas acumuladas hasta el instante t (cuenta los sucesos ya ocurridos). */
+export function statsAt(events: readonly ScriptEvent[], t: number): { home: TeamStats; away: TeamStats } {
+  const acc = {
+    home: { shots: 0, onTarget: 0, corners: 0, fouls: 0 },
+    away: { shots: 0, onTarget: 0, corners: 0, fouls: 0 },
+  };
+  for (const e of events) {
+    if (e.t > t) break;
+    if (e.side === null) continue;
+    const other = e.side === 'home' ? 'away' : 'home';
+    if (e.type === 'shot') acc[e.side].shots += 1;
+    else if (e.type === 'goal') acc[e.side].onTarget += 1;
+    else if (e.type === 'save') acc[other].onTarget += 1;
+    else if (e.type === 'corner') acc[e.side].corners += 1;
+    else if (e.type === 'foul') acc[e.side].fouls += 1;
+  }
+  return acc;
+}
+
 const GOAL_BANNER_SECONDS = 2.2;
 const TICKER_SECONDS = 3;
 
@@ -223,6 +242,7 @@ export function frameAt(script: MatchScript, rawT: number): FrameState {
     clock: clockLabel(script.clock, t).label,
     goalBanner,
     ticker,
+    possession: { home: possessionWeight(script, 'home', t), away: possessionWeight(script, 'away', t) },
     passLine,
   };
 }

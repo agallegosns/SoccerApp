@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { frameAt, scoreAt } from './animate.ts';
+import { frameAt, scoreAt, statsAt } from './animate.ts';
 import { FORMATIONS } from './formations.ts';
 import { PITCH_L, PITCH_W, dist } from './geometry.ts';
 import { simulate } from './index.ts';
@@ -155,6 +155,21 @@ describe('coherencia entre marcador y guion', () => {
     const s = generateScript(base(31, { home: 4, away: 1 }));
     expect(s.stats.home.onTarget).toBeGreaterThanOrEqual(4);
     expect(s.stats.home.shots).toBeGreaterThanOrEqual(s.stats.home.onTarget);
+  });
+
+  it('las estadísticas acumuladas crecen con el tiempo y al final coinciden con las del guion', () => {
+    for (const seed of seeds.slice(0, 15)) {
+      const s = generateScript(base(seed, { home: 2, away: 1 }));
+      expect(statsAt(s.events, s.duration)).toEqual(s.stats);
+      let prev = statsAt(s.events, 0);
+      for (let t = 0; t <= s.duration; t += 1) {
+        const now = statsAt(s.events, t);
+        for (const side of ['home', 'away'] as const) {
+          for (const key of ['shots', 'onTarget', 'corners', 'fouls'] as const) expect(now[side][key]).toBeGreaterThanOrEqual(prev[side][key]);
+        }
+        prev = now;
+      }
+    }
   });
 
   it('rechaza entradas inválidas', () => {

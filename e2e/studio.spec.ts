@@ -68,6 +68,26 @@ test.describe('estudio de simulación', () => {
     await expect(page.getByTestId('sim-score')).toHaveText(firstScore ?? '');
   });
 
+  test('hay dos estilos de vídeo (Arena por defecto y Táctico) y ambos dibujan la etiqueta ficticia', async ({ page }) => {
+    await openStudio(page);
+    await expect(page.getByTestId('style-arena')).toHaveAttribute('aria-pressed', 'true');
+    await setSeed(page, '2024');
+    await seekTo(page, 14);
+    const arena = await canvasHash(page);
+    const [r, g, b] = await pixel(page, 540, 175);
+    expect(r).toBeGreaterThan(220);
+    expect(b).toBeLessThan(80);
+    expect(g).toBeGreaterThan(150);
+    await page.getByTestId('style-tactical').click();
+    await expect(page.getByTestId('style-tactical')).toHaveAttribute('aria-pressed', 'true');
+    await seekTo(page, 14);
+    expect(await canvasHash(page)).not.toBe(arena);
+    const [r2, g2, b2] = await pixel(page, 540, 175);
+    expect(r2).toBeGreaterThan(220);
+    expect(g2).toBeGreaterThan(150);
+    expect(b2).toBeLessThan(80);
+  });
+
   test('el marcador fijado se respeta: mismos goles en los sucesos y en el marcador', async ({ page }) => {
     await openStudio(page);
     await page.getByTestId('fix-score').click();

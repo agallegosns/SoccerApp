@@ -1,6 +1,7 @@
-import { phaseAt } from '../../engine/animate.ts';
+import { phaseAt, statsAt } from '../../engine/animate.ts';
 import { PITCH_L, PITCH_W, clamp, smoothstep } from '../../engine/geometry.ts';
 import type { FrameState, PlayerFrame, ResolvedTeam, Side, Simulation } from '../../engine/index.ts';
+import { drawCrest } from './crest.ts';
 import { CANVAS_THEME as C, FICTIONAL_FOOTER, FICTIONAL_LABEL, FONT_STACK, PITCH_RECT, VIDEO_HEIGHT, VIDEO_WIDTH } from './theme.ts';
 
 export type Ctx2D = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
@@ -21,15 +22,15 @@ const PITCH_Y0 = PITCH_RECT.y;
 const px = (x: number): number => PITCH_X0 + x * SCALE;
 const py = (y: number): number => PITCH_Y0 + y * SCALE;
 
-const font = (size: number, weight = 700): string => `${String(weight)} ${String(size)}px ${FONT_STACK}`;
+export const font = (size: number, weight = 700): string => `${String(weight)} ${String(size)}px ${FONT_STACK}`;
 
-function roundRect(ctx: Ctx2D, x: number, y: number, w: number, h: number, r: number): void {
+export function roundRect(ctx: Ctx2D, x: number, y: number, w: number, h: number, r: number): void {
   ctx.beginPath();
   ctx.roundRect(x, y, w, h, r);
 }
 
 /** Reduce el tamaño de letra hasta que el texto cabe en `maxWidth`. */
-function fitFont(ctx: Ctx2D, text: string, maxWidth: number, size: number, weight = 700, min = 18): number {
+export function fitFont(ctx: Ctx2D, text: string, maxWidth: number, size: number, weight = 700, min = 18): number {
   let s = size;
   ctx.font = font(s, weight);
   while (s > min && ctx.measureText(text).width > maxWidth) {
@@ -126,18 +127,7 @@ function drawBackground(ctx: Ctx2D): void {
 }
 
 function drawBadge(ctx: Ctx2D, team: ResolvedTeam, cx: number, cy: number, r: number): void {
-  ctx.fillStyle = team.style.primary;
-  ctx.beginPath();
-  ctx.arc(cx, cy, r, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.strokeStyle = team.style.secondary;
-  ctx.lineWidth = 6;
-  ctx.stroke();
-  ctx.fillStyle = team.style.textOnPrimary;
-  ctx.font = font(Math.round(r * 0.72), 800);
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(team.style.abbr, cx, cy + 2);
+  drawCrest(ctx, team, cx, cy, r);
 }
 
 function drawHeader(ctx: Ctx2D, sim: Simulation, frame: FrameState, meta: RenderMeta): void {
@@ -249,7 +239,7 @@ function drawTicker(ctx: Ctx2D, frame: FrameState): void {
   ctx.fillText(text, VIDEO_WIDTH / 2, 1727);
 }
 
-function drawFooter(ctx: Ctx2D): void {
+export function drawFooter(ctx: Ctx2D): void {
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   fitFont(ctx, FICTIONAL_FOOTER, 960, 28, 600);
@@ -301,9 +291,9 @@ function statRow(ctx: Ctx2D, label: string, a: number, b: number, y: number): vo
   ctx.fillText(label, VIDEO_WIDTH / 2, y);
 }
 
-function drawCard(ctx: Ctx2D, sim: Simulation, frame: FrameState, title: string, alpha: number): void {
+export function drawCard(ctx: Ctx2D, sim: Simulation, frame: FrameState, title: string, alpha: number): void {
   const { home, away } = sim.script.teams;
-  const stats = sim.script.stats;
+  const stats = statsAt(sim.script.events, frame.t);
   ctx.save();
   ctx.globalAlpha = clamp(alpha, 0, 1);
   ctx.fillStyle = C.overlay;
@@ -328,7 +318,7 @@ function drawCard(ctx: Ctx2D, sim: Simulation, frame: FrameState, title: string,
   ctx.restore();
 }
 
-function drawIntro(ctx: Ctx2D, sim: Simulation, meta: RenderMeta, progress: number): void {
+export function drawIntro(ctx: Ctx2D, sim: Simulation, meta: RenderMeta, progress: number): void {
   const { home, away } = sim.script.teams;
   const alpha = progress > 0.7 ? 1 - (progress - 0.7) / 0.3 : 1;
   ctx.save();

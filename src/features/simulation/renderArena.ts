@@ -1,0 +1,614 @@
+import { ballAt, phaseAt, statsAt } from '../../engine/animate.ts';
+import { clamp, smoothstep } from '../../engine/geometry.ts';
+import { mulberry32 } from '../../engine/rng.ts';
+import type { FrameState, ResolvedTeam, ScriptEvent, Simulation } from '../../engine/index.ts';
+import { ARENA, BALL_R, GATE_DEPTH, MOUTH_HALF, cameraAngle, fieldToScreen, fieldToUnit, toScreen, rotate } from './arena.ts';
+import { drawCrest } from './crest.ts';
+import { drawCard, drawFooter, drawIntro, fitFont, font, roundRect, type Ctx2D, type RenderMeta } from './render.ts';
+import { CANVAS_THEME as C, FICTIONAL_LABEL, VIDEO_HEIGHT, VIDEO_WIDTH } from './theme.ts';
+
+const R = ARENA.radius;
+const DISC_R = 68;
+const BALL_PX = BALL_R * R * 1.15;
+const GOLD = '#fde047';
+
+type Layer = HTMLCanvasElement | OffscreenCanvas;
+let glowLayer: Layer | null = null;
+
+function makeLayer(): Layer {
+  if (typeof OffscreenCanvas !== 'undefined') return new OffscreenCanvas(VIDEO_WIDTH, VIDEO_HEIGHT);
+  const canvas = document.createElement('canvas');
+  canvas.width = VIDEO_WIDTH;
+  canvas.height = VIDEO_HEIGHT;
+  return canvas;
+}
+
+/** Capa fija (no depende de la rotación): suelo de la arena y halo del aro. */
+function arenaLayer(): Layer {
+  if (glowLayer !== null) return glowLayer;
+  const layer = makeLayer();
+  const ctx: Ctx2D | null = layer.getContext('2d');
+  if (ctx === null) throw new Error('No se pudo crear el lienzo de la arena');
+  const halo = ctx.createRadialGradient(ARENA.cx, ARENA.cy, R * 0.9, ARENA.cx, ARENA.cy, R * 1.45);
+  halo.addColorStop(0, 'rgba(96, 165, 250, 0.42)');
+  halo.addColorStop(1, 'rgba(96, 165, 250, 0)');
+  ctx.fillStyle = halo;
+  ctx.beginPath();
+  ctx.arc(ARENA.cx, ARENA.cy, R * 1.45, 0, Math.PI * 2);
+  ctx.fill();
+  const floor = ctx.createRadialGradient(ARENA.cx, ARENA.cy - R * 0.2, R * 0.05, ARENA.cx, ARENA.cy, R);
+  floor.addColorStop(0, '#173a6b');
+  floor.addColorStop(0.65, '#0f2548');
+  floor.addColorStop(1, '#0a1730');
+  ctx.fillStyle = floor;
+  ctx.beginPath();
+  ctx.arc(ARENA.cx, ARENA.cy, R, 0, Math.PI * 2);
+  ctx.fill();
+  glowLayer = layer;
+  return layer;
+}
+
+function other(side: 'home' | 'away'): 'home' | 'away' {
+  return side === 'home' ? 'away' : 'home';
+}
+
+function drawBackground(ctx: Ctx2D, sim: Simulation, frame: FrameState): void {
+  const g = ctx.createLinearGradient(0, 0, 0, VIDEO_HEIGHT);
+  g.addColorStop(0, '#070d1c');
+  g.addColorStop(0.5, '#0b1530');
+  g.addColorStop(1, '#070d1c');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, VIDEO_WIDTH, VIDEO_HEIGHT);
+  // Resplandor del equipo con la posesión.
+  for (const side of ['home', 'away'] as const) {
+    const team = sim.script.teams[side];
+    const x = side === 'home' ? 140 : VIDEO_WIDTH - 140;
+    const y = side === 'home' ? 700 : 1400;
+    const glow = ctx.createRadialGradient(x, y, 0, x, y, 620);
+    glow.addColorStop(0, team.style.primary);
+    glow.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.globalAlpha = 0.1 + 0.2 * frame.possession[side];
+    ctx.fillStyle = glow;
+    ctx.fillRect(0, 0, VIDEO_WIDTH, VIDEO_HEIGHT);
+  }
+  ctx.globalAlpha = 1;
+  // Polvo de estadio: puntos que derivan despacio (función pura del tiempo).
+  const rand = mulberry32(7);
+  ctx.fillStyle = 'rgba(180, 205, 255, 0.35)';
+  for (let i = 0; i < 46; i += 1) {
+    const x = rand() * VIDEO_WIDTH;
+    const y0 = rand() * VIDEO_HEIGHT;
+    const speed = 8 + rand() * 18;
+    const y = (y0 - frame.t * speed + VIDEO_HEIGHT * 4) % VIDEO_HEIGHT;
+    ctx.globalAlpha = 0.15 + rand() * 0.35;
+    ctx.beginPath();
+    ctx.arc(x, y, 1.5 + rand() * 2.5, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawBolt(ctx: Ctx2D, x: number, y: number, size: number, color: string): void {
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(x + size * 0.1, y - size);
+  ctx.lineTo(x - size * 0.55, y + size * 0.1);
+  ctx.lineTo(x - size * 0.05, y + size * 0.1);
+  ctx.lineTo(x - size * 0.15, y + size);
+  ctx.lineTo(x + size * 0.55, y - size * 0.15);
+  ctx.lineTo(x + size * 0.05, y - size * 0.15);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawHeader(ctx: Ctx2D, sim: Simulation, frame: FrameState, meta: RenderMeta, sprint: 'home' | 'away' | null): void {
+  const { home, away } = sim.script.teams;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = font(30, 800);
+  const label = FICTIONAL_LABEL;
+  const lw = ctx.measureText(label).width + 56;
+  ctx.fillStyle = C.amber;
+  roundRect(ctx, (VIDEO_WIDTH - lw) / 2, 158, lw, 56, 28);
+  ctx.fill();
+  ctx.fillStyle = C.amberText;
+  ctx.fillText(label, VIDEO_WIDTH / 2, 187);
+  fitFont(ctx, meta.competition, 960, 32, 600);
+  ctx.fillStyle = C.muted;
+  ctx.fillText(meta.competition, VIDEO_WIDTH / 2, 252);
+
+  for (const [team, cx] of [[home, 175], [away, VIDEO_WIDTH - 175]] as const) {
+    drawCrest(ctx, team, cx, 352, 72);
+    fitFont(ctx, team.style.short, 310, 34, 800);
+    ctx.fillStyle = C.text;
+    ctx.textAlign = 'center';
+    ctx.fillText(team.style.short, cx, 452);
+    if (sprint === team.side) {
+      drawBolt(ctx, cx - 56, 494, 15, GOLD);
+      ctx.font = font(28, 800);
+      ctx.fillStyle = GOLD;
+      ctx.textAlign = 'left';
+      ctx.fillText('SPRINT', cx - 36, 495);
+      ctx.textAlign = 'center';
+    }
+  }
+  ctx.fillStyle = C.text;
+  ctx.font = font(150, 800);
+  ctx.textAlign = 'center';
+  ctx.fillText(String(frame.score.home), 400, 345);
+  ctx.fillText(String(frame.score.away), 680, 345);
+  ctx.font = font(84, 700);
+  ctx.fillStyle = C.muted;
+  ctx.fillText(':', 540, 338);
+  ctx.font = font(36, 800);
+  const cw = Math.max(150, ctx.measureText(frame.clock).width + 52);
+  ctx.fillStyle = 'rgba(20, 32, 60, 0.95)';
+  roundRect(ctx, (VIDEO_WIDTH - cw) / 2, 446, cw, 56, 28);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(147, 197, 253, 0.55)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.fillStyle = C.text;
+  ctx.fillText(frame.clock, VIDEO_WIDTH / 2, 475);
+}
+
+/** Rotación de la cámara: aplica a todo el escenario (porterías, balón y escudos). */
+function drawFloorMarks(ctx: Ctx2D, angle: number): void {
+  ctx.save();
+  ctx.translate(ARENA.cx, ARENA.cy);
+  ctx.rotate(angle);
+  ctx.beginPath();
+  ctx.arc(0, 0, R - 3, 0, Math.PI * 2);
+  ctx.clip();
+  ctx.fillStyle = 'rgba(255,255,255,0.035)';
+  for (let i = 0; i < 12; i += 2) {
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.arc(0, 0, R, (i * Math.PI) / 6, ((i + 1) * Math.PI) / 6);
+    ctx.closePath();
+    ctx.fill();
+  }
+  ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(-R, 0);
+  ctx.lineTo(R, 0);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(0, 0, R * 0.26, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  ctx.beginPath();
+  ctx.arc(0, 0, 7, 0, Math.PI * 2);
+  ctx.fill();
+  // Áreas pequeñas junto a cada portería.
+  ctx.lineWidth = 3;
+  for (const dir of [-1, 1]) {
+    ctx.beginPath();
+    ctx.arc(0, dir * R, R * 0.32, dir < 0 ? 0 : Math.PI, dir < 0 ? Math.PI : Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawRing(ctx: Ctx2D, angle: number): void {
+  const gap = Math.asin(MOUTH_HALF);
+  ctx.save();
+  ctx.translate(ARENA.cx, ARENA.cy);
+  ctx.rotate(angle);
+  ctx.lineWidth = 14;
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = '#f8fbff';
+  // Arcos entre las dos bocas (arriba = −90°, abajo = +90°).
+  ctx.beginPath();
+  ctx.arc(0, 0, R, -Math.PI / 2 + gap, Math.PI / 2 - gap);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(0, 0, R, Math.PI / 2 + gap, (3 * Math.PI) / 2 - gap);
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawGate(ctx: Ctx2D, angle: number, top: boolean, color: string, glow: number): void {
+  const w = MOUTH_HALF * R;
+  const d = GATE_DEPTH * R;
+  ctx.save();
+  ctx.translate(ARENA.cx, ARENA.cy);
+  ctx.rotate(angle);
+  ctx.scale(1, top ? -1 : 1); // la portería de arriba se dibuja reflejada en su marco local
+  const y0 = R - 2;
+  // Red.
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(-w, y0, 2 * w, d);
+  ctx.clip();
+  ctx.fillStyle = `rgba(255,255,255,${String(0.06 + 0.22 * glow)})`;
+  ctx.fillRect(-w, y0, 2 * w, d);
+  ctx.strokeStyle = `rgba(255,255,255,${String(0.22 + 0.4 * glow)})`;
+  ctx.lineWidth = 2;
+  for (let k = -w; k <= w; k += 14) {
+    ctx.beginPath();
+    ctx.moveTo(k, y0);
+    ctx.lineTo(k, y0 + d);
+    ctx.stroke();
+  }
+  for (let k = y0; k <= y0 + d; k += 14) {
+    ctx.beginPath();
+    ctx.moveTo(-w, k);
+    ctx.lineTo(w, k);
+    ctx.stroke();
+  }
+  ctx.restore();
+  // Marco.
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 18 + 30 * glow;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 14;
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(-w, y0);
+  ctx.lineTo(-w, y0 + d);
+  ctx.lineTo(w, y0 + d);
+  ctx.lineTo(w, y0);
+  ctx.stroke();
+  ctx.restore();
+}
+
+interface DiscPos {
+  readonly x: number;
+  readonly y: number;
+}
+
+/** Cada equipo es un escudo: se sitúa entre el centro de su equipo y el balón (más cerca del balón si tiene la posesión). */
+function discPositions(frame: FrameState): Record<'home' | 'away', DiscPos> {
+  const out: Record<'home' | 'away', DiscPos> = { home: { x: 0, y: 0 }, away: { x: 0, y: 0 } };
+  const angle = cameraAngle(frame.t);
+  for (const side of ['home', 'away'] as const) {
+    const mates = frame.players.filter((p) => p.side === side && p.role !== 'GK');
+    const cx = mates.reduce((a, p) => a + p.x, 0) / mates.length;
+    const cy = mates.reduce((a, p) => a + p.y, 0) / mates.length;
+    const k = 0.25 + 0.55 * frame.possession[side];
+    const px = cx + (frame.ball.x - cx) * k;
+    const py = cy + (frame.ball.y - cy) * k;
+    const unit = fieldToUnit(px, py);
+    const rotated = rotate({ u: unit.u * 0.86, v: unit.v * 0.86 }, angle);
+    out[side] = toScreen(rotated);
+  }
+  const ball = fieldToScreen(frame.ball.x, frame.ball.y, frame.t);
+  // El escudo no tapa el balón: lo conduce por su borde (continuo: sólo empuja al escudo hacia fuera del balón).
+  const clearBall = (): void => {
+    const gap = DISC_R + BALL_PX + 6;
+    for (const side of ['home', 'away'] as const) {
+      const p = out[side];
+      let dx = p.x - ball.x;
+      let dy = p.y - ball.y;
+      let d = Math.hypot(dx, dy);
+      if (d < 1e-3) {
+        dx = ARENA.cx - ball.x;
+        dy = ARENA.cy - ball.y;
+        d = Math.hypot(dx, dy) || 1;
+      }
+      if (d < gap) out[side] = { x: ball.x + (dx / d) * gap, y: ball.y + (dy / d) * gap };
+    }
+  };
+  const separate = (): void => {
+    const dx = out.away.x - out.home.x;
+    const dy = out.away.y - out.home.y;
+    const d = Math.hypot(dx, dy) || 1;
+    const min = DISC_R * 2.05;
+    if (d < min) {
+      const push = (min - d) / 2;
+      out.home = { x: out.home.x - (dx / d) * push, y: out.home.y - (dy / d) * push };
+      out.away = { x: out.away.x + (dx / d) * push, y: out.away.y + (dy / d) * push };
+    }
+  };
+  if (frame.ball.visible) clearBall();
+  separate();
+  return out;
+}
+
+function drawDisc(ctx: Ctx2D, team: ResolvedTeam, pos: DiscPos, active: number, pulse: number): void {
+  if (active > 0.01) {
+    ctx.save();
+    ctx.shadowColor = team.style.primary;
+    ctx.shadowBlur = 40 * active + 8 * pulse;
+    ctx.strokeStyle = team.style.secondary;
+    ctx.lineWidth = 6;
+    ctx.globalAlpha = 0.4 + 0.6 * active;
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, DISC_R + 10 + 4 * pulse, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+  drawCrest(ctx, team, pos.x, pos.y, DISC_R);
+}
+
+function drawBall(ctx: Ctx2D, frame: FrameState, t: number, sim: Simulation): void {
+  if (!frame.ball.visible) return;
+  // Estela: posiciones recientes del balón.
+  const trail: { x: number; y: number }[] = [];
+  for (let k = 7; k >= 1; k -= 1) {
+    const tk = Math.max(0, t - k * 0.035);
+    const b = ballAt(sim.script, tk);
+    if (!b.visible) continue;
+    trail.push(fieldToScreen(b.x, b.y, tk));
+  }
+  for (const [i, p] of trail.entries()) {
+    ctx.fillStyle = `rgba(255,255,255,${String(0.05 + (0.22 * (i + 1)) / trail.length)})`;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, BALL_PX * (0.35 + (0.55 * (i + 1)) / trail.length), 0, Math.PI * 2);
+    ctx.fill();
+  }
+  const p = fieldToScreen(frame.ball.x, frame.ball.y, t);
+  const lift = frame.ball.z * 10;
+  const r = BALL_PX * (1 + frame.ball.z * 0.06);
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.beginPath();
+  ctx.ellipse(p.x + 3, p.y + 8, r * 0.95, r * 0.5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  const g = ctx.createRadialGradient(p.x - r * 0.35, p.y - lift - r * 0.4, r * 0.1, p.x, p.y - lift, r);
+  g.addColorStop(0, '#ffffff');
+  g.addColorStop(1, '#cfd8ea');
+  ctx.fillStyle = g;
+  ctx.strokeStyle = '#0b1220';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.arc(p.x, p.y - lift, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = '#0b1220';
+  const spin = (frame.ball.x + frame.ball.y) * 0.09;
+  ctx.beginPath();
+  for (let i = 0; i < 5; i += 1) {
+    const a = spin + (i * 2 * Math.PI) / 5;
+    const px = p.x + Math.cos(a) * r * 0.36;
+    const py = p.y - lift + Math.sin(a) * r * 0.36;
+    ctx.lineTo(px, py);
+  }
+  ctx.closePath();
+  ctx.fill();
+}
+
+const TAGS: Readonly<Partial<Record<ScriptEvent['type'], { text: string; color: string }>>> = {
+  save: { text: '¡PARADA!', color: '#67e8f9' },
+  miss: { text: 'FUERA', color: '#cbd5e1' },
+  post: { text: '¡AL PALO!', color: '#fbbf24' },
+  block: { text: 'BLOQUEO', color: '#fda4af' },
+  foul: { text: 'FALTA', color: '#fcd34d' },
+  corner: { text: 'CÓRNER', color: '#a5b4fc' },
+};
+
+function burst(ctx: Ctx2D, seed: number, x: number, y: number, age: number, colors: readonly string[], count: number, power: number): void {
+  const rand = mulberry32(seed);
+  for (let i = 0; i < count; i += 1) {
+    const a = rand() * Math.PI * 2;
+    const speed = (120 + rand() * 360) * power;
+    const life = 0.55 + rand() * 0.7;
+    const color = colors[Math.floor(rand() * colors.length)] ?? '#ffffff';
+    const size = 3 + rand() * 6;
+    if (age > life) continue;
+    const dist = (speed * (1 - Math.exp(-age * 3))) / 3;
+    const k = 1 - age / life;
+    ctx.globalAlpha = clamp(k, 0, 1);
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(x + Math.cos(a) * dist, y + Math.sin(a) * dist + 40 * age * age, size * (0.4 + 0.6 * k), 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+function drawEffects(ctx: Ctx2D, sim: Simulation, t: number): void {
+  const { teams } = sim.script;
+  for (const [index, e] of sim.script.events.entries()) {
+    const age = t - e.t;
+    if (age < 0) break;
+    if (age > 1.6 || e.type === 'kickoff' || e.type === 'shot' || e.type === 'halftime' || e.type === 'fulltime') continue;
+    const ball = ballAt(sim.script, e.t);
+    const p = fieldToScreen(ball.x, ball.y, e.t);
+    const seed = index * 7919 + 13;
+    if (e.type === 'goal' && e.side !== null) {
+      const team = teams[e.side];
+      const ring = clamp(age / 0.9, 0, 1);
+      ctx.strokeStyle = team.style.secondary;
+      ctx.globalAlpha = 1 - ring;
+      ctx.lineWidth = 16 * (1 - ring) + 2;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, 40 + ring * 520, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+      burst(ctx, seed, p.x, p.y, age, [team.style.primary, team.style.secondary, GOLD, '#ffffff'], 46, 1.15);
+      continue;
+    }
+    burst(ctx, seed, p.x, p.y, age, ['#ffffff', TAGS[e.type]?.color ?? '#ffffff'], e.type === 'post' ? 22 : 14, 0.7);
+    const tag = TAGS[e.type];
+    if (tag === undefined) continue;
+    const pop = age < 0.18 ? smoothstep(age / 0.18) * 1.15 : 1.15 - 0.15 * smoothstep((age - 0.18) / 0.2);
+    ctx.save();
+    ctx.globalAlpha = clamp(1 - (age - 0.9) / 0.7, 0, 1);
+    ctx.translate(clamp(p.x, 200, VIDEO_WIDTH - 200), clamp(p.y - 110 - age * 30, 560, 1500));
+    ctx.scale(pop, pop);
+    ctx.font = font(52, 800);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const w = ctx.measureText(tag.text).width + 48;
+    ctx.fillStyle = 'rgba(8, 14, 30, 0.88)';
+    roundRect(ctx, -w / 2, -36, w, 72, 36);
+    ctx.fill();
+    ctx.strokeStyle = tag.color;
+    ctx.lineWidth = 4;
+    ctx.stroke();
+    ctx.fillStyle = tag.color;
+    ctx.fillText(tag.text, 0, 3);
+    ctx.restore();
+  }
+}
+
+function shakeOffset(sim: Simulation, t: number): { x: number; y: number } {
+  let x = 0;
+  let y = 0;
+  for (const e of sim.script.events) {
+    if (e.t > t) break;
+    const age = t - e.t;
+    if (e.type === 'goal' && age < 0.7) {
+      const amp = 18 * Math.exp(-age * 7);
+      x += amp * Math.sin(age * 70);
+      y += amp * Math.cos(age * 58);
+    }
+  }
+  return { x, y };
+}
+
+function drawGoalBanner(ctx: Ctx2D, sim: Simulation, banner: NonNullable<FrameState['goalBanner']>): void {
+  const team = sim.script.teams[banner.side];
+  const p = banner.progress;
+  const pop = p < 0.14 ? smoothstep(p / 0.14) * 1.1 : 1.1 - 0.1 * smoothstep((p - 0.14) / 0.2);
+  const alpha = p > 0.78 ? 1 - (p - 0.78) / 0.22 : 1;
+  ctx.save();
+  ctx.globalAlpha = clamp(alpha, 0, 1);
+  if (p < 0.07) {
+    ctx.fillStyle = `rgba(255,255,255,${String(0.3 * (1 - p / 0.07))})`;
+    ctx.fillRect(0, 0, VIDEO_WIDTH, VIDEO_HEIGHT);
+  }
+  ctx.translate(VIDEO_WIDTH / 2, ARENA.cy);
+  ctx.scale(pop, pop);
+  const grad = ctx.createLinearGradient(-430, 0, 430, 0);
+  grad.addColorStop(0, team.style.primary);
+  grad.addColorStop(1, 'rgba(10, 18, 40, 0.96)');
+  ctx.shadowColor = team.style.primary;
+  ctx.shadowBlur = 50;
+  ctx.fillStyle = grad;
+  roundRect(ctx, -430, -150, 860, 300, 44);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.strokeStyle = team.style.secondary;
+  ctx.lineWidth = 6;
+  ctx.stroke();
+  drawCrest(ctx, team, -290, 0, 92);
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#ffffff';
+  ctx.font = font(150, 800);
+  ctx.fillText('¡GOL!', 90, -34);
+  const sub = `${team.style.short}${banner.shirt === null ? '' : ` · nº ${String(banner.shirt)}`} · ${banner.clock}`;
+  fitFont(ctx, sub, 520, 40, 700);
+  ctx.fillStyle = '#e8eefc';
+  ctx.fillText(sub, 90, 86);
+  ctx.restore();
+}
+
+function statBar(ctx: Ctx2D, sim: Simulation, label: string, home: number, away: number, y: number): void {
+  const { teams } = sim.script;
+  const total = Math.max(1, home + away);
+  const w = 290;
+  const h = 14;
+  ctx.textBaseline = 'middle';
+  ctx.font = font(40, 800);
+  ctx.fillStyle = C.text;
+  ctx.textAlign = 'left';
+  ctx.fillText(String(home), 90, y);
+  ctx.textAlign = 'right';
+  ctx.fillText(String(away), VIDEO_WIDTH - 90, y);
+  ctx.textAlign = 'center';
+  ctx.font = font(28, 700);
+  ctx.fillStyle = C.muted;
+  ctx.fillText(label, VIDEO_WIDTH / 2, y);
+  for (const [side, x0, dir] of [['home', 170, 1], ['away', VIDEO_WIDTH - 170, -1]] as const) {
+    ctx.fillStyle = 'rgba(255,255,255,0.08)';
+    roundRect(ctx, dir > 0 ? x0 : x0 - w, y - h / 2, w, h, h / 2);
+    ctx.fill();
+    const value = side === 'home' ? home : away;
+    const len = Math.max(value === 0 ? 0 : 14, (w * value) / total);
+    ctx.fillStyle = teams[side].style.primary;
+    roundRect(ctx, dir > 0 ? x0 : x0 - len, y - h / 2, len, h, h / 2);
+    ctx.fill();
+  }
+}
+
+function drawTicker(ctx: Ctx2D, frame: FrameState): void {
+  if (frame.ticker === null) return;
+  const text = `${frame.ticker.clock}  ${frame.ticker.text}`;
+  const size = fitFont(ctx, text, 880, 36, 700);
+  ctx.font = font(size, 700);
+  const w = Math.min(960, ctx.measureText(text).width + 70);
+  ctx.fillStyle = 'rgba(20, 32, 60, 0.95)';
+  roundRect(ctx, (VIDEO_WIDTH - w) / 2, 1596, w, 70, 35);
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(147, 197, 253, 0.4)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.fillStyle = C.text;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, VIDEO_WIDTH / 2, 1632);
+}
+
+/** Estilo «Arena»: el partido simulado dentro de un círculo con dos porterías que giran, un escudo por equipo y el balón. */
+export function drawArenaFrame(ctx: Ctx2D, sim: Simulation, t: number, meta: RenderMeta): void {
+  const frame = sim.frame(t);
+  const phase = phaseAt(sim.script, frame.t);
+  const { home, away } = sim.script.teams;
+  const angle = cameraAngle(frame.t);
+  const sprint = phase.kind === 'attack' && phase.side !== null && frame.phaseProgress < 0.9 ? phase.side : null;
+
+  drawBackground(ctx, sim, frame);
+  drawHeader(ctx, sim, frame, meta, sprint);
+
+  const shake = shakeOffset(sim, frame.t);
+  ctx.save();
+  ctx.translate(shake.x, shake.y);
+  ctx.drawImage(arenaLayer(), 0, 0);
+  drawFloorMarks(ctx, angle);
+  drawRing(ctx, angle);
+  // La portería de arriba es la del equipo que defiende ese lado (cambian de campo en la 2.ª parte).
+  const topDefender = frame.half === 1 ? 'away' : 'home';
+  const glowOf = (side: 'home' | 'away'): number => {
+    let g = 0;
+    for (const e of sim.script.events) {
+      if (e.t > frame.t) break;
+      if (e.type === 'goal' && e.side === other(side)) g = Math.max(g, 1 - (frame.t - e.t) / 1.2);
+    }
+    return clamp(g, 0, 1);
+  };
+  drawGate(ctx, angle, true, sim.script.teams[topDefender].style.primary, glowOf(topDefender));
+  drawGate(ctx, angle, false, sim.script.teams[other(topDefender)].style.primary, glowOf(other(topDefender)));
+
+  const discs = discPositions(frame);
+  const pulse = 0.5 + 0.5 * Math.sin(frame.t * 10);
+  for (const team of [home, away]) {
+    // Estela de sprint.
+    if (sprint === team.side) {
+      for (let k = 6; k >= 1; k -= 1) {
+        const prev = discPositions(sim.frame(Math.max(0, frame.t - k * 0.04)))[team.side];
+        ctx.fillStyle = `rgba(253, 224, 71, ${String(0.05 + 0.04 * (7 - k))})`;
+        ctx.beginPath();
+        ctx.arc(prev.x, prev.y, DISC_R * (0.5 + 0.08 * (7 - k)), 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    const holds = frame.players.some((p) => p.side === team.side && p.hasBall);
+    drawDisc(ctx, team, discs[team.side], clamp(frame.possession[team.side] * (holds ? 1 : 0.55), 0, 1), pulse);
+  }
+  drawBall(ctx, frame, frame.t, sim);
+  ctx.restore();
+
+  drawEffects(ctx, sim, frame.t);
+
+  // Estadísticas en vivo (calculadas con los sucesos ya ocurridos) y último suceso.
+  const live = statsAt(sim.script.events, frame.t);
+  drawTicker(ctx, frame);
+  statBar(ctx, sim, 'TIROS', live.home.shots, live.away.shots, 1726);
+  statBar(ctx, sim, 'A PUERTA', live.home.onTarget, live.away.onTarget, 1784);
+  drawFooter(ctx);
+
+  if (frame.goalBanner !== null) drawGoalBanner(ctx, sim, frame.goalBanner);
+  if (phase.kind === 'intro') drawIntro(ctx, sim, meta, frame.phaseProgress);
+  else if (phase.kind === 'halftime') {
+    const span = phase.t1 - phase.t0;
+    const e = frame.t - phase.t0;
+    drawCard(ctx, sim, frame, 'DESCANSO', Math.min(smoothstep(e / 0.5), smoothstep((span - e) / 0.5)));
+  } else if (phase.kind === 'fulltime') {
+    drawCard(ctx, sim, frame, 'FINAL', smoothstep((frame.t - phase.t0) / 0.6));
+  }
+}

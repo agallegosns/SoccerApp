@@ -59,8 +59,15 @@ Leyenda: ✅ hecho y probado · 🟡 hecho, pendiente de verificar · ⬜ por ha
 - ✅ Motor determinista por semilla (`src/engine`): guion de eventos + animación de 22 jugadores con 5 formaciones, balón con
   pases/conducciones/centros/tiros, paradas, postes, bloqueos, faltas, córners, goles con celebración, descanso y final.
 - ✅ Coherencia marcador/goles verificada con marcadores fijos (0–0, 1–0, 0–3, 2–2, 5–4, 9–9) y aleatorios (200 semillas).
-- ✅ 35 tests del motor (determinismo, coherencia, eventos ordenados, fases contiguas, minutos, continuidad < 36 m/s, robustez).
-- ✅ Render Canvas 2D 1080×1920 (`drawFrame`) y vista previa con reproducción, pausa, posición y sucesos clicables.
+- ✅ 36 tests del motor (determinismo, coherencia, eventos ordenados, fases contiguas, minutos, continuidad < 36 m/s, robustez).
+- ✅ Render Canvas 2D 1080×1920 con **dos estilos**: *Arena* (por defecto; formato viral de la grabación de referencia, más pulido:
+  escudos genéricos, resplandor, estelas, partículas, sacudida en goles, estadísticas en vivo) y *Táctico* (22 jugadores). Vista
+  previa con reproducción, pausa, posición y sucesos clicables.
+- ✅ Geometría de la arena verificada: los 100 goles de 25 simulaciones entran por la boca de la portería; el balón no sale del aro.
+- ✅ Estadísticas acumuladas (`statsAt`) coherentes con las del guion; la tarjeta de descanso muestra las del momento.
+- 🟡 **Audio:** la referencia lleva música/efectos. El vídeo exportado irá **sin audio** (sin música con derechos y sin codificador de
+  audio verificado en el sandbox); TikTok permite añadir sonido al publicar.
+- 🟡 Se usan **escudos genéricos** (no los reales de la referencia, que son marcas protegidas).
 - ✅ 8 e2e del estudio (misma semilla ⇒ misma simulación, marcador fijado, píxel de la etiqueta ficticia en 7 momentos del vídeo,
   semilla inválida, móvil).
 - ✅ Inspección visual de fotogramas reales (intro, juego, córner, descanso con estadísticas, final).

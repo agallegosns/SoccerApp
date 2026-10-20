@@ -81,14 +81,27 @@ Puro y sin dependencias de React (ESLint lo impide). Entrada: `SimulationInput {
   robustez con marcadores extremos.
 
 ## Render (implementado en Fase 3) y exportación (planificado)
-- `src/features/simulation/render.ts`: `drawFrame(ctx, sim, t, meta)` dibuja un fotograma 1080×1920 en Canvas 2D (campo vertical,
-  marcador, cronómetro, banner de gol, tarjetas de intro/descanso/final y la etiqueta «SIMULACIÓN FICTICIA» arriba y un pie
-  «Simulación ficticia · Resultado inventado, no es una predicción»). La misma función sirve para la vista previa y para la
-  exportación. El campo se cachea en una capa fuera de pantalla. Los colores del vídeo viven en `theme.ts` (no son tokens de la UI).
-- Zonas seguras de TikTok: el contenido clave está entre y≈150 y y≈1700 (la interfaz de TikTok cubre la parte superior y la
-  inferior).
-- Estudio (`SimulationStudio`): vista previa con reproducir/pausar/posición, semilla, marcador aleatorio o fijado y lista de
-  sucesos (al pulsar uno salta a ese momento). Respeta `prefers-reduced-motion` (no reproduce solo).
+Dos estilos de vídeo sobre **la misma simulación** (`src/features/simulation/renderers.ts`, `drawVideoFrame(ctx, sim, t, meta, style)`):
+- **Arena (por defecto, formato viral de TikTok)** — `renderArena.ts`. Un círculo con dos porterías enfrentadas (color del equipo que
+  defiende ese lado; cambian al descanso) que giran con la cámara (`cameraAngle`, ≈ 0,3 rad/s); cada equipo es un escudo que se sitúa
+  entre el centro de su equipo y el balón (más cerca del balón con posesión) y *conduce* el balón por su borde; HUD con escudos,
+  marcador, reloj y etiqueta «SPRINT» durante los ataques; estela del balón y del escudo en sprint; partículas, onda expansiva y
+  sacudida de cámara en los goles; etiquetas «¡PARADA!», «¡AL PALO!», «FUERA», «BLOQUEO», «FALTA», «CÓRNER»; barras de
+  estadísticas en vivo (`statsAt`) y último suceso. La geometría (`arena.ts`) proyecta el campo en el círculo (mapa cuadrado→disco),
+  prolonga la red hacia fuera para que **todo gol entre por la boca de la portería** (probado en 100 goles) y mantiene el balón
+  dentro del aro salvo por las bocas. Los escudos son **genéricos** (`crest.ts`: patrón según el nombre + colores + abreviatura; no
+  hay logos protegidos). El suelo y el halo se cachean en una capa; lo que depende del giro se dibuja por fotograma.
+- **Táctico** — `render.ts`. Campo vertical con los 22 jugadores, balón, líneas del campo y marcador.
+- Ambos: 1080×1920, etiqueta «SIMULACIÓN FICTICIA» arriba (en todos los fotogramas, comprobado por píxel en e2e) y pie «Simulación
+  ficticia · Resultado inventado, no es una predicción», tarjetas de intro/descanso/final (con estadísticas acumuladas hasta ese
+  instante), banner de gol y zonas seguras de TikTok (el contenido clave está entre y≈150 y y≈1700). Los colores del vídeo viven en
+  `theme.ts` (no son tokens de la UI).
+- Referencia visual: grabación aportada por el usuario (arena circular con porterías giratorias, escudos, marcador y «SPRINT»). El
+  vídeo de referencia usa logos reales y música con derechos; aquí se usan escudos genéricos y **no se genera audio** (ver TASKS).
+- Estudio (`SimulationStudio`): selector de estilo, vista previa con reproducir/pausar/posición, semilla, marcador aleatorio o fijado y
+  lista de sucesos (al pulsar uno salta a ese momento). Respeta `prefers-reduced-motion` (no reproduce solo).
+
+## Exportación (planificado)
 - Exportación: `VideoEncoder` (WebCodecs, H.264 `avc1`) + `mediabunny` para muxear a MP4, 30 fps, frame a frame
   (no en tiempo real). Si `VideoEncoder.isConfigSupported` falla para H.264 se muestra un error claro
   recomendando Chrome/Edge/Safari recientes; nunca se simula una exportación.

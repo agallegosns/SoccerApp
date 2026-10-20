@@ -5,6 +5,7 @@ import { formatDateEs, kickoffOf } from '../../data/dates.ts';
 import type { Match } from '../../data/types.ts';
 import { MAX_GOALS_PER_TEAM, simulate, type Score } from '../../engine/index.ts';
 import { SimulationPreview } from './SimulationPreview.tsx';
+import { DEFAULT_STYLE, VIDEO_STYLES, type VideoStyle } from './renderers.ts';
 import type { RenderMeta } from './render.ts';
 import './studio.css';
 
@@ -42,6 +43,7 @@ export function SimulationStudio({ match, onBack }: Props) {
   const [fixedHome, setFixedHome] = useState(1);
   const [fixedAway, setFixedAway] = useState(0);
   const [seek, setSeek] = useState<{ t: number; nonce: number } | null>(null);
+  const [style, setStyle] = useState<VideoStyle>(DEFAULT_STYLE);
 
   const score: Score | null = fixed ? { home: fixedHome, away: fixedAway } : null;
   const sim = useMemo(
@@ -99,6 +101,7 @@ export function SimulationStudio({ match, onBack }: Props) {
             sim={sim}
             meta={meta}
             label={`Vista previa de la simulación ficticia de ${match.home} contra ${match.away}`}
+            style={style}
             seek={seek}
           />
         </section>
@@ -106,6 +109,15 @@ export function SimulationStudio({ match, onBack }: Props) {
         <section className="studio__side">
           <div className="card" aria-label="Parámetros">
             <h2>Parámetros</h2>
+            <div className="segmented" role="group" aria-label="Estilo del vídeo">
+              {VIDEO_STYLES.map((v) => (
+                <button key={v.id} type="button" aria-pressed={style === v.id} title={v.hint} onClick={() => { setStyle(v.id); }} data-testid={`style-${v.id}`}>
+                  {v.label}
+                </button>
+              ))}
+            </div>
+            <p className="muted">{VIDEO_STYLES.find((v) => v.id === style)?.hint}</p>
+
             <label className="field">
               <span>Semilla (cada semilla da una simulación distinta del mismo partido)</span>
               <div className="row">

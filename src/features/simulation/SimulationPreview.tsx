@@ -2,13 +2,15 @@ import { Pause, Play, RotateCcw } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 import type { Simulation } from '../../engine/index.ts';
-import { drawFrame, type RenderMeta } from './render.ts';
+import type { RenderMeta } from './render.ts';
+import { drawVideoFrame, type VideoStyle } from './renderers.ts';
 import { VIDEO_HEIGHT, VIDEO_WIDTH } from './theme.ts';
 
 interface Props {
   readonly sim: Simulation;
   readonly meta: RenderMeta;
   readonly label: string;
+  readonly style: VideoStyle;
   /** Posición solicitada desde fuera (p. ej. al pulsar un suceso). `nonce` fuerza el salto aunque el valor se repita. */
   readonly seek: { readonly t: number; readonly nonce: number } | null;
 }
@@ -16,7 +18,7 @@ interface Props {
 const prefersReducedMotion = (): boolean => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /** Vista previa en canvas 1080×1920 con reproducción, pausa y barra de posición. Remontar (key) al cambiar de simulación. */
-export function SimulationPreview({ sim, meta, label, seek }: Props) {
+export function SimulationPreview({ sim, meta, label, style, seek }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [time, setTime] = useState(0);
   const [reduced] = useState(prefersReducedMotion);
@@ -50,8 +52,8 @@ export function SimulationPreview({ sim, meta, label, seek }: Props) {
   useEffect(() => {
     const ctx = canvasRef.current?.getContext('2d');
     if (ctx === null || ctx === undefined) return;
-    drawFrame(ctx, sim, time, meta);
-  }, [sim, time, meta]);
+    drawVideoFrame(ctx, sim, time, meta, style);
+  }, [sim, time, meta, style]);
 
   return (
     <div className="preview">
