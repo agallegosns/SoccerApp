@@ -2,8 +2,9 @@ import { describe, expect, it } from 'vitest';
 
 import { ballAt, frameAt } from '../../engine/animate.ts';
 import { PITCH_L, PITCH_W } from '../../engine/geometry.ts';
+import { simulate } from '../../engine/index.ts';
 import { generateScript } from '../../engine/script.ts';
-import { ARENA, BALL_R, DISC_R, MOUTH_HALF, cameraAngle, discScreenPositions, fieldToScreen, fieldToUnit, maxRadius, rotate, toScreen } from './arena.ts';
+import { ARENA, BALL_R, DISC_R, MOUTH_HALF, cameraAngle, discScreenPositions, smoothBall, smoothDiscPositions, fieldToScreen, fieldToUnit, maxRadius, rotate, toScreen } from './arena.ts';
 import { crestPattern } from './crest.ts';
 
 describe('geometría de la arena', () => {
@@ -119,5 +120,35 @@ describe('discos de los equipos', () => {
     expect(seps[0] ?? 0).toBeGreaterThanOrEqual(DISC_R * 3);
     expect(seps[Math.floor(seps.length / 2)] ?? 0).toBeGreaterThan(DISC_R * 4.5);
     expect(maxJump).toBeLessThan(80);
+  });
+});
+
+describe('movimiento suavizado (fluidez del vídeo)', () => {
+  it('el balón y los discos suavizados aceleran poco entre fotogramas y no saltan', () => {
+    let ballAcc = 0;
+    let discAcc = 0;
+    let discJump = 0;
+    for (const seed of [1, 2, 2024]) {
+      const sim = simulate({ seed, home: 'Real Madrid', away: 'RB Leipzig', score: { home: 2, away: 1 } });
+      const pts: { b: { x: number; y: number } | null; d: { x: number; y: number } }[] = [];
+      for (let t = 0; t < sim.script.duration; t += 1 / 30) {
+        const f = sim.frame(t);
+        if (f.phase === 'intro' || f.phase === 'halftime' || f.phase === 'fulltime') {
+          pts.length = 0;
+          continue;
+        }
+        const sb = smoothBall(sim, t);
+        pts.push({ b: sb.visible ? fieldToScreen(sb.x, sb.y, t) : null, d: smoothDiscPositions(sim, t).home });
+        if (pts.length > 3) pts.shift();
+        const [p0, p1, p2] = pts;
+        if (p0 === undefined || p1 === undefined || p2 === undefined) continue;
+        discAcc = Math.max(discAcc, Math.hypot(p2.d.x - 2 * p1.d.x + p0.d.x, p2.d.y - 2 * p1.d.y + p0.d.y));
+        discJump = Math.max(discJump, Math.hypot(p2.d.x - p1.d.x, p2.d.y - p1.d.y));
+        if (p0.b !== null && p1.b !== null && p2.b !== null) ballAcc = Math.max(ballAcc, Math.hypot(p2.b.x - 2 * p1.b.x + p0.b.x, p2.b.y - 2 * p1.b.y + p0.b.y));
+      }
+    }
+    expect(discJump).toBeLessThan(60);
+    expect(discAcc).toBeLessThan(20);
+    expect(ballAcc).toBeLessThan(60);
   });
 });

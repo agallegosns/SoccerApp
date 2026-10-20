@@ -9,8 +9,9 @@ La publicación en TikTok es manual. Idioma de la interfaz y de la documentació
 - **No simular funcionalidades.** Calendario, simulación, vídeo y descargas deben funcionar de verdad.
   Si algo no se puede implementar o verificar, se dice y se anota en `TASKS.md`.
 - **Datos reales ≠ resultados ficticios.** Los partidos (equipos, fechas, resultados reales) vienen de un
-  `MatchProvider`. Las simulaciones son inventadas: cada simulación y cada vídeo llevan la etiqueta visible
-  **«Simulación ficticia»**. Nunca se presentan como predicción.
+  `MatchProvider`. Las simulaciones son inventadas: la **interfaz** lo indica siempre con la etiqueta
+  **«Simulación ficticia»** y los metadatos del MP4 y el `LEEME.txt` del ZIP también. **Por decisión expresa del usuario, el vídeo en sí NO lleva ese rótulo**: su cabecera muestra
+  la competición, fase y jornada. Nunca se presentan como predicción.
 - **TypeScript estricto.** Prohibidos `any`, `@ts-ignore`/`@ts-expect-error` sin justificación y `catch {}`
   vacíos (lo comprueba ESLint). Los errores se tipan, se muestran al usuario o se registran.
 - **UI:** iconos SVG con `lucide-react`, nunca emojis como iconos. Todos los tokens de diseño viven en

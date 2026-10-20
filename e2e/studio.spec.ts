@@ -68,13 +68,13 @@ test.describe('estudio de simulación', () => {
     await expect(page.getByTestId('sim-score')).toHaveText(firstScore ?? '');
   });
 
-  test('hay dos estilos de vídeo (Arena por defecto y Táctico) y ambos dibujan la etiqueta ficticia', async ({ page }) => {
+  test('hay dos estilos de vídeo (Arena por defecto y Táctico) y ambos dibujan la cabecera con la competición', async ({ page }) => {
     await openStudio(page);
     await expect(page.getByTestId('style-arena')).toHaveAttribute('aria-pressed', 'true');
     await setSeed(page, '2024');
     await seekTo(page, 14);
     const arena = await canvasHash(page);
-    const [r, g, b] = await pixel(page, 540, 175);
+    const [r, g, b] = await pixel(page, 540, 164);
     expect(r).toBeGreaterThan(220);
     expect(b).toBeLessThan(80);
     expect(g).toBeGreaterThan(150);
@@ -82,7 +82,7 @@ test.describe('estudio de simulación', () => {
     await expect(page.getByTestId('style-tactical')).toHaveAttribute('aria-pressed', 'true');
     await seekTo(page, 14);
     expect(await canvasHash(page)).not.toBe(arena);
-    const [r2, g2, b2] = await pixel(page, 540, 175);
+    const [r2, g2, b2] = await pixel(page, 540, 164);
     expect(r2).toBeGreaterThan(220);
     expect(g2).toBeGreaterThan(150);
     expect(b2).toBeLessThan(80);
@@ -172,7 +172,7 @@ test.describe('estudio de simulación', () => {
     }
   });
 
-  test('la vista previa se dibuja de verdad: etiqueta ficticia visible en todos los momentos y fotogramas distintos', async ({ page }) => {
+  test('la vista previa se dibuja de verdad: cabecera con la competición visible en todos los momentos y fotogramas distintos', async ({ page }) => {
     await openStudio(page);
     await setSeed(page, '2024');
     await page.getByTestId('fix-score').click();
@@ -183,7 +183,7 @@ test.describe('estudio de simulación', () => {
     const hashes = new Set<string>();
     for (const t of [0.5, 4, 8, 12, duration / 2, duration - 4, duration - 0.5]) {
       await seekTo(page, t);
-      const [r, g, b] = await pixel(page, 540, 175); // píldora ámbar «SIMULACIÓN FICTICIA»
+      const [r, g, b] = await pixel(page, 540, 164); // píldora ámbar con la competición
       expect(r).toBeGreaterThan(220);
       expect(g).toBeGreaterThan(150);
       expect(b).toBeLessThan(80);

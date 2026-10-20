@@ -10,8 +10,8 @@ Aplicación web **100 % en el navegador** (sin backend, sin cuentas, coste 0 €
 5. exporta cada una como **MP4 vertical 9:16 (1080×1920, 30 fps)** listo para TikTok,
 6. permite descargar los vídeos uno a uno o en **ZIP** (la publicación en TikTok es manual).
 
-> Todas las simulaciones y todos los vídeos llevan la etiqueta visible **«Simulación ficticia»**. Los partidos (equipos, fechas) son reales; los resultados y
-> las jugadas son inventados. Nunca son una predicción.
+> La app indica siempre que las simulaciones son **ficticias** (etiqueta «Simulación ficticia» en la interfaz, metadatos del MP4 y LEEME del ZIP). Por decisión del usuario, el vídeo
+> muestra en su cabecera la competición, fase y jornada, no ese rótulo. Los partidos (equipos, fechas) son reales; los resultados y las jugadas son inventados. Nunca son una predicción.
 
 | Calendario real | Estudio de simulación |
 | --- | --- |

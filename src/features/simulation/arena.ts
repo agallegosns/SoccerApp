@@ -1,3 +1,4 @@
+import { ballAt } from '../../engine/animate.ts';
 import { PITCH_L, PITCH_W, clamp, goalLineY, lerp, smoothstep, type Side } from '../../engine/geometry.ts';
 import type { FrameState } from '../../engine/index.ts';
 
@@ -136,5 +137,67 @@ export function discScreenPositions(frame: Pick<FrameState, 'ball' | 'half' | 'p
     keepInside();
   }
   separate();
+  return out;
+}
+
+/** Instantes (relativos) que se promedian para suavizar el movimiento: ±0,12 s, ~7 fotogramas a 30 fps. */
+const SMOOTH_OFFSETS = [-0.12, -0.08, -0.04, 0, 0.04, 0.08, 0.12] as const;
+
+interface BallSource {
+  readonly script: Parameters<typeof ballAt>[0];
+}
+
+/**
+ * Balón suavizado en coordenadas de campo: media de la trayectoria en una ventana corta. Quita los «tirones» de los cambios de pase
+ * (velocidad constante por tramos) sin mover el instante de los sucesos. No cruza los reinicios (el balón oculto) para no arrastrarlo.
+ */
+export function smoothBall(sim: BallSource, t: number): { x: number; y: number; z: number; visible: boolean } {
+  const centre = ballAt(sim.script, t);
+  if (!centre.visible) return centre;
+  let x = 0;
+  let y = 0;
+  let z = 0;
+  let n = 0;
+  for (const d of SMOOTH_OFFSETS) {
+    const b = ballAt(sim.script, clamp(t + d, 0, sim.script.duration));
+    // Un instante con el balón oculto (reinicio) se sustituye por el del centro, así no hay saltos al entrar o salir de él.
+    const use = b.visible ? b : centre;
+    x += use.x;
+    y += use.y;
+    z += use.z;
+    n += 1;
+  }
+  return { x: x / n, y: y / n, z: z / n, visible: true };
+}
+
+interface FrameSource extends BallSource {
+  frame(t: number): FrameState;
+}
+
+const PAUSES: ReadonlySet<string> = new Set(['intro', 'halftime', 'fulltime']);
+type Discs = Record<Side, { x: number; y: number }>;
+const discCache = new Map<string, Discs>();
+
+/** Posición de los discos suavizada en el tiempo (media de `discScreenPositions` en una ventana corta): movimiento fluido y sin saltos. */
+export function smoothDiscPositions(sim: FrameSource, t: number): Discs {
+  const key = `${String(sim.script.seed)}|${sim.script.teams.home.name}|${sim.script.teams.away.name}|${sim.script.pace}|${JSON.stringify(sim.script.score)}|${sim.script.duration.toFixed(3)}|${t.toFixed(4)}`;
+  const hit = discCache.get(key);
+  if (hit !== undefined) return hit;
+  const centre = sim.frame(t);
+  const acc: Discs = { home: { x: 0, y: 0 }, away: { x: 0, y: 0 } };
+  let n = 0;
+  for (const d of SMOOTH_OFFSETS) {
+    const f = d === 0 ? centre : sim.frame(clamp(t + d, 0, sim.script.duration));
+    // Un instante de una pausa (intro, descanso, final) distinta a la del centro se sustituye por el del centro: no se promedia con ella.
+    const p = discScreenPositions(f.phase !== centre.phase && (PAUSES.has(f.phase) || PAUSES.has(centre.phase)) ? centre : f);
+    for (const side of ['home', 'away'] as const) {
+      acc[side].x += p[side].x;
+      acc[side].y += p[side].y;
+    }
+    n += 1;
+  }
+  const out: Discs = { home: { x: acc.home.x / n, y: acc.home.y / n }, away: { x: acc.away.x / n, y: acc.away.y / n } };
+  if (discCache.size > 64) discCache.clear();
+  discCache.set(key, out);
   return out;
 }

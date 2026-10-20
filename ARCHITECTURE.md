@@ -92,8 +92,9 @@ Dos estilos de vídeo sobre **la misma simulación** (`src/features/simulation/r
   dentro del aro salvo por las bocas. Los escudos son **genéricos** (`crest.ts`: patrón según el nombre + colores + abreviatura; no
   hay logos protegidos). El suelo y el halo se cachean en una capa; lo que depende del giro se dibuja por fotograma.
 - **Táctico** — `render.ts`. Campo vertical con los 22 jugadores, balón, líneas del campo y marcador.
-- Ambos: 1080×1920, etiqueta «SIMULACIÓN FICTICIA» arriba (en todos los fotogramas, comprobado por píxel en e2e) y pie «Simulación
-  ficticia · Resultado inventado, no es una predicción», tarjetas de intro/descanso/final (con estadísticas acumuladas hasta ese
+- Ambos: 1080×1920, píldora ámbar arriba con la competición, fase y jornada («Champions League 2026-27 · Fase de liga · Jornada 3»; en todos los fotogramas, comprobada por píxel en e2e).
+  **El vídeo no lleva el rótulo «Simulación ficticia»** (decisión del usuario); la interfaz, los metadatos del MP4 y el LEEME del ZIP sí lo indican. Tarjetas de intro/descanso/final:
+  el descanso es sólo «DESCANSO» (sin estadísticas, para no dar un punto de fuga); el final muestra estadísticas acumuladas hasta ese
   instante), banner de gol y zonas seguras de TikTok (el contenido clave está entre y≈150 y y≈1700). Los colores del vídeo viven en
   `theme.ts` (no son tokens de la UI).
 - Referencia visual: grabación aportada por el usuario (arena circular con porterías giratorias, escudos, marcador y «SPRINT»). El
@@ -166,3 +167,7 @@ Dos estilos de vídeo sobre **la misma simulación** (`src/features/simulation/r
 - `src/engine` no puede importar React (regla `no-restricted-imports`).
 - Tokens de diseño únicos en `src/ui/tokens.css`; contraste AA comprobado por tests.
 - `npm run ci` = typecheck + lint + tests + build.
+
+## Fluidez del movimiento (Arena)
+`smoothBall` y `smoothDiscPositions` (`arena.ts`) promedian la trayectoria en una ventana de ±0,12 s (7 muestras): quitan los tirones de los cambios de pase y de posesión sin mover el instante de los sucesos.
+Medido en 4 semillas: aceleración del balón p95 12,5 → 4,3 px/fotograma², salto máximo del disco 38 px/fotograma, ≈ 0,1 ms por fotograma.

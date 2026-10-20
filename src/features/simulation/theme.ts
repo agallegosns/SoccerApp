@@ -28,9 +28,5 @@ export const CANVAS_THEME = {
 
 export const FONT_STACK = 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
 
-/** Texto que debe verse siempre en el vídeo. */
-export const FICTIONAL_LABEL = 'SIMULACIÓN FICTICIA';
-export const FICTIONAL_FOOTER = 'Simulación ficticia · Resultado inventado, no es una predicción';
-
 /** Zona del vídeo reservada al campo (px). */
 export const PITCH_RECT = { y: 530, height: 1120 } as const;

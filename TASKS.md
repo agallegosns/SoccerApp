@@ -129,3 +129,10 @@ Leyenda: ✅ hecho y probado · 🟡 hecho, pendiente de verificar · ⬜ por ha
 - ✅ **Discos de equipo ya no se quedan pegados** (`discScreenPositions` en `arena.ts`): el que defiende se coloca entre el balón y su portería (con vaivén), el que tiene la posesión se acerca al balón;
   separación mínima 211 px (antes 139 px = siempre tocándose; mediana 417 px) y, con el balón en la red, el disco se ancla al 72 % del radio para evitar saltos (máx. 42 px/fotograma, antes 243 px). Test unitario añadido.
 - 🟡 Pendiente de verificar a ojo en el vídeo exportado; **redesplegado** a petición del usuario (ejecución 3 del workflow de Pages, commit `53b32ae`, `build` y `deploy` correctos); pendiente de verificar en el navegador que la web publicada muestre los discos separados y el vídeo de ~26 s (desde el sandbox no se puede abrir `github.io`).
+
+## Ajustes: fluidez, descanso y cabecera (a petición del usuario)
+- ✅ **Más fluido**: balón y discos con movimiento suavizado en el tiempo (`smoothBall`, `smoothDiscPositions`, ventana ±0,12 s). Aceleración del balón p95 12,5 → 4,3 px/fotograma²; salto máximo del disco 38 px; test unitario.
+  🟡 Pendiente de verificar a ojo en un vídeo exportado (no se puede juzgar la sensación de fluidez con métricas).
+- ✅ **Descanso sin estadísticas**: sólo «DESCANSO» (con el marcador); el final conserva las estadísticas.
+- ✅ **Sin rótulo «Simulación ficticia» en el vídeo**: la cabecera muestra «competición · fase · jornada». ⚠ Decisión del usuario que cambia una regla del proyecto (CLAUDE.md actualizado): la interfaz, los metadatos del MP4 y el LEEME del ZIP siguen indicándolo.
+  Ojo: TikTok puede exigir marcar el contenido generado/ficticio al publicarlo.

@@ -2,10 +2,10 @@ import { ballAt, phaseAt, statsAt } from '../../engine/animate.ts';
 import { clamp, smoothstep } from '../../engine/geometry.ts';
 import { mulberry32 } from '../../engine/rng.ts';
 import type { FrameState, ResolvedTeam, ScriptEvent, Simulation } from '../../engine/index.ts';
-import { ARENA, BALL_PX, DISC_R, GATE_DEPTH, MOUTH_HALF, cameraAngle, discScreenPositions, fieldToScreen } from './arena.ts';
+import { ARENA, BALL_PX, DISC_R, GATE_DEPTH, MOUTH_HALF, cameraAngle, fieldToScreen, smoothBall, smoothDiscPositions } from './arena.ts';
 import { drawCrest } from './crest.ts';
-import { drawCard, drawFooter, drawIntro, fitFont, font, roundRect, type Ctx2D, type RenderMeta } from './render.ts';
-import { CANVAS_THEME as C, FICTIONAL_LABEL, VIDEO_HEIGHT, VIDEO_WIDTH } from './theme.ts';
+import { drawCard, drawCompetitionPill, drawIntro, fitFont, font, roundRect, type Ctx2D, type RenderMeta } from './render.ts';
+import { CANVAS_THEME as C, VIDEO_HEIGHT, VIDEO_WIDTH } from './theme.ts';
 
 const R = ARENA.radius;
 const GOLD = '#fde047';
@@ -106,17 +106,7 @@ function drawHeader(ctx: Ctx2D, sim: Simulation, frame: FrameState, meta: Render
   const { home, away } = sim.script.teams;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.font = font(30, 800);
-  const label = FICTIONAL_LABEL;
-  const lw = ctx.measureText(label).width + 56;
-  ctx.fillStyle = C.amber;
-  roundRect(ctx, (VIDEO_WIDTH - lw) / 2, 158, lw, 56, 28);
-  ctx.fill();
-  ctx.fillStyle = C.amberText;
-  ctx.fillText(label, VIDEO_WIDTH / 2, 187);
-  fitFont(ctx, meta.competition, 960, 32, 600);
-  ctx.fillStyle = C.muted;
-  ctx.fillText(meta.competition, VIDEO_WIDTH / 2, 252);
+  drawCompetitionPill(ctx, meta.competition);
 
   for (const [team, cx] of [[home, 175], [away, VIDEO_WIDTH - 175]] as const) {
     drawCrest(ctx, team, cx, 352, 72);
@@ -283,7 +273,7 @@ function drawBall(ctx: Ctx2D, frame: FrameState, t: number, sim: Simulation): vo
   const trail: { x: number; y: number }[] = [];
   for (let k = 7; k >= 1; k -= 1) {
     const tk = Math.max(0, t - k * 0.035);
-    const b = ballAt(sim.script, tk);
+    const b = smoothBall(sim, tk);
     if (!b.visible) continue;
     trail.push(fieldToScreen(b.x, b.y, tk));
   }
@@ -293,9 +283,10 @@ function drawBall(ctx: Ctx2D, frame: FrameState, t: number, sim: Simulation): vo
     ctx.arc(p.x, p.y, BALL_PX * (0.35 + (0.55 * (i + 1)) / trail.length), 0, Math.PI * 2);
     ctx.fill();
   }
-  const p = fieldToScreen(frame.ball.x, frame.ball.y, t);
-  const lift = frame.ball.z * 10;
-  const r = BALL_PX * (1 + frame.ball.z * 0.06);
+  const sb = smoothBall(sim, t);
+  const p = fieldToScreen(sb.x, sb.y, t);
+  const lift = sb.z * 10;
+  const r = BALL_PX * (1 + sb.z * 0.06);
   ctx.fillStyle = 'rgba(0,0,0,0.35)';
   ctx.beginPath();
   ctx.ellipse(p.x + 3, p.y + 8, r * 0.95, r * 0.5, 0, 0, Math.PI * 2);
@@ -311,7 +302,7 @@ function drawBall(ctx: Ctx2D, frame: FrameState, t: number, sim: Simulation): vo
   ctx.fill();
   ctx.stroke();
   ctx.fillStyle = '#0b1220';
-  const spin = (frame.ball.x + frame.ball.y) * 0.09;
+  const spin = (sb.x + sb.y) * 0.09;
   ctx.beginPath();
   for (let i = 0; i < 5; i += 1) {
     const a = spin + (i * 2 * Math.PI) / 5;
@@ -526,13 +517,13 @@ export function drawArenaFrame(ctx: Ctx2D, sim: Simulation, t: number, meta: Ren
   drawGate(ctx, angle, true, sim.script.teams[topDefender].style.primary, glowOf(topDefender));
   drawGate(ctx, angle, false, sim.script.teams[other(topDefender)].style.primary, glowOf(other(topDefender)));
 
-  const discs = discScreenPositions(frame);
+  const discs = smoothDiscPositions(sim, frame.t);
   const pulse = 0.5 + 0.5 * Math.sin(frame.t * 10);
   for (const team of [home, away]) {
     // Estela de sprint.
     if (sprint === team.side) {
       for (let k = 6; k >= 1; k -= 1) {
-        const prev = discScreenPositions(sim.frame(Math.max(0, frame.t - k * 0.04)))[team.side];
+        const prev = smoothDiscPositions(sim, Math.max(0, frame.t - k * 0.04))[team.side];
         ctx.fillStyle = `rgba(253, 224, 71, ${String(0.05 + 0.04 * (7 - k))})`;
         ctx.beginPath();
         ctx.arc(prev.x, prev.y, DISC_R * (0.5 + 0.08 * (7 - k)), 0, Math.PI * 2);
@@ -552,14 +543,13 @@ export function drawArenaFrame(ctx: Ctx2D, sim: Simulation, t: number, meta: Ren
   drawTicker(ctx, frame);
   statBar(ctx, sim, 'TIROS', live.home.shots, live.away.shots, 1726);
   statBar(ctx, sim, 'A PUERTA', live.home.onTarget, live.away.onTarget, 1784);
-  drawFooter(ctx);
 
   if (frame.goalBanner !== null) drawGoalBanner(ctx, sim, frame.goalBanner);
   if (phase.kind === 'intro') drawIntro(ctx, sim, meta, frame.phaseProgress);
   else if (phase.kind === 'halftime') {
     const span = phase.t1 - phase.t0;
     const e = frame.t - phase.t0;
-    drawCard(ctx, sim, frame, 'DESCANSO', Math.min(smoothstep(e / 0.5), smoothstep((span - e) / 0.5)));
+    drawCard(ctx, sim, frame, 'DESCANSO', Math.min(smoothstep(e / 0.5), smoothstep((span - e) / 0.5)), false);
   } else if (phase.kind === 'fulltime') {
     drawCard(ctx, sim, frame, 'FINAL', smoothstep((frame.t - phase.t0) / 0.6));
   }

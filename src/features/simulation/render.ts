@@ -2,7 +2,7 @@ import { phaseAt, statsAt } from '../../engine/animate.ts';
 import { PITCH_L, PITCH_W, clamp, smoothstep } from '../../engine/geometry.ts';
 import type { FrameState, PlayerFrame, ResolvedTeam, Side, Simulation } from '../../engine/index.ts';
 import { drawCrest } from './crest.ts';
-import { CANVAS_THEME as C, FICTIONAL_FOOTER, FICTIONAL_LABEL, FONT_STACK, PITCH_RECT, VIDEO_HEIGHT, VIDEO_WIDTH } from './theme.ts';
+import { CANVAS_THEME as C, FONT_STACK, PITCH_RECT, VIDEO_HEIGHT, VIDEO_WIDTH } from './theme.ts';
 
 export type Ctx2D = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 type PitchCanvas = HTMLCanvasElement | OffscreenCanvas;
@@ -130,23 +130,25 @@ function drawBadge(ctx: Ctx2D, team: ResolvedTeam, cx: number, cy: number, r: nu
   drawCrest(ctx, team, cx, cy, r);
 }
 
+/** Píldora de la cabecera con la competición, la fase y la jornada («Champions League 2026-27 · Fase de liga · Jornada 3»). */
+export function drawCompetitionPill(ctx: Ctx2D, text: string): void {
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const size = fitFont(ctx, text, 900, 32, 800);
+  ctx.font = font(size, 800);
+  const w = Math.min(1000, ctx.measureText(text).width + 64);
+  ctx.fillStyle = C.amber;
+  roundRect(ctx, (VIDEO_WIDTH - w) / 2, 158, w, 62, 31);
+  ctx.fill();
+  ctx.fillStyle = C.amberText;
+  ctx.fillText(text, VIDEO_WIDTH / 2, 190);
+}
+
 function drawHeader(ctx: Ctx2D, sim: Simulation, frame: FrameState, meta: RenderMeta): void {
   const { home, away } = sim.script.teams;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  // Etiqueta obligatoria.
-  const label = FICTIONAL_LABEL;
-  ctx.font = font(30, 800);
-  const lw = ctx.measureText(label).width + 56;
-  ctx.fillStyle = C.amber;
-  roundRect(ctx, (VIDEO_WIDTH - lw) / 2, 158, lw, 56, 28);
-  ctx.fill();
-  ctx.fillStyle = C.amberText;
-  ctx.fillText(label, VIDEO_WIDTH / 2, 187);
-  // Competición.
-  fitFont(ctx, meta.competition, 960, 32, 600);
-  ctx.fillStyle = C.muted;
-  ctx.fillText(meta.competition, VIDEO_WIDTH / 2, 252);
+  drawCompetitionPill(ctx, meta.competition);
   // Equipos y marcador.
   drawBadge(ctx, home, 190, 330, 52);
   drawBadge(ctx, away, 890, 330, 52);
@@ -239,14 +241,6 @@ function drawTicker(ctx: Ctx2D, frame: FrameState): void {
   ctx.fillText(text, VIDEO_WIDTH / 2, 1727);
 }
 
-export function drawFooter(ctx: Ctx2D): void {
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  fitFont(ctx, FICTIONAL_FOOTER, 960, 28, 600);
-  ctx.fillStyle = C.muted;
-  ctx.fillText(FICTIONAL_FOOTER, VIDEO_WIDTH / 2, 1858);
-}
-
 function drawGoalBanner(ctx: Ctx2D, sim: Simulation, banner: NonNullable<FrameState['goalBanner']>): void {
   const team = sim.script.teams[banner.side];
   const p = banner.progress;
@@ -291,7 +285,7 @@ function statRow(ctx: Ctx2D, label: string, a: number, b: number, y: number): vo
   ctx.fillText(label, VIDEO_WIDTH / 2, y);
 }
 
-export function drawCard(ctx: Ctx2D, sim: Simulation, frame: FrameState, title: string, alpha: number): void {
+export function drawCard(ctx: Ctx2D, sim: Simulation, frame: FrameState, title: string, alpha: number, withStats = true): void {
   const { home, away } = sim.script.teams;
   const stats = statsAt(sim.script.events, frame.t);
   ctx.save();
@@ -308,13 +302,12 @@ export function drawCard(ctx: Ctx2D, sim: Simulation, frame: FrameState, title: 
   ctx.fillStyle = C.text;
   ctx.font = font(150, 800);
   ctx.fillText(`${String(frame.score.home)} – ${String(frame.score.away)}`, VIDEO_WIDTH / 2, 850);
-  statRow(ctx, 'Tiros', stats.home.shots, stats.away.shots, 1030);
-  statRow(ctx, 'A puerta', stats.home.onTarget, stats.away.onTarget, 1110);
-  statRow(ctx, 'Córners', stats.home.corners, stats.away.corners, 1190);
-  statRow(ctx, 'Faltas', stats.home.fouls, stats.away.fouls, 1270);
-  ctx.fillStyle = C.muted;
-  ctx.font = font(30, 600);
-  ctx.fillText('Simulación ficticia · no es una predicción', VIDEO_WIDTH / 2, 1420);
+  if (withStats) {
+    statRow(ctx, 'Tiros', stats.home.shots, stats.away.shots, 1030);
+    statRow(ctx, 'A puerta', stats.home.onTarget, stats.away.onTarget, 1110);
+    statRow(ctx, 'Córners', stats.home.corners, stats.away.corners, 1190);
+    statRow(ctx, 'Faltas', stats.home.fouls, stats.away.fouls, 1270);
+  }
   ctx.restore();
 }
 
@@ -367,7 +360,6 @@ export function drawFrame(ctx: Ctx2D, sim: Simulation, t: number, meta: RenderMe
   }
   drawBall(ctx, frame);
   drawTicker(ctx, frame);
-  drawFooter(ctx);
   if (frame.goalBanner !== null) drawGoalBanner(ctx, sim, frame.goalBanner);
 
   if (phase.kind === 'intro') drawIntro(ctx, sim, meta, frame.phaseProgress);
@@ -375,7 +367,7 @@ export function drawFrame(ctx: Ctx2D, sim: Simulation, t: number, meta: RenderMe
     const span = phase.t1 - phase.t0;
     const e = frame.t - phase.t0;
     const alpha = Math.min(smoothstep(e / 0.5), smoothstep((span - e) / 0.5));
-    drawCard(ctx, sim, frame, 'DESCANSO', alpha);
+    drawCard(ctx, sim, frame, 'DESCANSO', alpha, false);
   } else if (phase.kind === 'fulltime') {
     drawCard(ctx, sim, frame, 'FINAL', smoothstep((frame.t - phase.t0) / 0.6));
   }
