@@ -2,14 +2,12 @@ import { ballAt, phaseAt, statsAt } from '../../engine/animate.ts';
 import { clamp, smoothstep } from '../../engine/geometry.ts';
 import { mulberry32 } from '../../engine/rng.ts';
 import type { FrameState, ResolvedTeam, ScriptEvent, Simulation } from '../../engine/index.ts';
-import { ARENA, BALL_R, GATE_DEPTH, MOUTH_HALF, cameraAngle, fieldToScreen, fieldToUnit, toScreen, rotate } from './arena.ts';
+import { ARENA, BALL_PX, DISC_R, GATE_DEPTH, MOUTH_HALF, cameraAngle, discScreenPositions, fieldToScreen } from './arena.ts';
 import { drawCrest } from './crest.ts';
 import { drawCard, drawFooter, drawIntro, fitFont, font, roundRect, type Ctx2D, type RenderMeta } from './render.ts';
 import { CANVAS_THEME as C, FICTIONAL_LABEL, VIDEO_HEIGHT, VIDEO_WIDTH } from './theme.ts';
 
 const R = ARENA.radius;
-const DISC_R = 68;
-const BALL_PX = BALL_R * R * 1.15;
 const GOLD = '#fde047';
 
 type Layer = HTMLCanvasElement | OffscreenCanvas;
@@ -261,54 +259,6 @@ function drawGate(ctx: Ctx2D, angle: number, top: boolean, color: string, glow: 
 interface DiscPos {
   readonly x: number;
   readonly y: number;
-}
-
-/** Cada equipo es un escudo: se sitúa entre el centro de su equipo y el balón (más cerca del balón si tiene la posesión). */
-function discPositions(frame: FrameState): Record<'home' | 'away', DiscPos> {
-  const out: Record<'home' | 'away', DiscPos> = { home: { x: 0, y: 0 }, away: { x: 0, y: 0 } };
-  const angle = cameraAngle(frame.t);
-  for (const side of ['home', 'away'] as const) {
-    const mates = frame.players.filter((p) => p.side === side && p.role !== 'GK');
-    const cx = mates.reduce((a, p) => a + p.x, 0) / mates.length;
-    const cy = mates.reduce((a, p) => a + p.y, 0) / mates.length;
-    const k = 0.25 + 0.55 * frame.possession[side];
-    const px = cx + (frame.ball.x - cx) * k;
-    const py = cy + (frame.ball.y - cy) * k;
-    const unit = fieldToUnit(px, py);
-    const rotated = rotate({ u: unit.u * 0.86, v: unit.v * 0.86 }, angle);
-    out[side] = toScreen(rotated);
-  }
-  const ball = fieldToScreen(frame.ball.x, frame.ball.y, frame.t);
-  // El escudo no tapa el balón: lo conduce por su borde (continuo: sólo empuja al escudo hacia fuera del balón).
-  const clearBall = (): void => {
-    const gap = DISC_R + BALL_PX + 6;
-    for (const side of ['home', 'away'] as const) {
-      const p = out[side];
-      let dx = p.x - ball.x;
-      let dy = p.y - ball.y;
-      let d = Math.hypot(dx, dy);
-      if (d < 1e-3) {
-        dx = ARENA.cx - ball.x;
-        dy = ARENA.cy - ball.y;
-        d = Math.hypot(dx, dy) || 1;
-      }
-      if (d < gap) out[side] = { x: ball.x + (dx / d) * gap, y: ball.y + (dy / d) * gap };
-    }
-  };
-  const separate = (): void => {
-    const dx = out.away.x - out.home.x;
-    const dy = out.away.y - out.home.y;
-    const d = Math.hypot(dx, dy) || 1;
-    const min = DISC_R * 2.05;
-    if (d < min) {
-      const push = (min - d) / 2;
-      out.home = { x: out.home.x - (dx / d) * push, y: out.home.y - (dy / d) * push };
-      out.away = { x: out.away.x + (dx / d) * push, y: out.away.y + (dy / d) * push };
-    }
-  };
-  if (frame.ball.visible) clearBall();
-  separate();
-  return out;
 }
 
 function drawDisc(ctx: Ctx2D, team: ResolvedTeam, pos: DiscPos, active: number, pulse: number): void {
@@ -576,13 +526,13 @@ export function drawArenaFrame(ctx: Ctx2D, sim: Simulation, t: number, meta: Ren
   drawGate(ctx, angle, true, sim.script.teams[topDefender].style.primary, glowOf(topDefender));
   drawGate(ctx, angle, false, sim.script.teams[other(topDefender)].style.primary, glowOf(other(topDefender)));
 
-  const discs = discPositions(frame);
+  const discs = discScreenPositions(frame);
   const pulse = 0.5 + 0.5 * Math.sin(frame.t * 10);
   for (const team of [home, away]) {
     // Estela de sprint.
     if (sprint === team.side) {
       for (let k = 6; k >= 1; k -= 1) {
-        const prev = discPositions(sim.frame(Math.max(0, frame.t - k * 0.04)))[team.side];
+        const prev = discScreenPositions(sim.frame(Math.max(0, frame.t - k * 0.04)))[team.side];
         ctx.fillStyle = `rgba(253, 224, 71, ${String(0.05 + 0.04 * (7 - k))})`;
         ctx.beginPath();
         ctx.arc(prev.x, prev.y, DISC_R * (0.5 + 0.08 * (7 - k)), 0, Math.PI * 2);

@@ -140,8 +140,8 @@ Dos estilos de vídeo sobre **la misma simulación** (`src/features/simulation/r
 
 ## Ritmo y escudos propios
 - **Ritmo** (`src/engine/pace.ts`, `SimulationInput.pace`, por defecto `fast`): el guion se genera siempre al ritmo normal y `retime()` deforma el tiempo por fases
-  (función monótona lineal por tramos): jugadas ×0,6; intro 1,3 s; descanso 1,9 s; final 2,8 s; las rampas de los jugadores ×0,6. Sucesos, orden, minutos de reloj, marcador y
-  estadísticas son idénticos (probado); `timeScale` acorta el banner de gol (≥ 1,5 s) y el rótulo del último suceso (≥ 1,8 s) y la mezcla de posesión. Un partido típico: 20–40 s.
+  (función monótona lineal por tramos): jugadas ×0,75 como máximo, comprimidas (hasta ×0,26) para que el total sea ≈ 26 s; intro 1 s; descanso 1,4 s; final 2,4 s; las rampas de los jugadores con el mismo factor (`timeScale`). Sucesos, orden, minutos de reloj, marcador y
+  estadísticas son idénticos (probado); `timeScale` acorta el banner de gol (≥ 1,5 s) y el rótulo del último suceso (≥ 1,8 s) y la mezcla de posesión. Duración medida (40 semillas): 26,0 s de 0-0 a 4-3; 6-5 (11 goles) 29–35 s.
 - **Escudos subidos** (`crestStore.ts`, `useTeamCrests.ts`, `CrestsPanel.tsx`): validación (PNG/JPG/WebP ≤ 3 MB), reducción a 256×256 con `createImageBitmap`, almacenamiento en
   `localStorage` (`futbol-sim:v1:crest:<equipo>`) y registro en memoria de `ImageBitmap` que lee `drawCrest` (sprite cacheado con la versión del escudo). Sin imagen se usa el escudo
   genérico. Lo usan ambos estilos, la vista previa, la exportación y los lotes; cambiar un escudo reinicia la exportación mostrada.

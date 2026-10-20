@@ -25,13 +25,13 @@ El estudio de la captura se hizo en un navegador sin codificador H.264, por eso 
 
 ## Cómo se usa
 1. **Calendario**: elige competición, filtra por fecha («Próximos/Jugados/Todos»), busca un equipo y pulsa un partido → *Crear simulaciones*.
-2. **Estudio**: reproduce la vista previa, cambia el estilo (*Arena* o *Táctico*), el **ritmo** (*rápido* por defecto, ~30 s; *normal*, ~50 s), la semilla («Otra semilla») o fija el marcador (0–9 por equipo). En *Escudos* puedes subir el escudo de cada equipo.
+2. **Estudio**: reproduce la vista previa, cambia el estilo (*Arena* o *Táctico*), el **ritmo** (*rápido* por defecto, ~26 s; *normal*, ~50 s), la semilla («Otra semilla») o fija el marcador (0–9 por equipo). En *Escudos* puedes subir el escudo de cada equipo.
 3. **Exportar MP4**: un vídeo con los parámetros actuales. **Generar varias simulaciones**: de 1 a 10 vídeos con semillas distintas, con progreso, cancelar,
    reintentar y *Descargar todo (ZIP)*.
 4. Sube el vídeo a TikTok tú mismo.
 
 ### Ritmo y escudos
-- **Ritmo rápido (por defecto)**: arranque inmediato (intro de 1,3 s), jugadas al 60 % del tiempo y descanso/final cortos: un partido típico dura 20–40 s en vez de 35–65 s, para que el vídeo se vea entero.
+- **Ritmo rápido (por defecto)**: arranque inmediato (intro de 1 s), jugadas comprimidas para que el total sea ~26 s y descanso/final cortos: el vídeo dura **26 s** (hasta 4-3; con 10 goles o más puede llegar a ~30–35 s) en vez de 35–65 s, para que el vídeo se vea entero.
   Con la misma semilla el partido es **idéntico** (mismos sucesos, minutos y marcador) en ambos ritmos; sólo cambia el tiempo.
 - **Escudos**: por defecto cada equipo lleva un escudo genérico con sus colores. Puedes subir el de cada equipo (PNG, JPG o WebP, hasta 3 MB; se reduce a 256 px y se guarda sólo en tu
   navegador). Aparece en la vista previa y en los vídeos exportados. La app **no incluye escudos oficiales** (son marcas registradas): súbelos sólo si tienes derecho a usarlos.

@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
-import { ballAt } from '../../engine/animate.ts';
+import { ballAt, frameAt } from '../../engine/animate.ts';
 import { PITCH_L, PITCH_W } from '../../engine/geometry.ts';
 import { generateScript } from '../../engine/script.ts';
-import { ARENA, BALL_R, MOUTH_HALF, cameraAngle, fieldToScreen, fieldToUnit, maxRadius, rotate, toScreen } from './arena.ts';
+import { ARENA, BALL_R, DISC_R, MOUTH_HALF, cameraAngle, discScreenPositions, fieldToScreen, fieldToUnit, maxRadius, rotate, toScreen } from './arena.ts';
 import { crestPattern } from './crest.ts';
 
 describe('geometría de la arena', () => {
@@ -90,5 +90,34 @@ describe('escudos genéricos', () => {
     expect(crestPattern('Real Madrid')).toBe(crestPattern('Real Madrid'));
     const names = ['Real Madrid', 'FC Barcelona', 'Sevilla FC', 'Valencia CF', 'Athletic Club', 'Villarreal CF', 'Getafe CF', 'Girona FC'];
     expect(new Set(names.map(crestPattern)).size).toBeGreaterThan(2);
+  });
+});
+
+describe('discos de los equipos', () => {
+  it('no se quedan pegados, caben en el aro y no dan saltos entre fotogramas', () => {
+    const seps: number[] = [];
+    let maxJump = 0;
+    for (const seed of [1, 2, 3, 2024]) {
+      const script = generateScript({ seed, home: 'Real Madrid', away: 'RB Leipzig', score: { home: seed % 3, away: 1 } });
+      let prev: ReturnType<typeof discScreenPositions> | null = null;
+      for (let t = 0; t <= script.duration; t += 1 / 30) {
+        const frame = frameAt(script, t);
+        if (frame.phase === 'intro' || frame.phase === 'halftime' || frame.phase === 'fulltime') {
+          prev = null;
+          continue;
+        }
+        const d = discScreenPositions(frame);
+        seps.push(Math.hypot(d.home.x - d.away.x, d.home.y - d.away.y));
+        for (const side of ['home', 'away'] as const) {
+          expect(Math.hypot(d[side].x - ARENA.cx, d[side].y - ARENA.cy)).toBeLessThanOrEqual(ARENA.radius);
+          if (prev !== null) maxJump = Math.max(maxJump, Math.hypot(d[side].x - prev[side].x, d[side].y - prev[side].y));
+        }
+        prev = d;
+      }
+    }
+    seps.sort((a, b) => a - b);
+    expect(seps[0] ?? 0).toBeGreaterThanOrEqual(DISC_R * 3);
+    expect(seps[Math.floor(seps.length / 2)] ?? 0).toBeGreaterThan(DISC_R * 4.5);
+    expect(maxJump).toBeLessThan(80);
   });
 });

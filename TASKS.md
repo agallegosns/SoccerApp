@@ -122,3 +122,10 @@ Leyenda: ✅ hecho y probado · 🟡 hecho, pendiente de verificar · ⬜ por ha
   distinto de 0,6 (`FAST_PLAY_SCALE` en `src/engine/pace.ts`).
 - ✅ **Redesplegado** (a petición del usuario): ejecución 2 del workflow de Pages con el commit `aa9dd45` (ritmo rápido y escudos), `build` y `deploy` correctos.
 - 🟡 Pendiente de verificar en un navegador: que la web publicada muestre el ritmo rápido y el panel de escudos (desde el sandbox no se puede abrir `github.io`).
+
+## Ajustes: vídeo de 20–30 s y discos separados (Arena)
+- ✅ **Duración del ritmo rápido 20–30 s** (a petición del usuario): `FAST_MAX_SECONDS` 26; el juego se comprime (×0,75 como máximo, ×0,26 como mínimo) hasta que el total sea ≈ 26 s;
+  intro 1 s, descanso 1,4 s, final 2,4 s. Medido en 40 semillas: 26,0 s exactos de 0-0 a 4-3; con 6-5 (11 goles) 29–35 s (límite: por debajo de ×0,26 el juego sería ilegible). Test unitario 20–30 s. Sustituye las cifras anteriores (18–45 s).
+- ✅ **Discos de equipo ya no se quedan pegados** (`discScreenPositions` en `arena.ts`): el que defiende se coloca entre el balón y su portería (con vaivén), el que tiene la posesión se acerca al balón;
+  separación mínima 211 px (antes 139 px = siempre tocándose; mediana 417 px) y, con el balón en la red, el disco se ancla al 72 % del radio para evitar saltos (máx. 42 px/fotograma, antes 243 px). Test unitario añadido.
+- 🟡 Pendiente de verificar a ojo en el vídeo exportado; los cambios **no están desplegados** (hay que pedir un redespliegue).

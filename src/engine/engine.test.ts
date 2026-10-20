@@ -388,6 +388,16 @@ describe('ritmo rápido (por defecto)', () => {
     }
   });
 
+  it('el vídeo rápido dura 20–30 s con marcadores normales (hasta 4-3)', () => {
+    for (const seed of seeds.slice(0, 12)) {
+      for (const score of [{ home: 0, away: 0 }, { home: 2, away: 1 }, { home: 4, away: 3 }]) {
+        const d = generateScript(input(seed, score, 'fast')).duration;
+        expect(d).toBeGreaterThan(20);
+        expect(d).toBeLessThanOrEqual(30);
+      }
+    }
+  });
+
   it('dura bastante menos (≤ 70 %), con intro corta y sigue siendo coherente: fases contiguas, eventos ordenados y goles exactos', () => {
     for (const seed of seeds.slice(0, 20)) {
       const score = { home: seed % 4, away: (seed * 3) % 3 };
