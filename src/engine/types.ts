@@ -11,6 +11,9 @@ export interface Score {
   readonly away: number;
 }
 
+/** `fast` (por defecto): ~60 % del tiempo en las jugadas, intro/descanso/final cortos. `normal`: ritmo pausado original. */
+export type Pace = 'fast' | 'normal';
+
 export interface SimulationInput {
   /** Semilla entera: determina TODO (marcador si es aleatorio, formaciones, jugadas, minutos). */
   readonly seed: number;
@@ -18,6 +21,8 @@ export interface SimulationInput {
   readonly away: string;
   /** Marcador fijado por el usuario (0–9 cada equipo) o `null` para que lo decida la semilla. */
   readonly score: Score | null;
+  /** Ritmo del vídeo (por defecto `fast`). Mismos sucesos y marcador en ambos; sólo cambia el tiempo. */
+  readonly pace?: Pace;
 }
 
 export interface ResolvedTeam {
@@ -104,6 +109,9 @@ export interface MatchScript {
   /** Marcador final de la simulación (ficticio). */
   readonly score: Score;
   readonly scoreWasFixed: boolean;
+  readonly pace: Pace;
+  /** Factor de tiempo aplicado a las jugadas (1 = normal). */
+  readonly timeScale: number;
   /** Duración total del vídeo en segundos. */
   readonly duration: number;
   /** Instante (s) en que cambian de campo (punto medio del descanso, con la pantalla cubierta). */

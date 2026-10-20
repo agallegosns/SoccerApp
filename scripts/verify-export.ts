@@ -132,7 +132,7 @@ async function main(): Promise<void> {
     const boxes = topLevelBoxes(file);
     check('fastStart (moov antes que mdat)', boxes.indexOf('moov') >= 0 && boxes.indexOf('moov') < boxes.indexOf('mdat'), boxes.join(','));
     check('se decodifica completo sin errores (ffmpeg)', decodeClean(file), 'ffmpeg -f null');
-    for (const t of [1, 14, 28, 45]) {
+    for (const t of [1, exported.simDuration * 0.3, exported.simDuration * 0.6, exported.simDuration - 1].map((x) => Math.round(x))) {
       execFileSync('ffmpeg', ['-v', 'error', '-y', '-ss', String(t), '-i', file, '-frames:v', '1', join(OUT, `export-${codec}-t${String(t)}.png`)]);
     }
 

@@ -111,3 +111,13 @@ Leyenda: ✅ hecho y probado · 🟡 hecho, pendiente de verificar · ⬜ por ha
   comprobarlo con `ffprobe` (códec `h264`, 1080×1920, 30 fps).
 - 🟡 El rendimiento en móviles reales y el tiempo de exportación con H.264 por hardware no se han medido.
 - 🟡 Sin audio; escudos genéricos; Europa League/Conference League sin datos hasta que se aporten los Excel; faltan las eliminatorias de la Champions 2026-27.
+
+## Mejoras posteriores a petición del usuario: ritmo rápido y escudos
+- ✅ **Ritmo rápido por defecto** (`pace: 'fast'`): partido típico 18–45 s (probado en 30 semillas) frente a 35–65 s; selector «Ritmo rápido/normal» en el estudio y en los lotes.
+  Mismos sucesos, minutos y marcador que el ritmo normal (probado); animación continua sin teletransportes (< 110 m/s de pico, ≈ 55 m/s del normal ÷ 0,6); banner de gol legible.
+- ✅ **Escudos por equipo**: subida de PNG/JPG/WebP (validación de tipo, tamaño y archivo corrupto con mensajes claros), reducción a 256 px, persistencia en `localStorage`,
+  visibles en HUD y discos (Arena) y en la cabecera (Táctico), en la vista previa y en la exportación. Probado en e2e por píxel; axe sin violaciones con el panel nuevo.
+- 🟡 **Escudos oficiales: no incluidos** (marcas registradas; el brief original pedía escudos genéricos). Cada usuario sube los suyos bajo su responsabilidad.
+- 🟡 Los escudos se guardan por navegador (no se comparten entre dispositivos). El ritmo rápido aumenta la velocidad aparente de jugadores y balón: valorar a ojo si se prefiere un factor
+  distinto de 0,6 (`FAST_PLAY_SCALE` en `src/engine/pace.ts`).
+- 🟡 **No redesplegado**: los cambios están en la rama; la web publicada sigue en la versión anterior hasta que se vuelva a lanzar el workflow.

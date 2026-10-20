@@ -2,6 +2,7 @@ import { clockLabel, PLAYERS_PER_TEAM, shapePos, sideOf, slotOf } from './animat
 import { FORMATION_IDS, FORMATIONS, type Role } from './formations.ts';
 import { CENTER, GOAL_HALF_WIDTH, PITCH_L, PITCH_W, attackDir, clamp, dist, goalLineY, toAbs, toFrame, type Side, type Vec } from './geometry.ts';
 import { Rng, hashString } from './rng.ts';
+import { retime } from './pace.ts';
 import { teamStyles } from './style.ts';
 import type {
   Actor, BallKind, BallSegment, ClockSegment, EventType, MatchScript, Outcome, Phase, PhaseKind, ResolvedTeam, Score, ScriptEvent,
@@ -555,8 +556,10 @@ export function generateScript(input: SimulationInput): MatchScript {
   );
 
   const stats = (side: Side): TeamStats => ({ ...b.counters[side] });
-  return {
+  const normal: MatchScript = {
     seed: input.seed,
+    pace: 'normal',
+    timeScale: 1,
     teams,
     score,
     scoreWasFixed: fixed,
@@ -570,6 +573,7 @@ export function generateScript(input: SimulationInput): MatchScript {
     stats: { home: stats('home'), away: stats('away') },
     jitter,
   };
+  return retime(normal, input.pace ?? 'fast');
 }
 
 function scoreBefore(events: readonly DraftEvent[], t: number): { home: number; away: number } {

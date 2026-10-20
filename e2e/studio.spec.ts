@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import { mockOpenFootball } from './helpers.ts';
+import { mockOpenFootball, solidPng } from './helpers.ts';
 
 async function openStudio(page: Page): Promise<void> {
   await mockOpenFootball(page);
@@ -88,6 +88,63 @@ test.describe('estudio de simulación', () => {
     expect(b2).toBeLessThan(80);
   });
 
+  test('el ritmo rápido es el de por defecto: dura bastante menos que el normal con los mismos sucesos', async ({ page }) => {
+    await openStudio(page);
+    await setSeed(page, '2024');
+    await expect(page.getByTestId('pace-fast')).toHaveAttribute('aria-pressed', 'true');
+    const fastEvents = await page.getByTestId('events').locator('.event__text').allTextContents();
+    const fastClocks = await page.getByTestId('events').locator('.event__clock').allTextContents();
+    const fastScore = await page.getByTestId('sim-score').textContent();
+    const fastDuration = Number(await page.getByTestId('scrubber').getAttribute('max'));
+    expect(fastDuration).toBeLessThan(45);
+    await page.getByTestId('pace-normal').click();
+    await expect(page.getByTestId('pace-normal')).toHaveAttribute('aria-pressed', 'true');
+    const slowDuration = Number(await page.getByTestId('scrubber').getAttribute('max'));
+    expect(slowDuration).toBeGreaterThan(fastDuration * 1.4);
+    expect(await page.getByTestId('events').locator('.event__text').allTextContents()).toEqual(fastEvents);
+    expect(await page.getByTestId('events').locator('.event__clock').allTextContents()).toEqual(fastClocks);
+    expect(await page.getByTestId('sim-score').textContent()).toBe(fastScore);
+  });
+
+  test('escudos: se sube uno por equipo, se ve en ambos estilos, persiste y se puede quitar', async ({ page }) => {
+    await openStudio(page);
+    await setSeed(page, '2024');
+    await expect(page.getByTestId('crests-panel')).toContainText('Escudo genérico');
+    const generic = await pixel(page, 175, 352);
+    await page.getByTestId('crest-file-home').setInputFiles({ name: 'rojo.png', mimeType: 'image/png', buffer: solidPng(220, 20, 20) });
+    await expect(page.getByTestId('crests-panel')).toContainText('Escudo subido por ti');
+    await seekTo(page, 0.4);
+    const arena = await pixel(page, 175, 352); // centro del escudo local en el estilo Arena
+    expect(arena[0]).toBeGreaterThan(170);
+    expect(arena[1]).toBeLessThan(90);
+    expect(arena).not.toEqual(generic);
+    await page.getByTestId('style-tactical').click();
+    await seekTo(page, 0.4);
+    const tactical = await pixel(page, 190, 330);
+    expect(tactical[0]).toBeGreaterThan(170);
+    expect(tactical[1]).toBeLessThan(90);
+    await page.getByTestId('style-arena').click();
+    // El escudo del otro equipo sigue siendo el genérico.
+    await expect(page.getByTestId('crests-panel')).toContainText('Escudo genérico');
+    // Persiste al volver a abrir el estudio.
+    await page.reload();
+    await page.locator('.match').first().click();
+    await page.getByTestId('open-studio').click();
+    await expect(page.getByTestId('crests-panel')).toContainText('Escudo subido por ti');
+    await page.getByTestId('crest-remove-home').click();
+    await expect(page.getByTestId('crests-panel')).not.toContainText('Escudo subido por ti');
+  });
+
+  test('escudos: un archivo que no es una imagen válida se rechaza con un mensaje claro', async ({ page }) => {
+    await openStudio(page);
+    await page.getByTestId('crest-file-home').setInputFiles({ name: 'doc.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4') });
+    await expect(page.getByTestId('crest-error')).toContainText('PNG, JPG o WebP');
+    await page.getByTestId('crest-file-home').setInputFiles({ name: 'falso.png', mimeType: 'image/png', buffer: Buffer.from('esto no es un png') });
+    await expect(page.getByTestId('crest-error')).toContainText('No se pudo leer la imagen');
+    await page.getByTestId('crest-file-away').setInputFiles({ name: 'enorme.png', mimeType: 'image/png', buffer: Buffer.alloc(3_100_000, 1) });
+    await expect(page.getByTestId('crest-error')).toContainText('pesa demasiado');
+  });
+
   test('el marcador fijado se respeta: mismos goles en los sucesos y en el marcador', async ({ page }) => {
     await openStudio(page);
     await page.getByTestId('fix-score').click();
@@ -122,9 +179,9 @@ test.describe('estudio de simulación', () => {
     await page.getByTestId('score-home').fill('2');
     await page.getByTestId('score-away').fill('1');
     const duration = Number(await page.getByTestId('scrubber').getAttribute('max'));
-    expect(duration).toBeGreaterThan(30);
+    expect(duration).toBeGreaterThan(15);
     const hashes = new Set<string>();
-    for (const t of [0.5, 6, 12, 20, duration / 2, duration - 6, duration - 0.5]) {
+    for (const t of [0.5, 4, 8, 12, duration / 2, duration - 4, duration - 0.5]) {
       await seekTo(page, t);
       const [r, g, b] = await pixel(page, 540, 175); // píldora ámbar «SIMULACIÓN FICTICIA»
       expect(r).toBeGreaterThan(220);

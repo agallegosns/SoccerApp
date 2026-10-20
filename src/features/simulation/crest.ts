@@ -1,5 +1,6 @@
 import { hashString } from '../../engine/rng.ts';
 import type { ResolvedTeam } from '../../engine/index.ts';
+import { customCrest } from './crestStore.ts';
 import { FONT_STACK } from './theme.ts';
 import type { Ctx2D } from './render.ts';
 
@@ -64,14 +65,16 @@ function makeSprite(size: number): Sprite {
 /** Escudo ya dibujado (sprite) para no repetir recortes y degradados en cada fotograma. */
 function crestSprite(team: ResolvedTeam, r: number): { sprite: Sprite; pad: number } {
   const pad = Math.ceil(r * 0.2);
-  const key = `${team.name}|${team.style.primary}|${String(r)}`;
+  const custom = customCrest(team.name);
+  const key = `${team.name}|${team.style.primary}|${String(r)}|${String(custom?.version ?? 0)}`;
   const cached = sprites.get(key);
   if (cached !== undefined) return { sprite: cached, pad };
   const size = Math.ceil(2 * r + 2 * pad);
   const sprite = makeSprite(size);
   const sctx: Ctx2D | null = sprite.getContext('2d');
   if (sctx === null) throw new Error('No se pudo crear el sprite del escudo');
-  paintCrest(sctx, team, size / 2, size / 2, r);
+  if (custom === null) paintCrest(sctx, team, size / 2, size / 2, r);
+  else paintImageCrest(sctx, team, custom.bitmap, size / 2, size / 2, r);
   sprites.set(key, sprite);
   return { sprite, pad };
 }
@@ -80,6 +83,32 @@ function crestSprite(team: ResolvedTeam, r: number): { sprite: Sprite; pad: numb
 export function drawCrest(ctx: Ctx2D, team: ResolvedTeam, cx: number, cy: number, r: number): void {
   const { sprite, pad } = crestSprite(team, r);
   ctx.drawImage(sprite, cx - r - pad, cy - r - pad);
+}
+
+/** Escudo subido por el usuario: placa clara circular (por si la imagen es transparente), imagen ajustada y aro del color del equipo. */
+function paintImageCrest(ctx: Ctx2D, team: ResolvedTeam, image: ImageBitmap, cx: number, cy: number, r: number): void {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.35)';
+  ctx.beginPath();
+  ctx.arc(0, r * 0.12, r * 1.02, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(0, 0, r, 0, Math.PI * 2);
+  ctx.save();
+  ctx.clip();
+  ctx.fillStyle = '#f4f7fc';
+  ctx.fillRect(-r, -r, 2 * r, 2 * r);
+  const inner = r * 1.62;
+  const k = Math.min(inner / image.width, inner / image.height);
+  ctx.drawImage(image, (-image.width * k) / 2, (-image.height * k) / 2, image.width * k, image.height * k);
+  ctx.restore();
+  ctx.beginPath();
+  ctx.arc(0, 0, r - r * 0.05, 0, Math.PI * 2);
+  ctx.lineWidth = Math.max(4, r * 0.1);
+  ctx.strokeStyle = team.style.primary;
+  ctx.stroke();
+  ctx.restore();
 }
 
 function paintCrest(ctx: Ctx2D, team: ResolvedTeam, cx: number, cy: number, r: number): void {

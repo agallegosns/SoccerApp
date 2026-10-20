@@ -9,7 +9,8 @@ import { generateScript } from './script.ts';
 import { abbreviation, shortName, teamStyles } from './style.ts';
 import type { MatchScript, Score, SimulationInput } from './types.ts';
 
-const base = (seed: number, score: Score | null = null): SimulationInput => ({ seed, home: 'Real Madrid', away: 'FC Barcelona', score });
+// Las pruebas del motor usan el ritmo `normal` (el original); el ritmo rápido se prueba aparte, con los mismos sucesos.
+const base = (seed: number, score: Score | null = null): SimulationInput => ({ seed, home: 'Real Madrid', away: 'FC Barcelona', score, pace: 'normal' });
 const seeds = Array.from({ length: 60 }, (_, i) => i * 7919 + 3);
 
 describe('PRNG', () => {
@@ -355,5 +356,96 @@ describe('animación', () => {
     expect(sim.frame(1).t).toBe(1);
     expect(sim.frame(-5).t).toBe(0);
     expect(sim.frame(1e9).t).toBe(sim.script.duration);
+  });
+});
+
+describe('ritmo rápido (por defecto)', () => {
+  const input = (seed: number, score: Score | null, pace?: 'fast' | 'normal'): SimulationInput => ({
+    seed,
+    home: 'Real Madrid',
+    away: 'FC Barcelona',
+    score,
+    ...(pace === undefined ? {} : { pace }),
+  });
+
+  it('el ritmo por defecto es rápido', () => {
+    expect(generateScript(input(1, null)).pace).toBe('fast');
+    expect(generateScript(input(1, null)).timeScale).toBeLessThan(1);
+    expect(generateScript(input(1, null, 'normal')).timeScale).toBe(1);
+  });
+
+  it('mismos sucesos, marcador, minutos y orden que el ritmo normal: sólo cambian los instantes', () => {
+    for (const seed of seeds.slice(0, 15)) {
+      const score = { home: seed % 4, away: seed % 3 };
+      const fast = generateScript(input(seed, score, 'fast'));
+      const slow = generateScript(input(seed, score, 'normal'));
+      const key = (e: { type: string; side: string | null; shirt: number | null; text: string; clock: string; minute: number }): string =>
+        `${e.type}|${e.side ?? ''}|${String(e.shirt)}|${e.text}|${e.clock}|${e.minute.toFixed(6)}`;
+      expect(fast.events.map(key)).toEqual(slow.events.map(key));
+      expect(fast.score).toEqual(slow.score);
+      expect(fast.phases.map((p) => `${p.kind}${p.side ?? ''}${p.outcome ?? ''}`)).toEqual(slow.phases.map((p) => `${p.kind}${p.side ?? ''}${p.outcome ?? ''}`));
+      expect(fast.stats).toEqual(slow.stats);
+    }
+  });
+
+  it('dura bastante menos (≤ 70 %), con intro corta y sigue siendo coherente: fases contiguas, eventos ordenados y goles exactos', () => {
+    for (const seed of seeds.slice(0, 20)) {
+      const score = { home: seed % 4, away: (seed * 3) % 3 };
+      const fast = generateScript(input(seed, score, 'fast'));
+      const slow = generateScript(input(seed, score, 'normal'));
+      expect(fast.duration).toBeLessThan(slow.duration * 0.7);
+      expect(fast.phases[0]?.kind).toBe('intro');
+      expect(fast.phases[0]?.t1).toBeLessThan(1.5);
+      expect(fast.phases[0]?.t0).toBe(0);
+      for (let i = 1; i < fast.phases.length; i += 1) expect(fast.phases[i]?.t0).toBeCloseTo(fast.phases[i - 1]?.t1 ?? NaN, 9);
+      expect(fast.phases.at(-1)?.t1).toBeCloseTo(fast.duration, 9);
+      for (let i = 1; i < fast.events.length; i += 1) expect(fast.events[i]?.t ?? 0).toBeGreaterThanOrEqual(fast.events[i - 1]?.t ?? 0);
+      const goals = fast.events.filter((e) => e.type === 'goal');
+      expect(goals.filter((e) => e.side === 'home')).toHaveLength(score.home);
+      expect(goals.filter((e) => e.side === 'away')).toHaveLength(score.away);
+      expect(frameAt(fast, fast.duration).score).toEqual(score);
+    }
+  });
+
+  it('un partido típico (0–3 goles) dura entre 18 y 45 s: pensado para que se vea entero', () => {
+    for (const seed of seeds.slice(0, 30)) {
+      const s = generateScript(input(seed, { home: seed % 2, away: (seed >> 1) % 2 }, 'fast'));
+      expect(s.duration).toBeGreaterThan(18);
+      expect(s.duration).toBeLessThan(45);
+    }
+  });
+
+  it('la animación sigue siendo continua (sin teletransportes) aunque todo vaya más deprisa', () => {
+    for (const seed of [2024, 7, 99]) {
+      const sc = generateScript(input(seed, { home: 2, away: 1 }, 'fast'));
+      let prev = frameAt(sc, 0);
+      let worstPlayer = 0;
+      let worstBall = 0;
+      let bad = 0;
+      for (let t = 1 / 30; t <= sc.duration; t += 1 / 30) {
+        const f = frameAt(sc, t);
+        const inSwap = Math.abs(t - sc.halftimeMid) <= 0.2;
+        for (let k = 0; k < 22; k += 1) {
+          const a = prev.players[k];
+          const b = f.players[k];
+          if (a === undefined || b === undefined || !Number.isFinite(b.x) || !Number.isFinite(b.y)) bad += 1;
+          else if (!inSwap) worstPlayer = Math.max(worstPlayer, dist(a, b) * 30);
+        }
+        if (f.ball.visible && prev.ball.visible) worstBall = Math.max(worstBall, dist(prev.ball, f.ball) * 30);
+        prev = f;
+      }
+      expect(bad).toBe(0);
+      expect(worstPlayer).toBeLessThan(110); // ≈ 55 m/s del ritmo normal ÷ 0,6 (con margen)
+      expect(worstBall).toBeLessThan(130);
+    }
+  });
+
+  it('el banner de gol dura lo bastante para leerse aunque el ritmo sea rápido', () => {
+    const s = generateScript(input(31, { home: 1, away: 0 }, 'fast'));
+    const goal = s.events.find((e) => e.type === 'goal');
+    expect(goal).toBeDefined();
+    const t = goal?.t ?? 0;
+    expect(frameAt(s, t + 1.2).goalBanner).not.toBeNull();
+    expect(frameAt(s, t + 2.5).goalBanner).toBeNull();
   });
 });

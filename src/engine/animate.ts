@@ -67,7 +67,7 @@ export function possessionWeight(script: MatchScript, side: Side, t: number): nu
   const prev = script.phases[i - 1];
   const value = phaseValue(cur, side);
   if (prev === undefined) return value;
-  return lerp(phaseValue(prev, side), value, smoothstep((t - cur.t0) / POSSESSION_BLEND_SECONDS));
+  return lerp(phaseValue(prev, side), value, smoothstep((t - cur.t0) / (POSSESSION_BLEND_SECONDS * script.timeScale)));
 }
 
 /** Parte (1 o 2) en el instante t. */
@@ -161,6 +161,8 @@ export function statsAt(events: readonly ScriptEvent[], t: number): { home: Team
 
 const GOAL_BANNER_SECONDS = 2.2;
 const TICKER_SECONDS = 3;
+/** Con el ritmo rápido el banner de gol y el rótulo duran menos, pero nunca menos de lo que se tarda en leerlos. */
+const scaled = (seconds: number, scale: number, min: number): number => Math.max(min, seconds * scale);
 
 /** Estado completo de la escena en el instante t (función pura; permite avanzar, retroceder y renderizar frame a frame). */
 export function frameAt(script: MatchScript, rawT: number): FrameState {
@@ -219,10 +221,10 @@ export function frameAt(script: MatchScript, rawT: number): FrameState {
     if (e.type === 'goal') {
       if (e.side === 'home') home += 1;
       else away += 1;
-      const progress = (t - e.t) / GOAL_BANNER_SECONDS;
+      const progress = (t - e.t) / scaled(GOAL_BANNER_SECONDS, script.timeScale, 1.5);
       if (progress <= 1 && e.side !== null) goalBanner = { side: e.side, shirt: e.shirt, clock: e.clock, progress };
     }
-    if (t - e.t <= TICKER_SECONDS && e.type !== 'kickoff' && e.type !== 'halftime' && e.type !== 'fulltime') ticker = { clock: e.clock, text: e.text };
+    if (t - e.t <= scaled(TICKER_SECONDS, script.timeScale, 1.8) && e.type !== 'kickoff' && e.type !== 'halftime' && e.type !== 'fulltime') ticker = { clock: e.clock, text: e.text };
   }
 
   let passLine: FrameState['passLine'] = null;

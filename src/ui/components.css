@@ -37,6 +37,10 @@
   background: var(--color-surface-2);
 }
 
+.btn:focus-within {
+  box-shadow: var(--focus-ring);
+}
+
 .btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;

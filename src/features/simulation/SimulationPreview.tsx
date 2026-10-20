@@ -11,6 +11,8 @@ interface Props {
   readonly meta: RenderMeta;
   readonly label: string;
   readonly style: VideoStyle;
+  /** Cambia cuando se sube o quita un escudo: fuerza a redibujar. */
+  readonly crestVersion: number;
   /** Posición solicitada desde fuera (p. ej. al pulsar un suceso). `nonce` fuerza el salto aunque el valor se repita. */
   readonly seek: { readonly t: number; readonly nonce: number } | null;
 }
@@ -18,7 +20,7 @@ interface Props {
 const prefersReducedMotion = (): boolean => typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 /** Vista previa en canvas 1080×1920 con reproducción, pausa y barra de posición. Remontar (key) al cambiar de simulación. */
-export function SimulationPreview({ sim, meta, label, style, seek }: Props) {
+export function SimulationPreview({ sim, meta, label, style, crestVersion, seek }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [time, setTime] = useState(0);
   const [reduced] = useState(prefersReducedMotion);
@@ -53,7 +55,7 @@ export function SimulationPreview({ sim, meta, label, style, seek }: Props) {
     const ctx = canvasRef.current?.getContext('2d');
     if (ctx === null || ctx === undefined) return;
     drawVideoFrame(ctx, sim, time, meta, style);
-  }, [sim, time, meta, style]);
+  }, [sim, time, meta, style, crestVersion]);
 
   return (
     <div className="preview">

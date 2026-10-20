@@ -3,11 +3,13 @@ import { useMemo, useState } from 'react';
 
 import { formatDateEs, kickoffOf } from '../../data/dates.ts';
 import type { Match } from '../../data/types.ts';
-import { MAX_GOALS_PER_TEAM, simulate, type Score } from '../../engine/index.ts';
+import { MAX_GOALS_PER_TEAM, simulate, type Pace, type Score } from '../../engine/index.ts';
 import { BatchPanel } from '../export/BatchPanel.tsx';
 import { ExportPanel } from '../export/ExportPanel.tsx';
 import { exportFileName } from '../export/fileName.ts';
+import { CrestsPanel } from './CrestsPanel.tsx';
 import { SimulationPreview } from './SimulationPreview.tsx';
+import { useTeamCrests } from './useTeamCrests.ts';
 import { DEFAULT_STYLE, VIDEO_STYLES, type VideoStyle } from './renderers.ts';
 import type { RenderMeta } from './render.ts';
 import './studio.css';
@@ -47,11 +49,13 @@ export function SimulationStudio({ match, onBack }: Props) {
   const [fixedAway, setFixedAway] = useState(0);
   const [seek, setSeek] = useState<{ t: number; nonce: number } | null>(null);
   const [style, setStyle] = useState<VideoStyle>(DEFAULT_STYLE);
+  const [pace, setPace] = useState<Pace>('fast');
+  const crests = useTeamCrests(match.home, match.away);
 
   const score: Score | null = fixed ? { home: fixedHome, away: fixedAway } : null;
   const sim = useMemo(
-    () => simulate({ seed, home: match.home, away: match.away, score: fixed ? { home: fixedHome, away: fixedAway } : null }),
-    [seed, match.home, match.away, fixed, fixedHome, fixedAway],
+    () => simulate({ seed, home: match.home, away: match.away, score: fixed ? { home: fixedHome, away: fixedAway } : null, pace }),
+    [seed, match.home, match.away, fixed, fixedHome, fixedAway, pace],
   );
 
   const kickoff = kickoffOf(match);
@@ -100,8 +104,9 @@ export function SimulationStudio({ match, onBack }: Props) {
       <div className="studio__grid">
         <section className="studio__preview" aria-label="Vista previa">
           <SimulationPreview
-            key={`${String(seed)}|${fixed ? `${String(fixedHome)}-${String(fixedAway)}` : 'r'}`}
+            key={`${String(seed)}|${fixed ? `${String(fixedHome)}-${String(fixedAway)}` : 'r'}|${pace}`}
             sim={sim}
+            crestVersion={crests.version}
             meta={meta}
             label={`Vista previa de la simulación ficticia de ${match.home} contra ${match.away}`}
             style={style}
@@ -120,6 +125,20 @@ export function SimulationStudio({ match, onBack }: Props) {
               ))}
             </div>
             <p className="muted">{VIDEO_STYLES.find((v) => v.id === style)?.hint}</p>
+
+            <div className="segmented" role="group" aria-label="Ritmo del vídeo">
+              <button type="button" aria-pressed={pace === 'fast'} onClick={() => { setPace('fast'); }} data-testid="pace-fast">
+                Ritmo rápido
+              </button>
+              <button type="button" aria-pressed={pace === 'normal'} onClick={() => { setPace('normal'); }} data-testid="pace-normal">
+                Ritmo normal
+              </button>
+            </div>
+            <p className="muted">
+              {pace === 'fast'
+                ? 'Más acción en menos tiempo y arranque inmediato: pensado para que el vídeo se vea entero y enganche.'
+                : 'Ritmo pausado: los mismos sucesos, con más calma entre jugadas.'}
+            </p>
 
             <label className="field">
               <span>Semilla (cada semilla da una simulación distinta del mismo partido)</span>
@@ -191,8 +210,10 @@ export function SimulationStudio({ match, onBack }: Props) {
             )}
           </div>
 
+          <CrestsPanel teams={[sim.script.teams.home, sim.script.teams.away]} crests={crests} />
+
           <ExportPanel
-            key={`${String(seed)}|${fixed ? `${String(fixedHome)}-${String(fixedAway)}` : 'r'}|${style}`}
+            key={`${String(seed)}|${fixed ? `${String(fixedHome)}-${String(fixedAway)}` : 'r'}|${style}|${pace}|${String(crests.version)}`}
             sim={sim}
             meta={meta}
             style={style}
@@ -206,6 +227,7 @@ export function SimulationStudio({ match, onBack }: Props) {
             currentSeed={seed}
             style={style}
             fixedScore={score}
+            pace={pace}
             meta={meta}
             onUseSeed={(s) => {
               setSeed(s);
@@ -252,7 +274,7 @@ export function SimulationStudio({ match, onBack }: Props) {
                     <button
                       type="button"
                       className={`event event--${e.type}`}
-                      onClick={() => { setSeek((s) => ({ t: Math.max(0, e.t - 2.5), nonce: (s?.nonce ?? 0) + 1 })); }}
+                      onClick={() => { setSeek((s) => ({ t: Math.max(0, e.t - 2.5 * sim.script.timeScale), nonce: (s?.nonce ?? 0) + 1 })); }}
                     >
                       <span className="event__clock">{e.clock}</span>
                       <span className="event__type">{EVENT_LABELS[e.type] ?? e.type}</span>

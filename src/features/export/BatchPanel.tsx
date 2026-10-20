@@ -2,7 +2,7 @@ import { AlertTriangle, Archive, Download, Eye, Layers, RotateCw, Trash2, X } fr
 import { useEffect, useState, useSyncExternalStore } from 'react';
 
 import type { Match } from '../../data/types.ts';
-import { MAX_GOALS_PER_TEAM, simulate, type Score } from '../../engine/index.ts';
+import { MAX_GOALS_PER_TEAM, simulate, type Pace, type Score } from '../../engine/index.ts';
 import type { RenderMeta } from '../simulation/render.ts';
 import type { VideoStyle } from '../simulation/renderers.ts';
 import { BatchQueue, type BatchJob, type JobRunner } from './batchQueue.ts';
@@ -22,6 +22,7 @@ interface Props {
   readonly style: VideoStyle;
   /** Marcador fijado por el usuario o `null` (aleatorio por semilla). */
   readonly fixedScore: Score | null;
+  readonly pace: Pace;
   readonly meta: RenderMeta;
   readonly onUseSeed: (seed: number) => void;
 }
@@ -32,6 +33,7 @@ interface JobData {
   readonly away: string;
   readonly style: VideoStyle;
   readonly fixedScore: Score | null;
+  readonly pace: Pace;
   readonly meta: RenderMeta;
   /** Marcador ficticio resultante (para mostrarlo en la lista). */
   readonly score: Score;
@@ -48,7 +50,7 @@ const STATUS_LABEL: Readonly<Record<BatchJob<JobData>['status'], string>> = {
 const randomSeed = (): number => Math.floor(Math.random() * 1_000_000_000);
 const mb = (bytes: number): string => `${(bytes / 1e6).toFixed(1)} MB`;
 
-export function BatchPanel({ match, date, currentSeed, style, fixedScore, meta, onUseSeed }: Props) {
+export function BatchPanel({ match, date, currentSeed, style, fixedScore, pace, meta, onUseSeed }: Props) {
   const support = useExportSupport();
   const [count, setCount] = useState(3);
   const [zipping, setZipping] = useState(false);
@@ -57,7 +59,7 @@ export function BatchPanel({ match, date, currentSeed, style, fixedScore, meta, 
   const [queue] = useState(() => {
     const runner: JobRunner<JobData> = (job, signal, onProgress) => {
       const d = job.data;
-      const sim = simulate({ seed: job.seed, home: d.home, away: d.away, score: d.fixedScore });
+      const sim = simulate({ seed: job.seed, home: d.home, away: d.away, score: d.fixedScore, pace: d.pace });
       return exportVideo({
         sim,
         meta: d.meta,
@@ -82,9 +84,11 @@ export function BatchPanel({ match, date, currentSeed, style, fixedScore, meta, 
 
   function generate(): void {
     const n = Math.min(MAX_BATCH, Math.max(1, Math.floor(count)));
-    const known = new Set(snapshot.jobs.map((j) => `${String(j.seed)}|${style}|${fixedScore === null ? 'r' : `${String(fixedScore.home)}-${String(fixedScore.away)}`}`));
+    const tagOf = (seed: number, p: Pace, st: VideoStyle, sc: Score | null): string =>
+      `${String(seed)}|${p}|${st}|${sc === null ? 'r' : `${String(sc.home)}-${String(sc.away)}`}`;
+    const known = new Set(snapshot.jobs.map((j) => tagOf(j.seed, j.data.pace, j.data.style, j.data.fixedScore)));
     const seeds: number[] = [];
-    const tag = (s: number): string => `${String(s)}|${style}|${fixedScore === null ? 'r' : `${String(fixedScore.home)}-${String(fixedScore.away)}`}`;
+    const tag = (seed: number): string => tagOf(seed, pace, style, fixedScore);
     for (const candidate of [currentSeed]) if (!known.has(tag(candidate))) seeds.push(candidate);
     while (seeds.length < n) {
       const s = randomSeed();
@@ -99,8 +103,9 @@ export function BatchPanel({ match, date, currentSeed, style, fixedScore, meta, 
           away: match.away,
           style,
           fixedScore,
+          pace,
           meta,
-          score: simulate({ seed, home: match.home, away: match.away, score: fixedScore }).script.score,
+          score: simulate({ seed, home: match.home, away: match.away, score: fixedScore, pace }).script.score,
         },
       })),
     );
@@ -139,7 +144,7 @@ export function BatchPanel({ match, date, currentSeed, style, fixedScore, meta, 
       <h2>Generar varias simulaciones</h2>
       <p className="muted">
         Cada vídeo usa una semilla distinta (jugadas, minutos y formaciones distintos del mismo partido). Se generan de uno en uno con los parámetros actuales
-        (estilo {style === 'arena' ? 'Arena' : 'Táctico'}, marcador {fixedScore === null ? 'aleatorio' : `${String(fixedScore.home)}–${String(fixedScore.away)}`}).
+        (estilo {style === 'arena' ? 'Arena' : 'Táctico'}, ritmo {pace === 'fast' ? 'rápido' : 'normal'}, marcador {fixedScore === null ? 'aleatorio' : `${String(fixedScore.home)}–${String(fixedScore.away)}`}).
       </p>
       <div className="row">
         <label className="field batch__count">
