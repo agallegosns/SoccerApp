@@ -136,3 +136,7 @@ Leyenda: ✅ hecho y probado · 🟡 hecho, pendiente de verificar · ⬜ por ha
 - ✅ **Descanso sin estadísticas**: sólo «DESCANSO» (con el marcador); el final conserva las estadísticas.
 - ✅ **Sin rótulo «Simulación ficticia» en el vídeo**: la cabecera muestra «competición · fase · jornada». ⚠ Decisión del usuario que cambia una regla del proyecto (CLAUDE.md actualizado): la interfaz, los metadatos del MP4 y el LEEME del ZIP siguen indicándolo.
   Ojo: TikTok puede exigir marcar el contenido generado/ficticio al publicarlo.
+
+## Ajuste: balón que rueda (a petición del usuario)
+- ✅ Trayectoria del balón más suave (ventana ±0,2 s, pesos triangulares; aceleración p95 3,6 px/fotograma²) y dibujo del balón que **gira según la distancia recorrida** y su dirección. Test unitario del giro.
+- 🟡 Pendiente de verificar a ojo en un vídeo exportado; **no desplegado** (hay que pedir un redespliegue).

@@ -143,6 +143,10 @@ export function discScreenPositions(frame: Pick<FrameState, 'ball' | 'half' | 'p
 /** Instantes (relativos) que se promedian para suavizar el movimiento: ±0,12 s, ~7 fotogramas a 30 fps. */
 const SMOOTH_OFFSETS = [-0.12, -0.08, -0.04, 0, 0.04, 0.08, 0.12] as const;
 
+/** Ventana del balón: ±0,2 s (11 muestras, pesos triangulares). */
+const BALL_WINDOW = 0.2;
+const BALL_OFFSETS = Array.from({ length: 11 }, (_, i) => -BALL_WINDOW + i * 0.04);
+
 interface BallSource {
   readonly script: Parameters<typeof ballAt>[0];
 }
@@ -157,17 +161,44 @@ export function smoothBall(sim: BallSource, t: number): { x: number; y: number; 
   let x = 0;
   let y = 0;
   let z = 0;
-  let n = 0;
-  for (const d of SMOOTH_OFFSETS) {
+  let total = 0;
+  for (const d of BALL_OFFSETS) {
     const b = ballAt(sim.script, clamp(t + d, 0, sim.script.duration));
     // Un instante con el balón oculto (reinicio) se sustituye por el del centro, así no hay saltos al entrar o salir de él.
     const use = b.visible ? b : centre;
-    x += use.x;
-    y += use.y;
-    z += use.z;
-    n += 1;
+    const w = 1 - Math.abs(d) / (BALL_WINDOW + 0.04); // pesos triangulares: el balón acelera y frena con suavidad
+    x += use.x * w;
+    y += use.y * w;
+    z += use.z * w;
+    total += w;
   }
-  return { x: x / n, y: y / n, z: z / n, visible: true };
+  return { x: x / total, y: y / total, z: z / total, visible: true };
+}
+
+const ROLL_STEP = 1 / 60;
+const rollCache = new WeakMap<object, Float32Array>();
+
+/** Distancia (px de pantalla) que ha rodado el balón desde el inicio: sirve para girar su dibujo como si rodase de verdad. */
+export function ballRoll(sim: BallSource, t: number): number {
+  let table = rollCache.get(sim.script);
+  if (table === undefined) {
+    const n = Math.ceil(sim.script.duration / ROLL_STEP) + 2;
+    table = new Float32Array(n);
+    let prev: { x: number; y: number } | null = null;
+    let sum = 0;
+    for (let i = 0; i < n; i += 1) {
+      const tt = Math.min(i * ROLL_STEP, sim.script.duration);
+      const b = smoothBall(sim, tt);
+      const p = b.visible ? fieldToScreen(b.x, b.y, tt) : null;
+      if (p !== null && prev !== null) sum += Math.hypot(p.x - prev.x, p.y - prev.y);
+      prev = p;
+      table[i] = sum;
+    }
+    rollCache.set(sim.script, table);
+  }
+  const f = clamp(t / ROLL_STEP, 0, table.length - 2);
+  const i = Math.floor(f);
+  return lerp(table[i] ?? 0, table[i + 1] ?? 0, f - i);
 }
 
 interface FrameSource extends BallSource {

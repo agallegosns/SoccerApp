@@ -171,3 +171,5 @@ Dos estilos de vídeo sobre **la misma simulación** (`src/features/simulation/r
 ## Fluidez del movimiento (Arena)
 `smoothBall` y `smoothDiscPositions` (`arena.ts`) promedian la trayectoria en una ventana de ±0,12 s (7 muestras): quitan los tirones de los cambios de pase y de posesión sin mover el instante de los sucesos.
 Medido en 4 semillas: aceleración del balón p95 12,5 → 4,3 px/fotograma², salto máximo del disco 38 px/fotograma, ≈ 0,1 ms por fotograma.
+`smoothBall` usa una ventana propia de ±0,2 s con pesos triangulares (el balón acelera y frena con suavidad: aceleración p95 12,5 → 3,6 px/fotograma²). `ballRoll` acumula la distancia rodada
+(tabla a 60 Hz por guion) y el balón del vídeo gira su dibujo (tres manchas) según esa distancia y la dirección de avance, como si rodase.

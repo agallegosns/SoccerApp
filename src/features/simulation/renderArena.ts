@@ -2,7 +2,7 @@ import { ballAt, phaseAt, statsAt } from '../../engine/animate.ts';
 import { clamp, smoothstep } from '../../engine/geometry.ts';
 import { mulberry32 } from '../../engine/rng.ts';
 import type { FrameState, ResolvedTeam, ScriptEvent, Simulation } from '../../engine/index.ts';
-import { ARENA, BALL_PX, DISC_R, GATE_DEPTH, MOUTH_HALF, cameraAngle, fieldToScreen, smoothBall, smoothDiscPositions } from './arena.ts';
+import { ARENA, BALL_PX, DISC_R, GATE_DEPTH, MOUTH_HALF, cameraAngle, ballRoll, fieldToScreen, smoothBall, smoothDiscPositions } from './arena.ts';
 import { drawCrest } from './crest.ts';
 import { drawCard, drawCompetitionPill, drawIntro, fitFont, font, roundRect, type Ctx2D, type RenderMeta } from './render.ts';
 import { CANVAS_THEME as C, VIDEO_HEIGHT, VIDEO_WIDTH } from './theme.ts';
@@ -301,17 +301,24 @@ function drawBall(ctx: Ctx2D, frame: FrameState, t: number, sim: Simulation): vo
   ctx.arc(p.x, p.y - lift, r, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
+  // Dibujo que rueda: tres manchas oscuras que giran alrededor de un eje perpendicular al avance (más estrechas cuanto más de canto).
+  const roll = ballRoll(sim, t) / r;
+  const at = (tt: number): { x: number; y: number } => {
+    const b = smoothBall(sim, tt);
+    return fieldToScreen(b.x, b.y, tt);
+  };
+  const ahead = at(t + 0.03);
+  const behind = at(t - 0.03);
+  const heading = Math.atan2(ahead.y - behind.y, ahead.x - behind.x);
   ctx.fillStyle = '#0b1220';
-  const spin = (sb.x + sb.y) * 0.09;
-  ctx.beginPath();
-  for (let i = 0; i < 5; i += 1) {
-    const a = spin + (i * 2 * Math.PI) / 5;
-    const px = p.x + Math.cos(a) * r * 0.36;
-    const py = p.y - lift + Math.sin(a) * r * 0.36;
-    ctx.lineTo(px, py);
+  for (let k = 0; k < 3; k += 1) {
+    const a = roll + (k * 2 * Math.PI) / 3;
+    const facing = Math.cos(a);
+    if (facing <= 0.05) continue;
+    ctx.beginPath();
+    ctx.ellipse(p.x + Math.cos(heading) * Math.sin(a) * r * 0.62, p.y - lift + Math.sin(heading) * Math.sin(a) * r * 0.62, r * 0.3 * facing, r * 0.3, heading, 0, Math.PI * 2);
+    ctx.fill();
   }
-  ctx.closePath();
-  ctx.fill();
 }
 
 const TAGS: Readonly<Partial<Record<ScriptEvent['type'], { text: string; color: string }>>> = {

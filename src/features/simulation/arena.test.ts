@@ -4,7 +4,7 @@ import { ballAt, frameAt } from '../../engine/animate.ts';
 import { PITCH_L, PITCH_W } from '../../engine/geometry.ts';
 import { simulate } from '../../engine/index.ts';
 import { generateScript } from '../../engine/script.ts';
-import { ARENA, BALL_R, DISC_R, MOUTH_HALF, cameraAngle, discScreenPositions, smoothBall, smoothDiscPositions, fieldToScreen, fieldToUnit, maxRadius, rotate, toScreen } from './arena.ts';
+import { ARENA, BALL_R, DISC_R, MOUTH_HALF, ballRoll, cameraAngle, discScreenPositions, smoothBall, smoothDiscPositions, fieldToScreen, fieldToUnit, maxRadius, rotate, toScreen } from './arena.ts';
 import { crestPattern } from './crest.ts';
 
 describe('geometría de la arena', () => {
@@ -150,5 +150,21 @@ describe('movimiento suavizado (fluidez del vídeo)', () => {
     expect(discJump).toBeLessThan(60);
     expect(discAcc).toBeLessThan(20);
     expect(ballAcc).toBeLessThan(60);
+  });
+});
+
+describe('balón que rueda', () => {
+  it('la distancia rodada nunca decrece, crece durante el juego y es continua', () => {
+    const sim = simulate({ seed: 2024, home: 'Real Madrid', away: 'RB Leipzig', score: { home: 2, away: 1 } });
+    let prev = 0;
+    let maxStep = 0;
+    for (let t = 0; t <= sim.script.duration; t += 1 / 30) {
+      const r = ballRoll(sim, t);
+      expect(r).toBeGreaterThanOrEqual(prev - 1e-6);
+      maxStep = Math.max(maxStep, r - prev);
+      prev = r;
+    }
+    expect(prev).toBeGreaterThan(2000);
+    expect(maxStep).toBeLessThan(120);
   });
 });
