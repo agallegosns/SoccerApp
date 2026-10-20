@@ -26,8 +26,10 @@ npm run ci        # typecheck + lint + tests + build
 npm run test:e2e  # pruebas e2e con Playwright (Chromium)
 ```
 
-### Champions League 2026-27
-Ninguna fuente libre y accesible la publica todavía. Usa **Importar calendario** (en la propia app) con un archivo JSON de
-football-data.org (clave gratuita), fixturedownload.com u openfootball; se guarda solo en tu navegador. Instrucciones en la ventana de importación.
+### Competiciones 2026-27
+- **LaLiga**: datos de openfootball (sin clave).
+- **Champions League**: fase de liga incluida desde el Excel aportado (`public/data/champions-league-2026-27.xlsx`).
+- **Europa League y Conference League**: preparadas. Pulsa su pestaña → *Importar calendario* y sube un Excel con las columnas
+  `Jornada · Fecha · Hora · Equipo Local · Equipo Visitante` (como el de la Champions), o un JSON/TXT. Se guarda solo en tu navegador.
 
 Las reglas del proyecto están en [CLAUDE.md](CLAUDE.md).

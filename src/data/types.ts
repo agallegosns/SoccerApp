@@ -41,6 +41,8 @@ export interface League {
   readonly note?: string;
   /** Explicación de la zona horaria de los horarios de esta liga. */
   readonly timeNote: string;
+  /** `true` si aún no hay calendario: la competición espera a que el usuario importe un archivo. */
+  readonly awaitingImport?: boolean;
 }
 
 export interface LoadOptions {

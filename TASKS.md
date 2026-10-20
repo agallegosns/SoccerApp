@@ -23,11 +23,20 @@ Leyenda: ✅ hecho y probado · 🟡 hecho, pendiente de verificar · ⬜ por ha
   sin scroll horizontal y con zonas táctiles ≥ 44 px) y aviso permanente de zona horaria.
 - ✅ Los resultados reales se muestran como «Real 2–1», separados de lo ficticio.
 - ✅ Importar calendario (JSON/TXT) con autodetección de formato y almacenamiento solo en el navegador.
-- ✅ 53 tests unitarios + 12 e2e (Playwright, Chromium) en verde: carga, filtros, selección, error + reintento, copia en caché
+- ✅ 66 tests unitarios + 15 e2e (Playwright, Chromium) en verde: carga, filtros, selección, error + reintento, copia en caché
   sin red, importación, archivo inválido, móvil.
-- 🟡 **Champions League 2026-27: NO disponible en ninguna fuente libre accesible** (openfootball solo llega a 2025-26;
-  Wikipedia, football-data.org, ESPN, TheSportsDB y fixturedownload.com están bloqueadas desde el sandbox). Se ha resuelto con
-  «Importar calendario»: el usuario aporta el archivo (instrucciones en la propia ventana). **Pendiente del usuario**: conseguir el archivo.
+- ✅ **Champions League 2026-27** (fase de liga, 144 partidos, 8 jornadas, 36 equipos, 8/09/2026–27/01/2027) incluida en la app
+  desde el Excel aportado por el usuario (`public/data/champions-league-2026-27.xlsx`). Ninguna fuente libre accesible la publica
+  (openfootball llega a 2025-26; el resto está bloqueado desde el sandbox). Verificado con el archivo real: 144 ids únicos y cada
+  equipo juega 8 partidos. **Faltan las eliminatorias** (octavos, etc.): se añadirán cuando haya calendario (sustituir el Excel).
+- ✅ Lector de `.xlsx` propio (`src/data/xlsx.ts`, sobre `fflate`, sin dependencias nuevas): primera hoja, strings compartidas/inline,
+  fechas como serie de Excel o texto, cabeceras en español/inglés. Probado con el Excel real y con .xlsx sintéticos.
+- ✅ **Europa League 2026-27 y Conference League 2026-27 preparadas**: aparecen como pestañas «a la espera»; al importar su Excel
+  (mismas columnas que el de la Champions: Jornada, Fecha, Hora, Equipo Local, Equipo Visitante), JSON o TXT, la pestaña se rellena
+  sin duplicarse y persiste. Orden fijo: LaLiga, Champions, Europa League, Conference League y el resto.
+- 🟡 **Pendiente del usuario:** los Excel de la Europa League y la Conference League 2026-27 (y, cuando existan, las eliminatorias
+  de la Champions). Probado el flujo con el Excel de la Champions subido como si fuera la Europa League.
+- 🟡 Horas del Excel: no declaran zona horaria; se muestran tal cual (probablemente hora peninsular/CET, sin confirmar).
 - 🟡 Importadores de football-data.org (v4) y fixturedownload.com: construidos según la documentación y probados solo con datos de
   ejemplo escritos a mano. **Pendiente de verificar con un archivo real descargado.**
 - 🟡 La petición real desde el navegador a raw.githubusercontent.com no se ha podido ejecutar en el sandbox (el navegador no

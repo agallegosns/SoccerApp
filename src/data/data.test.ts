@@ -256,27 +256,30 @@ describe('MatchService: caché y degradación', () => {
   });
 });
 
+/** Calendarios realmente importados (sin las ranuras «preparadas» a la espera de archivo). */
+const importedOnly = (p: ImportedProvider): string[] => p.listLeagues().filter((l) => l.awaitingImport !== true).map((l) => l.id);
+
 describe('ImportedProvider', () => {
   it('importa, persiste y recarga un calendario', async () => {
     const store = memoryStore();
     const provider = new ImportedProvider(store);
-    const league = provider.importCalendar({ name: 'Champions League', season: '2026-27', text: read('es1.sample.json') });
+    const league = provider.importCalendar({ name: 'Champions League', season: '2026-27', content: read('es1.sample.json') });
     expect(league.id).toBe('imported:champions-league:2026-27');
     const reloaded = new ImportedProvider(store);
-    expect(reloaded.listLeagues().map((l) => l.id)).toEqual([league.id]);
+    expect(importedOnly(reloaded)).toEqual([league.id]);
     expect((await reloaded.loadMatches(league.id)).length).toBe(12);
     reloaded.removeCalendar(league.id);
-    expect(new ImportedProvider(store).listLeagues()).toEqual([]);
+    expect(importedOnly(new ImportedProvider(store))).toEqual([]);
   });
   it('no cambia el estado si el archivo no vale', () => {
     const provider = new ImportedProvider(memoryStore());
-    expect(() => provider.importCalendar({ name: 'X', season: '1', text: '{"a":1}' })).toThrow(DataError);
-    expect(provider.listLeagues()).toEqual([]);
+    expect(() => provider.importCalendar({ name: 'X', season: '1', content: '{"a":1}' })).toThrow(DataError);
+    expect(importedOnly(provider)).toEqual([]);
   });
   it('avisa si el almacenamiento está lleno y no guarda a medias', () => {
     const full: KeyValueStore = { getItem: () => null, setItem: () => { throw new Error('QuotaExceededError'); }, removeItem: () => undefined };
     const provider = new ImportedProvider(full);
-    expect(() => provider.importCalendar({ name: 'X', season: '1', text: read('es1.sample.json') })).toThrow(/almacenamiento/i);
-    expect(provider.listLeagues()).toEqual([]);
+    expect(() => provider.importCalendar({ name: 'X', season: '1', content: read('es1.sample.json') })).toThrow(/almacenamiento/i);
+    expect(importedOnly(provider)).toEqual([]);
   });
 });

@@ -1,10 +1,13 @@
 import { slug } from './dates.ts';
+import { readXlsx, type SheetCell, type SheetRows } from './xlsx.ts';
 import type { Match, RealScore, TimeKind } from './types.ts';
 import { DataError } from './types.ts';
 
 export interface ParseContext {
   readonly leagueId: string;
   readonly competition: string;
+  /** Texto que se antepone a la ronda (p. ej. «Fase de liga») en fuentes que sólo traen el número de jornada. */
+  readonly roundPrefix?: string;
 }
 
 export const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -285,7 +288,7 @@ export function parseFixtureDownload(data: unknown, ctx: ParseContext): Match[] 
   return dedupe(sortMatches(out));
 }
 
-export type DetectedFormat = 'openfootball-json' | 'football-txt' | 'football-data-org' | 'fixturedownload';
+export type DetectedFormat = 'openfootball-json' | 'football-txt' | 'football-data-org' | 'fixturedownload' | 'xlsx';
 
 export interface ImportResult {
   readonly format: DetectedFormat;
@@ -293,7 +296,11 @@ export interface ImportResult {
 }
 
 /** Detecta el formato de un archivo importado por el usuario y lo convierte a `Match[]`. */
-export function parseImportedCalendar(text: string, ctx: ParseContext): ImportResult {
+export function parseImportedCalendar(content: string | Uint8Array, ctx: ParseContext): ImportResult {
+  if (typeof content !== 'string') {
+    return { format: 'xlsx', matches: parseSpreadsheetRows(readXlsx(content), ctx) };
+  }
+  const text = content;
   const trimmed = text.trim();
   if (trimmed === '') throw new DataError('parse', 'El archivo está vacío');
   if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
@@ -314,4 +321,87 @@ export function parseImportedCalendar(text: string, ctx: ParseContext): ImportRe
     throw new DataError('parse', 'Formato JSON no reconocido (se admiten openfootball, football-data.org y fixturedownload.com)');
   }
   return { format: 'football-txt', matches: parseFootballTxt(trimmed, ctx) };
+}
+
+const EXCEL_EPOCH_MS = Date.UTC(1899, 11, 30);
+const norm = (text: string): string => slug(text);
+
+function cellText(cell: SheetCell | undefined): string | null {
+  if (cell === undefined) return null;
+  const text = cell.kind === 'text' ? cell.value : String(cell.value);
+  const clean = text.replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim();
+  return clean === '' ? null : clean;
+}
+
+function toDate(cell: SheetCell | undefined): { date: string; fraction: number } | null {
+  if (cell === undefined) return null;
+  if (cell.kind === 'number') {
+    const days = Math.floor(cell.value);
+    if (days < 1) return null;
+    return { date: new Date(EXCEL_EPOCH_MS + days * 86_400_000).toISOString().slice(0, 10), fraction: cell.value - days };
+  }
+  const text = cell.value.trim();
+  const iso8601 = /^(\d{4})-(\d{2})-(\d{2})/.exec(text);
+  if (iso8601 !== null) return { date: `${iso8601[1] ?? ''}-${iso8601[2] ?? ''}-${iso8601[3] ?? ''}`, fraction: 0 };
+  const es = /^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/.exec(text);
+  if (es !== null) return { date: iso(Number(es[3]), Number(es[2]), Number(es[1])), fraction: 0 };
+  return null;
+}
+
+function toTime(cell: SheetCell | undefined, dateFraction: number): string | null {
+  const pad = (n: number): string => String(n).padStart(2, '0');
+  if (cell?.kind === 'text') {
+    const m = /^(\d{1,2}):(\d{2})/.exec(cell.value.trim());
+    return m === null ? null : `${pad(Number(m[1]))}:${m[2] ?? '00'}`;
+  }
+  const fraction = cell?.kind === 'number' ? cell.value % 1 : dateFraction;
+  if (fraction <= 0) return null;
+  const minutes = Math.round(fraction * 1440) % 1440;
+  return `${pad(Math.floor(minutes / 60))}:${pad(minutes % 60)}`;
+}
+
+/**
+ * Hoja de calendario con cabeceras «Jornada · Fecha · Hora · Equipo Local · Equipo Visitante» (columnas en cualquier orden;
+ * también se reconocen las cabeceras en inglés). Las horas no tienen zona declarada: se tratan como `league-local`.
+ */
+export function parseSpreadsheetRows(rows: SheetRows, ctx: ParseContext): Match[] {
+  const headerAt = rows.findIndex((row) => {
+    const names = row.map((c) => norm(cellText(c) ?? ''));
+    return names.some((n) => n === 'fecha' || n === 'date') && names.some((n) => n.includes('local') || n.includes('home'));
+  });
+  const header = rows[headerAt];
+  if (header === undefined) {
+    throw new DataError('parse', 'No se encontraron las cabeceras: se esperan «Fecha», «Hora», «Equipo Local» y «Equipo Visitante»');
+  }
+  const find = (pred: (name: string) => boolean): number => header.findIndex((c) => pred(norm(cellText(c) ?? '')));
+  const colDate = find((n) => n === 'fecha' || n === 'date');
+  const colTime = find((n) => n === 'hora' || n === 'time');
+  const colHome = find((n) => n.includes('local') || n.includes('home'));
+  const colAway = find((n) => n.includes('visitante') || n.includes('away'));
+  const colRound = find((n) => n.startsWith('jornada') || n === 'round' || n.startsWith('matchday'));
+  if (colAway < 0) throw new DataError('parse', 'Falta la columna «Equipo Visitante»');
+
+  const out: Match[] = [];
+  for (const row of rows.slice(headerAt + 1)) {
+    const home = cellText(row[colHome]);
+    const away = cellText(row[colAway]);
+    const when = toDate(row[colDate]);
+    if (home === null || away === null || when === null) continue;
+    const roundCell = colRound < 0 ? null : cellText(row[colRound]);
+    const roundNumber = roundCell === null ? null : /^\d+/.exec(roundCell)?.[0] ?? null;
+    const roundText = roundNumber !== null ? `Jornada ${String(Number(roundNumber))}` : (roundCell ?? 'Partido');
+    out.push(
+      build(ctx, {
+        round: ctx.roundPrefix === undefined ? roundText : `${ctx.roundPrefix} · ${roundText}`,
+        date: when.date,
+        time: toTime(colTime < 0 ? undefined : row[colTime], when.fraction),
+        timeKind: 'league-local',
+        home,
+        away,
+        realScore: null,
+      }),
+    );
+  }
+  if (out.length === 0) throw new DataError('parse', 'La hoja no contiene ningún partido válido');
+  return dedupe(sortMatches(out));
 }

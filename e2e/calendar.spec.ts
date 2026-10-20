@@ -1,6 +1,10 @@
 import { expect, test } from '@playwright/test';
 
+import { readFileSync } from 'node:fs';
+
 import { mockOpenFootball } from './helpers.ts';
+
+const championsXlsx = readFileSync(new URL('../public/data/champions-league-2026-27.xlsx', import.meta.url));
 
 test.describe('calendario real', () => {
   test('carga LaLiga 2026-27 con partidos próximos agrupados por día', async ({ page }) => {
@@ -118,25 +122,87 @@ test.describe('calendario real', () => {
         { utcDate: '2026-10-22T16:45:00Z', stage: 'LEAGUE_STAGE', matchday: 3, homeTeam: { name: 'Arsenal FC' }, awayTeam: { name: 'PSV' }, score: { fullTime: { home: null, away: null } } },
       ],
     };
+    await page.getByLabel('Nombre').fill('Copa de prueba');
     await page.getByTestId('import-file').setInputFiles({ name: 'cl.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(data)) });
     await page.getByRole('button', { name: 'Importar', exact: true }).click();
     await expect(page.getByRole('dialog')).toHaveCount(0);
-    await expect(page.getByRole('button', { name: 'Champions League 2026-27', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByRole('button', { name: 'Copa de prueba 2026-27', exact: true })).toHaveAttribute('aria-pressed', 'true');
     await expect(page.locator('.match')).toHaveCount(2);
     await expect(page.locator('.match').first()).toContainText('tu hora');
     await expect(page.locator('.infos').getByText(/UTC y se muestran en tu zona horaria/)).toBeVisible();
     // Persiste tras recargar.
     await page.reload();
-    await expect(page.getByRole('button', { name: 'Champions League 2026-27', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Copa de prueba 2026-27', exact: true })).toBeVisible();
   });
 
   test('rechaza con un mensaje claro un archivo que no es un calendario', async ({ page }) => {
     await mockOpenFootball(page);
     await page.goto('/');
     await page.getByRole('button', { name: 'Importar calendario' }).click();
+    await page.getByLabel('Nombre').fill('Prueba');
     await page.getByTestId('import-file').setInputFiles({ name: 'x.json', mimeType: 'application/json', buffer: Buffer.from('{"hola":1}') });
     await page.getByRole('button', { name: 'Importar', exact: true }).click();
     await expect(page.getByRole('dialog').getByRole('alert')).toContainText('Formato JSON no reconocido');
+  });
+});
+
+test.describe('competiciones 2026-27: LaLiga, Champions, Europa League y Conference League', () => {
+  test('el orden de pestañas es LaLiga, Champions, Europa League y Conference League', async ({ page }) => {
+    await mockOpenFootball(page);
+    await page.goto('/');
+    const names = await page.locator('.chips .chip-btn:not(.chip-btn--ghost)').allInnerTexts();
+    expect(names.slice(0, 4).map((n) => n.replace(/\s+/g, ' '))).toEqual([
+      'LaLiga 2026-27',
+      'Champions League 2026-27',
+      'Europa League 2026-27',
+      'Conference League 2026-27',
+    ]);
+  });
+
+  test('Champions League 2026-27 sale del Excel incluido: 144 partidos reales de la fase de liga', async ({ page }) => {
+    await mockOpenFootball(page);
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Champions League 2026-27', exact: true }).click();
+    await page.getByRole('button', { name: 'Todos' }).click();
+    await expect(page.getByTestId('count')).toContainText('144 partidos');
+    await expect(page.getByText(/aportado por ti en Excel/)).toBeVisible();
+    const first = page.locator('.match').first();
+    await expect(first).toContainText('AEK');
+    await expect(first).toContainText('LASK');
+    await expect(first).toContainText('18:45');
+    await expect(first).toContainText('Fase de liga · Jornada 1');
+    await expect(page.locator('.day__title').first()).toHaveText(/martes, 8 de septiembre de 2026/i);
+    await first.click();
+    await expect(page.getByTestId('selected-match')).toContainText('Champions League 2026-27');
+  });
+
+  test('Europa League y Conference League están preparadas y se rellenan al importar su Excel', async ({ page }) => {
+    await mockOpenFootball(page);
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Europa League 2026-27', exact: true }).click();
+    await expect(page.getByTestId('awaiting')).toContainText('preparada pero aún no tiene calendario');
+    await page.getByRole('button', { name: 'Importar calendario de Europa League' }).click();
+    await expect(page.getByLabel('Nombre')).toHaveValue('Europa League');
+    await expect(page.getByLabel('Temporada')).toHaveValue('2026-27');
+    await page.getByTestId('import-file').setInputFiles({
+      name: 'Europa_League.xlsx',
+      mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      buffer: championsXlsx,
+    });
+    await page.getByRole('button', { name: 'Importar', exact: true }).click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(page.getByTestId('awaiting')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Todos' }).click();
+    await expect(page.getByTestId('count')).toContainText('144 partidos');
+    // Conference sigue esperando su archivo; Europa ya no está duplicada.
+    await expect(page.getByRole('button', { name: 'Europa League 2026-27', exact: true })).toHaveCount(1);
+    await page.getByRole('button', { name: 'Conference League 2026-27', exact: true }).click();
+    await expect(page.getByTestId('awaiting')).toBeVisible();
+    // Persiste tras recargar.
+    await page.reload();
+    await page.getByRole('button', { name: 'Europa League 2026-27', exact: true }).click();
+    await expect(page.getByTestId('awaiting')).toHaveCount(0);
+    await expect(page.locator('.match').first()).toBeVisible();
   });
 });
 

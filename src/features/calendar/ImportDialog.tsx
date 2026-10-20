@@ -5,17 +5,24 @@ import type { ImportedProvider } from '../../data/imported.ts';
 import type { League } from '../../data/types.ts';
 import { DataError } from '../../data/types.ts';
 
+export interface ImportPreset {
+  readonly name: string;
+  readonly season: string;
+}
+
 interface Props {
   readonly open: boolean;
+  /** Valores iniciales del formulario (p. ej. al importar una competición «preparada»). */
+  readonly preset?: ImportPreset;
   readonly imported: ImportedProvider;
   readonly onClose: () => void;
   readonly onChanged: (league: League | null) => void;
 }
 
-export function ImportDialog({ open, imported, onClose, onChanged }: Props) {
+export function ImportDialog({ open, preset, imported, onClose, onChanged }: Props) {
   const ref = useRef<HTMLDialogElement>(null);
-  const [name, setName] = useState('Champions League');
-  const [season, setSeason] = useState('2026-27');
+  const [name, setName] = useState(preset?.name ?? '');
+  const [season, setSeason] = useState(preset?.season ?? '2026-27');
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -31,14 +38,15 @@ export function ImportDialog({ open, imported, onClose, onChanged }: Props) {
   async function onSubmit(event: SyntheticEvent<HTMLFormElement>): Promise<void> {
     event.preventDefault();
     if (file === null) {
-      setError('Elige un archivo .json o .txt');
+      setError('Elige un archivo .xlsx, .json o .txt');
       return;
     }
     setBusy(true);
     setError(null);
     try {
-      const text = await file.text();
-      const league = imported.importCalendar({ name, season, text });
+      const isExcel = /\.xlsx$/i.test(file.name);
+      const content = isExcel ? new Uint8Array(await file.arrayBuffer()) : await file.text();
+      const league = imported.importCalendar({ name, season, content });
       setCalendars(imported.listLeagues());
       setFile(null);
       onChanged(league);
@@ -70,12 +78,17 @@ export function ImportDialog({ open, imported, onClose, onChanged }: Props) {
           </button>
         </div>
         <p className="muted">
-          Para competiciones que las fuentes libres aún no publican (p. ej. la Champions League 2026-27). El archivo se
-          procesa en tu navegador y se guarda solo en él.
+          Para competiciones que las fuentes libres aún no publican (p. ej. la Europa League o la Conference League
+          2026-27). El archivo se procesa en tu navegador y se guarda solo en él.
         </p>
         <details className="help">
           <summary>¿Dónde consigo el archivo?</summary>
           <ul>
+            <li>
+              <strong>Excel (.xlsx)</strong>: una hoja con las columnas <code>Jornada</code>, <code>Fecha</code>,{' '}
+              <code>Hora</code>, <code>Equipo Local</code> y <code>Equipo Visitante</code> (como el de la Champions). Las
+              horas se muestran tal cual.
+            </li>
             <li>
               <strong>football-data.org</strong> (clave gratuita): con tu clave, descarga{' '}
               <code>https://api.football-data.org/v4/competitions/CL/matches?season=2026</code> enviando la cabecera{' '}
@@ -94,17 +107,17 @@ export function ImportDialog({ open, imported, onClose, onChanged }: Props) {
         </details>
         <label className="field">
           <span>Nombre</span>
-          <input value={name} onChange={(e) => { setName(e.target.value); }} required maxLength={60} />
+          <input value={name} onChange={(e) => { setName(e.target.value); }} required maxLength={60} placeholder="Ej.: Europa League" />
         </label>
         <label className="field">
           <span>Temporada</span>
           <input value={season} onChange={(e) => { setSeason(e.target.value); }} required maxLength={20} />
         </label>
         <label className="field">
-          <span>Archivo (.json o .txt)</span>
+          <span>Archivo (.xlsx, .json o .txt)</span>
           <input
             type="file"
-            accept=".json,.txt,application/json,text/plain"
+            accept=".xlsx,.json,.txt,application/json,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             onChange={(e) => { setFile(e.target.files?.[0] ?? null); }}
             data-testid="import-file"
           />

@@ -1,3 +1,4 @@
+import { BundledProvider } from './bundled.ts';
 import { MatchCache } from './cache.ts';
 import { ImportedProvider } from './imported.ts';
 import { OpenFootballProvider } from './openfootball.ts';
@@ -13,6 +14,7 @@ export interface LoadedMatches {
 }
 
 const FRESH_MS = 10 * 60 * 1000;
+const PRIORITY: readonly RegExp[] = [/^LaLiga/, /^Champions League/, /^Europa League/, /^Conference League/];
 
 /** Reúne los proveedores y añade caché (memoria + localStorage) con degradación a datos antiguos. */
 export class MatchService {
@@ -21,8 +23,17 @@ export class MatchService {
     private readonly cache: MatchCache,
   ) {}
 
+  /** Competiciones en orden de interés: LaLiga, Champions, Europa League, Conference League y el resto. */
   listLeagues(): League[] {
-    return this.providers.flatMap((p) => [...p.listLeagues()]);
+    const all = this.providers.flatMap((p) => [...p.listLeagues()]);
+    const rank = (l: League): number => {
+      const i = PRIORITY.findIndex((p) => p.test(`${l.name} ${l.season}`) && !(l.season === '2025-26'));
+      return i < 0 ? PRIORITY.length : i;
+    };
+    return all
+      .map((league, index) => ({ league, index }))
+      .sort((a, b) => rank(a.league) - rank(b.league) || a.index - b.index)
+      .map((x) => x.league);
   }
 
   private providerFor(leagueId: string): MatchProvider {
@@ -34,6 +45,9 @@ export class MatchService {
   async load(leagueId: string, options: LoadOptions & { force?: boolean } = {}): Promise<LoadedMatches> {
     const provider = this.providerFor(leagueId);
     if (provider.id === 'imported') {
+      if (this.providerFor(leagueId).listLeagues().find((l) => l.id === leagueId)?.awaitingImport === true) {
+        throw new DataError('not-found', 'Esta competición aún no tiene calendario importado');
+      }
       const matches = await provider.loadMatches(leagueId, options);
       return { matches, stale: false, savedAt: Date.now() };
     }
@@ -61,6 +75,6 @@ export interface AppServices {
 
 export function createServices(): AppServices {
   const imported = new ImportedProvider();
-  const service = new MatchService([new OpenFootballProvider(), imported], new MatchCache());
+  const service = new MatchService([new OpenFootballProvider(), new BundledProvider(), imported], new MatchCache());
   return { service, imported };
 }

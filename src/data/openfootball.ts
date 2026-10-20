@@ -43,7 +43,7 @@ const CHAMPIONS_PREVIOUS: Source = {
     name: 'Champions League',
     country: 'Europa',
     season: '2025-26',
-    note: 'Temporada anterior (finalizada). openfootball aún no publica la 2026-27: puedes importarla desde «Importar calendario».',
+    note: 'Temporada anterior (finalizada). La Champions League 2026-27 está en su propia pestaña.',
     timeNote:
       'Horarios tal como los publica openfootball en el archivo de la Champions League (sin zona horaria declarada). No se convierten a tu hora.',
   },

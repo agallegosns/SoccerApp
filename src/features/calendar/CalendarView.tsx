@@ -6,7 +6,7 @@ import type { ImportedProvider } from '../../data/imported.ts';
 import type { MatchService } from '../../data/registry.ts';
 import type { League, Match } from '../../data/types.ts';
 import { DEFAULT_FILTERS, filterMatches, groupByDate, type Filters, type Scope } from './filters.ts';
-import { ImportDialog } from './ImportDialog.tsx';
+import { ImportDialog, type ImportPreset } from './ImportDialog.tsx';
 import { MatchCard } from './MatchCard.tsx';
 import { SelectedMatch } from './SelectedMatch.tsx';
 import { useLeagueMatches } from './useLeagueMatches.ts';
@@ -41,10 +41,17 @@ export function CalendarView({ service, imported, selected, onSelect }: Props) {
   const [filters, setFilters] = useState<Filters>(DEFAULT_FILTERS);
   const [visible, setVisible] = useState(PAGE_SIZE);
   const [importOpen, setImportOpen] = useState(false);
+  const [preset, setPreset] = useState<{ value?: ImportPreset; nonce: number }>({ nonce: 0 });
+
+  function openImport(value?: ImportPreset): void {
+    setPreset((p) => (value === undefined ? { nonce: p.nonce + 1 } : { value, nonce: p.nonce + 1 }));
+    setImportOpen(true);
+  }
 
   const league = leagues.find((l) => l.id === leagueId) ?? leagues[0];
   const activeId = league?.id ?? '';
-  const state = useLeagueMatches(service, activeId, version);
+  const awaiting = league?.awaitingImport === true;
+  const state = useLeagueMatches(service, awaiting ? '' : activeId, version);
   const today = todayLocal();
 
   const filtered = useMemo(
@@ -92,7 +99,7 @@ export function CalendarView({ service, imported, selected, onSelect }: Props) {
               <span className="chip-btn__season">{l.season}</span>
             </button>
           ))}
-          <button type="button" className="chip-btn chip-btn--ghost" onClick={() => { setImportOpen(true); }}>
+          <button type="button" className="chip-btn chip-btn--ghost" onClick={() => { openImport(); }}>
             <FileUp aria-hidden="true" size={18} />
             Importar calendario
           </button>
@@ -163,6 +170,26 @@ export function CalendarView({ service, imported, selected, onSelect }: Props) {
                 </button>
               </p>
             )}
+          </div>
+        )}
+
+        {awaiting && (
+          <div className="empty" data-testid="awaiting">
+            <p>
+              <strong>
+                {league.name} {league.season}
+              </strong>{' '}
+              está preparada pero aún no tiene calendario.
+            </p>
+            <p>Importa tu archivo (Excel con Jornada, Fecha, Hora, Equipo Local y Equipo Visitante, o JSON/TXT) y aparecerá aquí.</p>
+            <button
+              type="button"
+              className="btn btn--primary"
+              onClick={() => { openImport({ name: league.name, season: league.season }); }}
+            >
+              <FileUp aria-hidden="true" size={18} />
+              Importar calendario de {league.name}
+            </button>
           </div>
         )}
 
@@ -242,7 +269,9 @@ export function CalendarView({ service, imported, selected, onSelect }: Props) {
       </div>
 
       <ImportDialog
+        key={preset.nonce}
         open={importOpen}
+        {...(preset.value === undefined ? {} : { preset: preset.value })}
         imported={imported}
         onClose={() => { setImportOpen(false); }}
         onChanged={(added) => {

@@ -32,8 +32,7 @@ const isAborted = (signal: AbortSignal | undefined): boolean => signal?.aborted 
 
 const isRetryableStatus = (status: number): boolean => status === 429 || status >= 500;
 
-/** GET con reintentos y espera creciente. 4xx (salvo 429) no se reintentan. Devuelve el cuerpo como texto. */
-export async function fetchTextWithRetry(url: string, options: FetchOptions = {}): Promise<string> {
+async function fetchWithRetry<T>(url: string, options: FetchOptions, read: (response: Response) => Promise<T>): Promise<T> {
   const { signal, retries = 2, baseDelayMs = 600, fetchImpl = fetch, sleep = abortableSleep } = options;
   let lastError: DataError | undefined;
 
@@ -41,7 +40,7 @@ export async function fetchTextWithRetry(url: string, options: FetchOptions = {}
     if (isAborted(signal)) throw new DataError('aborted', 'Operación cancelada');
     try {
       const response = await fetchImpl(url, signal === undefined ? undefined : { signal });
-      if (response.ok) return await response.text();
+      if (response.ok) return await read(response);
       lastError = new DataError(
         response.status === 404 ? 'not-found' : 'http',
         `El servidor respondió ${String(response.status)} al pedir ${url}`,
@@ -63,4 +62,14 @@ export async function fetchTextWithRetry(url: string, options: FetchOptions = {}
     if (attempt < retries) await sleep(baseDelayMs * 2 ** attempt, signal);
   }
   throw lastError ?? new DataError('network', `No se pudo pedir ${url}`);
+}
+
+/** GET con reintentos y espera creciente. 4xx (salvo 429) no se reintentan. Devuelve el cuerpo como texto. */
+export function fetchTextWithRetry(url: string, options: FetchOptions = {}): Promise<string> {
+  return fetchWithRetry(url, options, (response) => response.text());
+}
+
+/** Igual que `fetchTextWithRetry` pero devuelve los bytes (p. ej. un .xlsx). */
+export function fetchBytesWithRetry(url: string, options: FetchOptions = {}): Promise<Uint8Array> {
+  return fetchWithRetry(url, options, async (response) => new Uint8Array(await response.arrayBuffer()));
 }
