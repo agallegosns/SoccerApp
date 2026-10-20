@@ -11,7 +11,7 @@ Aplicación web (100 % cliente, coste 0 €) que:
 > Todas las simulaciones y vídeos llevan la etiqueta visible **«Simulación ficticia»**. No son predicciones.
 
 ## Estado
-Fase 1 de 6 completada: base del proyecto. Consulta [TASKS.md](TASKS.md) para ver qué funciona (probado) y qué
+Fase 2 de 6 completada: base del proyecto y calendario real (LaLiga, Premier, Bundesliga, Serie A, Ligue 1 2026-27 y Champions League 2025-26) con filtros, buscador y selección de partido. Consulta [TASKS.md](TASKS.md) para ver qué funciona (probado) y qué
 está pendiente, y [ARCHITECTURE.md](ARCHITECTURE.md) para el diseño.
 
 ## Requisitos
@@ -25,5 +25,9 @@ npm run dev       # servidor de desarrollo
 npm run ci        # typecheck + lint + tests + build
 npm run test:e2e  # pruebas e2e con Playwright (Chromium)
 ```
+
+### Champions League 2026-27
+Ninguna fuente libre y accesible la publica todavía. Usa **Importar calendario** (en la propia app) con un archivo JSON de
+football-data.org (clave gratuita), fixturedownload.com u openfootball; se guarda solo en tu navegador. Instrucciones en la ventana de importación.
 
 Las reglas del proyecto están en [CLAUDE.md](CLAUDE.md).

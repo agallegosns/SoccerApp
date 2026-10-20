@@ -1,6 +1,6 @@
 # Arquitectura de futbol-sim
 
-> Estado: Fase 1. Las secciones marcadas **(planificado)** describen el diseño objetivo y todavía no están implementadas.
+> Estado: Fase 2. Las secciones marcadas **(planificado)** describen el diseño objetivo y todavía no están implementadas.
 
 ## Principios
 1. Todo en el cliente, coste 0 €: sin backend ni cuentas.
@@ -23,18 +23,27 @@ src/
 e2e/                   pruebas Playwright
 ```
 
-## Calendario real (planificado)
-- Interfaz `MatchProvider` (`src/data`): `listLeagues()` y `listMatches(leagueId, season)`; la UI solo conoce esta
-  interfaz. Añadir football-data.org (clave gratuita) consistirá en implementar el proveedor y registrarlo, sin
-  tocar la UI. La clave nunca se versionará; se documentará su configuración y no se activará sin ella.
-- Proveedor activo: **openfootball** (`football.json`):
-  `https://raw.githubusercontent.com/openfootball/football.json/master/<temporada>/<liga>.json`
-  con `es.1`, `en.1`, `de.1`, `it.1`, `fr.1`. Sin clave y con CORS abierto (verificado en Fase 1 para 2026-27).
-- **Horarios:** openfootball publica `date` (`YYYY-MM-DD`) y `time` (`HH:mm`) en **hora local de la liga, sin zona
-  horaria**. La app no los convierte: los muestra tal cual y lo indica en la interfaz. Hay partidos sin `time`.
-- Algunos partidos ya jugados incluyen `score.ft` (resultado real). Se muestra como dato real, distinto del
-  marcador de una simulación.
-- Fallos de red: reintento con espera creciente y caché (memoria + `localStorage`) para mostrar datos previos.
+## Calendario real (implementado en Fase 2)
+- `MatchProvider` (`src/data/types.ts`): `listLeagues()` y `loadMatches(leagueId, {signal})`. La UI solo conoce esta
+  interfaz y `MatchService`. Para añadir football-data.org (clave gratuita) se implementa otro `MatchProvider` y se registra en
+  `createServices()` (`src/data/registry.ts`) sin tocar la UI; la clave se pediría al usuario y se guardaría solo en su
+  navegador, nunca en el repositorio. **No está activado** (no hay clave y el sandbox no puede alcanzarlo).
+- `MatchService`: caché en memoria (10 min) y `localStorage` (clave `futbol-sim:v1:<ligaId>`); si la red falla devuelve la última
+  copia con `stale: true`. La cancelación (`aborted`) nunca cae a la caché.
+- `fetchTextWithRetry`: 1 intento + 2 reintentos con espera 600 ms · 2ⁿ; reintenta red, 5xx y 429; no reintenta 404/4xx.
+- **openfootball** (`src/data/openfootball.ts`):
+  `https://raw.githubusercontent.com/openfootball/football.json/master/2026-27/{es,en,de,it,fr}.1.json` (JSON) y
+  `https://raw.githubusercontent.com/openfootball/europe-champions-league/master/2025-26/cl.txt` (Football.TXT).
+  Sin clave y con `access-control-allow-origin: *`.
+- **Horarios:** openfootball publica `date`/`time` en **hora local de la competición, sin zona**. Se guardan con
+  `timeKind: 'league-local'` y se muestran tal cual (la UI lo avisa). Muchos partidos no traen hora (p. ej. 260 de 380 en
+  Serie A): se muestran como «Hora por confirmar». Las fuentes en UTC (importadas) usan `timeKind: 'utc'` y se convierten a la
+  zona del usuario con `Intl` (`kickoffOf`).
+- **Resultados reales** (`realScore`) vienen de la fuente para partidos ya jugados; son datos, no simulaciones.
+- **Champions League 2026-27:** ninguna fuente libre alcanzable la publica. El usuario puede importar un archivo
+  (`ImportedProvider`): formatos openfootball JSON, Football.TXT, football-data.org v4 y fixturedownload.com, autodetectados en
+  `parseImportedCalendar`. Se guarda en `localStorage` (`futbol-sim:v1:imported-calendars`), solo en su navegador.
+- Datos de prueba reales en `src/data/__fixtures__` (muestras) y `e2e/fixtures` (archivos completos).
 
 ## Motor de simulación (planificado)
 - PRNG determinista `mulberry32(semilla)`. Misma semilla + mismos parámetros ⇒ misma simulación; semillas

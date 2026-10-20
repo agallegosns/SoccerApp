@@ -1,0 +1,163 @@
+import { expect, test } from '@playwright/test';
+
+import { mockOpenFootball } from './helpers.ts';
+
+test.describe('calendario real', () => {
+  test('carga LaLiga 2026-27 con partidos próximos agrupados por día', async ({ page }) => {
+    await mockOpenFootball(page);
+    await page.goto('/');
+    await expect(page.getByRole('heading', { name: 'Calendario de partidos' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'LaLiga 2026-27' })).toHaveAttribute('aria-pressed', 'true');
+    const count = page.getByTestId('count');
+    await expect(count).toContainText('partidos de 380');
+    // El 20/10/2026 ya hay jornadas jugadas: «Próximos» muestra menos que el total.
+    const text = (await count.textContent()) ?? '';
+    const shown = Number(/^(\d+)/.exec(text)?.[1]);
+    expect(shown).toBeGreaterThan(0);
+    expect(shown).toBeLessThan(380);
+    await expect(page.getByText(/Horarios en hora local de la competición/)).toBeVisible();
+  });
+
+  test('«Jugados» muestra resultados reales etiquetados como tal', async ({ page }) => {
+    await mockOpenFootball(page);
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Jugados' }).click();
+    const first = page.locator('.match').first();
+    await expect(first).toBeVisible();
+    await expect(page.getByText(/^Real \d–\d$/).first()).toBeVisible();
+  });
+
+  test('el buscador filtra por equipo sin importar acentos ni mayúsculas', async ({ page }) => {
+    await mockOpenFootball(page);
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Todos' }).click();
+    await page.getByPlaceholder('Buscar equipo o jornada').fill('alaves');
+    const cards = page.locator('.match');
+    await expect(cards.first()).toContainText('Alavés');
+    const n = await cards.count();
+    expect(n).toBeGreaterThan(20);
+    for (const text of await cards.allTextContents()) expect(text).toContain('Alavés');
+  });
+
+  test('el filtro de fechas limita el rango (inclusive)', async ({ page }) => {
+    await mockOpenFootball(page);
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Todos' }).click();
+    await page.getByLabel('Desde').fill('2026-08-15');
+    await page.getByLabel('Hasta').fill('2026-08-15');
+    await expect(page.locator('.day')).toHaveCount(1);
+    await expect(page.locator('.day__title')).toHaveText(/sábado, 15 de agosto de 2026/i);
+  });
+
+  test('seleccionar un partido lo muestra en el panel y se puede quitar', async ({ page }) => {
+    await mockOpenFootball(page);
+    await page.goto('/');
+    const card = page.locator('.match').first();
+    await card.click();
+    await expect(card).toHaveAttribute('aria-pressed', 'true');
+    const panel = page.getByTestId('selected-match');
+    await expect(panel).toBeVisible();
+    await expect(panel).toContainText('LaLiga 2026-27');
+    await expect(panel).toContainText('ficticia');
+    await page.getByRole('button', { name: 'Quitar selección' }).click();
+    await expect(panel).toHaveCount(0);
+  });
+
+  test('Champions League 2025-26 se carga (temporada anterior, avisada) y muestra la final con penaltis', async ({ page }) => {
+    await mockOpenFootball(page);
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Champions League 2025-26' }).click();
+    await expect(page.getByText(/Temporada anterior \(finalizada\)/)).toBeVisible();
+    // Todos los partidos son anteriores a hoy: «Próximos» está vacío y ofrece ver todos.
+    await expect(page.getByText('No hay partidos con estos filtros.')).toBeVisible();
+    await page.getByRole('button', { name: 'Ver todos los partidos' }).click();
+    await expect(page.getByTestId('count')).toContainText('189 partidos');
+    await page.getByPlaceholder('Buscar equipo o jornada').fill('Arsenal');
+    const final = page.locator('.match', { hasText: 'Fase final · Final' });
+    await expect(final).toContainText('Paris Saint-Germain FC');
+    await expect(final).toContainText('Real 1–1');
+    await final.click();
+    await expect(page.getByTestId('selected-match')).toContainText('penaltis 4-3');
+  });
+
+  test('si la fuente falla se reintenta, se informa y «Reintentar» recupera los datos', async ({ page }) => {
+    const mocks = await mockOpenFootball(page);
+    mocks.failEn1 = 500;
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Premier League 2026-27' }).click();
+    const alert = page.getByRole('alert').filter({ hasText: 'No se pudo cargar el calendario' });
+    await expect(alert).toBeVisible({ timeout: 15_000 });
+    const url = [...mocks.hits.keys()].find((u) => u.includes('en.1.json')) ?? '';
+    expect(mocks.hits.get(url)).toBe(3); // 1 intento + 2 reintentos
+    mocks.failEn1 = null;
+    await alert.getByRole('button', { name: 'Reintentar' }).click();
+    await expect(page.getByTestId('count')).toContainText('partidos');
+    await expect(alert).toHaveCount(0);
+  });
+
+  test('sin red pero con datos guardados antes: muestra la copia y lo avisa', async ({ page }) => {
+    await mockOpenFootball(page);
+    await page.goto('/');
+    await expect(page.getByTestId('count')).toContainText('partidos');
+    // Recarga con la fuente caída: la memoria está vacía, así que debe salir de localStorage.
+    await page.unroute('**/openfootball/football.json/master/2026-27/es.1.json');
+    await page.route('**/openfootball/football.json/master/2026-27/es.1.json', (route) => route.abort('failed'));
+    await page.reload();
+    await expect(page.getByRole('status').filter({ hasText: 'mostrando la copia guardada' })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByTestId('count')).toContainText('partidos de 380');
+  });
+
+  test('importa un calendario de football-data.org y convierte las horas UTC a tu zona', async ({ page }) => {
+    await mockOpenFootball(page);
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Importar calendario' }).click();
+    const data = {
+      competition: { name: 'UEFA Champions League' },
+      matches: [
+        { utcDate: '2026-10-21T19:00:00Z', stage: 'LEAGUE_STAGE', matchday: 3, homeTeam: { name: 'Real Madrid CF' }, awayTeam: { name: 'Juventus FC' }, score: { fullTime: { home: null, away: null } } },
+        { utcDate: '2026-10-22T16:45:00Z', stage: 'LEAGUE_STAGE', matchday: 3, homeTeam: { name: 'Arsenal FC' }, awayTeam: { name: 'PSV' }, score: { fullTime: { home: null, away: null } } },
+      ],
+    };
+    await page.getByTestId('import-file').setInputFiles({ name: 'cl.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(data)) });
+    await page.getByRole('button', { name: 'Importar', exact: true }).click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Champions League 2026-27', exact: true })).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('.match')).toHaveCount(2);
+    await expect(page.locator('.match').first()).toContainText('tu hora');
+    await expect(page.locator('.infos').getByText(/UTC y se muestran en tu zona horaria/)).toBeVisible();
+    // Persiste tras recargar.
+    await page.reload();
+    await expect(page.getByRole('button', { name: 'Champions League 2026-27', exact: true })).toBeVisible();
+  });
+
+  test('rechaza con un mensaje claro un archivo que no es un calendario', async ({ page }) => {
+    await mockOpenFootball(page);
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Importar calendario' }).click();
+    await page.getByTestId('import-file').setInputFiles({ name: 'x.json', mimeType: 'application/json', buffer: Buffer.from('{"hola":1}') });
+    await page.getByRole('button', { name: 'Importar', exact: true }).click();
+    await expect(page.getByRole('dialog').getByRole('alert')).toContainText('Formato JSON no reconocido');
+  });
+});
+
+test.describe('móvil', () => {
+  test.use({ viewport: { width: 375, height: 740 }, hasTouch: true });
+
+  test('sin scroll horizontal y con zonas táctiles ≥ 44 px', async ({ page }) => {
+    await mockOpenFootball(page);
+    await page.goto('/');
+    await expect(page.locator('.match').first()).toBeVisible();
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(overflow).toBeLessThanOrEqual(0);
+    const small = await page.evaluate(() => {
+      const bad: string[] = [];
+      for (const el of document.querySelectorAll<HTMLElement>('button, input:not([type=hidden]), summary, a[href]')) {
+        const r = el.getBoundingClientRect();
+        if (r.width === 0 || r.height === 0) continue;
+        if (r.height < 43.5 || r.width < 43.5) bad.push(`${el.tagName} "${el.textContent.trim().slice(0, 30)}" ${String(Math.round(r.width))}x${String(Math.round(r.height))}`);
+      }
+      return bad;
+    });
+    expect(small).toEqual([]);
+  });
+});

@@ -1,0 +1,147 @@
+{
+ "name": "Spain Primera División 2026/27",
+ "matches": [
+  {
+   "round": "Matchday 1",
+   "date": "2026-08-15",
+   "time": "19:30",
+   "team1": "Deportivo Alavés",
+   "team2": "Getafe CF",
+   "score": {
+    "ht": [
+     0,
+     0
+    ],
+    "ft": [
+     3,
+     0
+    ]
+   }
+  },
+  {
+   "round": "Matchday 1",
+   "date": "2026-08-15",
+   "time": "21:30",
+   "team1": "Sevilla FC",
+   "team2": "Rayo Vallecano de Madrid",
+   "score": {
+    "ht": [
+     0,
+     1
+    ],
+    "ft": [
+     2,
+     1
+    ]
+   }
+  },
+  {
+   "round": "Matchday 1",
+   "date": "2026-08-16",
+   "time": "17:00",
+   "team1": "Real Racing Club de Santander",
+   "team2": "Villarreal CF",
+   "score": {
+    "ht": [
+     2,
+     2
+    ],
+    "ft": [
+     2,
+     2
+    ]
+   }
+  },
+  {
+   "round": "Matchday 1",
+   "date": "2026-08-16",
+   "time": "19:00",
+   "team1": "RCD Espanyol de Barcelona",
+   "team2": "Levante UD",
+   "score": {
+    "ht": [
+     2,
+     0
+    ],
+    "ft": [
+     3,
+     0
+    ]
+   }
+  },
+  {
+   "round": "Matchday 1",
+   "date": "2026-08-17",
+   "time": "21:00",
+   "team1": "RC Deportivo La Coruña",
+   "team2": "Elche CF",
+   "score": {
+    "ht": [
+     1,
+     0
+    ],
+    "ft": [
+     1,
+     1
+    ]
+   }
+  },
+  {
+   "round": "Matchday 1",
+   "date": "2026-08-19",
+   "time": "21:00",
+   "team1": "Club Atlético de Madrid",
+   "team2": "Málaga CF",
+   "score": {
+    "ht": [
+     0,
+     0
+    ],
+    "ft": [
+     2,
+     0
+    ]
+   }
+  },
+  {
+   "round": "Matchday 8",
+   "date": "2026-10-09",
+   "time": "21:00",
+   "team1": "Málaga CF",
+   "team2": "RCD Espanyol de Barcelona"
+  },
+  {
+   "round": "Matchday 8",
+   "date": "2026-10-10",
+   "time": "14:00",
+   "team1": "Rayo Vallecano de Madrid",
+   "team2": "Athletic Club"
+  },
+  {
+   "round": "Matchday 8",
+   "date": "2026-10-10",
+   "time": "16:15",
+   "team1": "Deportivo Alavés",
+   "team2": "Club Atlético de Madrid"
+  },
+  {
+   "round": "Matchday 8",
+   "date": "2026-10-10",
+   "time": "18:30",
+   "team1": "FC Barcelona",
+   "team2": "Getafe CF"
+  },
+  {
+   "round": "Matchday 10",
+   "date": "2026-10-25",
+   "team1": "Rayo Vallecano de Madrid",
+   "team2": "Elche CF"
+  },
+  {
+   "round": "Matchday 10",
+   "date": "2026-10-25",
+   "team1": "Deportivo Alavés",
+   "team2": "Málaga CF"
+  }
+ ]
+}

@@ -1,6 +1,14 @@
-import { Info, Trophy } from 'lucide-react';
+import { Trophy } from 'lucide-react';
+import { useState } from 'react';
+
+import { createServices } from '../data/registry.ts';
+import type { Match } from '../data/types.ts';
+import { CalendarView } from '../features/calendar/CalendarView.tsx';
 
 export function App() {
+  const [services] = useState(createServices);
+  const [selected, setSelected] = useState<Match | null>(null);
+
   return (
     <div className="app">
       <header className="app__header">
@@ -13,14 +21,7 @@ export function App() {
         </div>
       </header>
       <main className="app__main">
-        <h1 className="visually-hidden">futbol-sim</h1>
-        <p className="notice">
-          <Info aria-hidden="true" size={20} />
-          <span>
-            Base del proyecto lista. El calendario real, el motor de simulación y la exportación a MP4 se
-            incorporan en las siguientes fases.
-          </span>
-        </p>
+        <CalendarView service={services.service} imported={services.imported} selected={selected} onSelect={setSelected} />
       </main>
     </div>
   );

@@ -1,0 +1,40 @@
+= UEFA Champions League 2025/26
+
+# Date       Tue Sep 16 2025 - Sat May 30 2026 (256d)
+# Teams      36
+# Matches    189
+# Stages     League (144)  Playoffs (16)  Finals (29)
+
+
+
+▪ League, Matchday 1
+  Tue Sep 16 2025
+    18:45  Athletic Club (ESP)     v Arsenal FC (ENG)         0-2 (0-0)
+           PSV (NED)               v Royale Union Saint-Gilloise (BEL)  1-3 (0-2)
+    21:00  Juventus FC (ITA)       v Borussia Dortmund (GER)  4-4 (0-0)
+           Sport Lisboa e Benfica (POR) v Qarabağ Ağdam FK (AZE)   2-3 (2-1)
+           Tottenham Hotspur FC (ENG) v Villarreal CF (ESP)      1-0 (1-0)
+           Real Madrid CF (ESP)    v Olympique de Marseille (FRA)  2-1 (1-1)
+  Wed Sep 17
+    18:45  SK Slavia Praha (CZE)   v FK Bodø/Glimt (NOR)      2-2 (1-0)
+           PAE Olympiakos SFP (GRE) v Paphos FC (CYP)          0-0
+    21:00  AFC Ajax (NED)          v FC Internazionale Milano (ITA)  0-2 (0-1)
+           Liverpool FC (ENG)      v Club Atlético de Madrid (ESP)  3-2 (2-1)
+           Paris Saint-Germain FC (FRA) v Atalanta BC (ITA)        4-0 (2-0)
+           FC Bayern München (GER) v Chelsea FC (ENG)         3-1 (2-1)
+
+▪ Playoffs, Matchday 2
+  Tue Feb 24
+    18:45  Club Atlético de Madrid (ESP) v Club Brugge KV (BEL)     4-1 (1-1)
+    21:00  Newcastle United FC (ENG) v Qarabağ Ağdam FK (AZE)   3-2 (2-0)
+           Bayer 04 Leverkusen (GER) v PAE Olympiakos SFP (GRE)  0-0
+           FC Internazionale Milano (ITA) v FK Bodø/Glimt (NOR)      1-2 (0-0)
+  Wed Feb 25
+    18:45  Atalanta BC (ITA)       v Borussia Dortmund (GER)  4-1 (2-0)
+    21:00  Real Madrid CF (ESP)    v Sport Lisboa e Benfica (POR)  2-1 (1-1)
+           Paris Saint-Germain FC (FRA) v AS Monaco FC (MCO)       2-2 (0-1)
+           Juventus FC (ITA)       v Galatasaray SK (TUR)     3-2 a.e.t. (3-0, 1-0)
+
+▪ Finals, Final
+  Sat May 30
+    18:00  Paris Saint-Germain FC (FRA) v Arsenal FC (ENG)         4-3 pen. 1-1 a.e.t. (1-1, 0-1)
