@@ -102,7 +102,7 @@ Leyenda: ✅ hecho y probado · 🟡 hecho, pendiente de verificar · ⬜ por ha
 - ✅ Reglas del proyecto como tests (`rules.test.ts`): detectó un `rgb()` suelto fuera de `tokens.css` (corregido con `--color-overlay`).
 - ✅ Optimización medida: JS inicial 533 → 274 kB (carga diferida del estudio); dibujado Arena 40 → 19 ms; exportación de 52 s de vídeo 76 → 41 s en el sandbox.
 - ✅ Memoria: sin fugas (heap tras GC 18,0 MB → 18,1 MB tras dos exportaciones; pico +38 MB).
-- ✅ Despliegue preparado: `VITE_BASE`, prueba e2e bajo `/SoccerApp/` (recursos, Excel de la Champions y trozo diferido sin 404), workflow de Pages **solo manual**.
+- ✅ Despliegue preparado: `VITE_BASE`, prueba e2e bajo `/SoccerApp/` (recursos, Excel de la Champions y trozo diferido sin 404), workflow de Pages automático al fusionar en la rama por defecto (y manual); pendiente de verificar en GitHub.
 - ✅ Documentación: README con capturas, ARCHITECTURE, TASKS, CLAUDE, `docs/DESPLIEGUE.md` y `docs/football-data-org.md`.
 - ✅ **Desplegado en GitHub Pages** (a petición del usuario): el workflow «Deploy a GitHub Pages» (ejecución 1, rama `claude/blissful-davinci-1xqg19`, commit `1faca99`) terminó con éxito: `npm ci`, `npm run ci`, subida del artefacto y `deploy-pages`. URL esperada: https://agallegosns.github.io/SoccerApp/
 - 🟡 **Pendiente de verificar: la web publicada.** Desde el sandbox no se puede acceder a `github.io`, así que no se ha abierto la URL; sí se verificó antes la compilación bajo `/SoccerApp/` con la prueba e2e de subruta. Comprobar en un navegador: que carga el calendario, que aparece la Champions 2026-27 (Excel bajo la subruta) y que el estudio se abre.
@@ -146,7 +146,7 @@ Leyenda: ✅ hecho y probado · 🟡 hecho, pendiente de verificar · ⬜ por ha
   🟡 Interpretación mía de «que la pelota vaya por libre»: si querías otra cosa (rebotes en el aro, balón suelto sin dueño…), dímelo. Pendiente de verificar a ojo en un vídeo exportado.
 - ✅ **Tarjeta verde al descargar**: probado con exportación real (VP9) → descarga → calendario con `Descargado` y tras recargar; test unitario del almacén y de la tarjeta.
   La selección de partido pasa a azul para distinguirla. Se marca al descargar (suelto, desde el lote o ZIP), no al exportar.
-- ✅ **Selector de ligas para móvil**: tarjetas grandes con insignia y scroll horizontal; fechas plegables; avisos compactos; axe y zonas táctiles ≥ 44 px siguen en verde. 🟡 Pendiente de verlo en un móvil real.
+- ✅ **Selector de ligas para móvil**: tarjetas grandes con insignia y (entonces) scroll horizontal — *sustituido por una rejilla sin desplazamiento, ver «Menú, estadísticas y ficha de vídeo»*; fechas plegables; avisos compactos; axe y zonas táctiles ≥ 44 px siguen en verde. 🟡 Pendiente de verlo en un móvil real.
 - 🟡 **Sin desplegar**: hay que pedir un redespliegue.
 - ✅ Corregido el texto del panel de exportación (decía que el vídeo lleva «Simulación ficticia»).
 
@@ -172,3 +172,15 @@ Leyenda: ✅ hecho y probado · 🟡 hecho, pendiente de verificar · ⬜ por ha
   Probado (36 tests del módulo): fricción monótona, aceleración en el golpeo, conservación de extremos y horas del guion, reflexión, botes con restitución, altura ≥ 0, sin teletransportes; e2e y exportación real VP9 en verde.
 - 🟡 **Límites honestos**: la física está *ajustada* al guion (llega donde y cuando dice), no es un simulador libre; los escudos no rebotan en la pared ni chocan con el balón de forma calculada (es un gesto de golpeo). Revisado a ojo sólo en capturas de la vista previa: pendiente de ver un vídeo exportado en movimiento.
 - 🟡 **Sin desplegar** (hay que pedir un redespliegue).
+
+## Menú, estadísticas y ficha de vídeo (a petición del usuario)
+- ✅ **Sin desplazamiento lateral**: ligas en rejilla; `.segmented`/`.tabs` pasan a otra fila; contenedores `minmax(0, 1fr)`. Test e2e `layout.spec.ts`: 5 anchos (320, 360, 390, 768, 1280 px) × calendario, estudio, lista de vídeos, ficha (4 pestañas), estadísticas (3 pestañas) y el diálogo; comprueba página y cada elemento visible. Encontró un fallo real del diálogo a 320/360 px (arreglado).
+- ✅ **Rebotes («Sin rebotes / Pocos / Normal / Muchos»)**: la causa era visual — el grupo de botones tenía `overflow: hidden` y en pantallas estrechas se cortaba, así que no se podían ver ni pulsar todas las opciones. Ahora pasan a otra fila; el e2e comprueba que los cuatro botones se ven enteros y miden ≥ 44 px a todos los anchos.
+  La lógica de rebotes (`bounce.ts`, 6 tests) ya funcionaba y no se ha tocado. 🟡 Si lo que querías decir es otra cosa (que el balón no «se desplaza» distinto según el nivel), dímelo: con ritmo rápido y tramos cortos hay 7–15 rebotes por vídeo y «Muchos» sólo añade los tramos más cortos.
+- ✅ **Menú** Calendario · Vídeos · Estadísticas (barra inferior en móvil, cabecera en escritorio), rutas por hash, «atrás» del navegador, URL directa a una sección o ficha. Tests e2e (`library.spec.ts`).
+- ✅ **Biblioteca de vídeos y ficha**: la ficha se crea al exportar (suelto o en lote), guarda parámetros (no el MP4) y permite volver a descargar un MP4 idéntico. Probado con exportación **real** (VP9) → ficha → descarga desde la ficha → ffprobe (`library-export.spec.ts`), búsqueda/filtros, pestañas, jugadas que saltan en el reproductor, anterior/siguiente, copiar descripción, eliminar con confirmación, ficha inexistente. 7 tests unitarios del modelo y del almacén.
+  🟡 En un navegador sin H.264 (como el Chromium del sandbox) el botón «Descargar MP4» de la ficha queda desactivado con el aviso correspondiente (probado); la descarga H.264 real sigue pendiente de verificar en un navegador real, igual que en el estudio.
+- ✅ **Estadísticas manuales y CSV**: alta/edición/borrado de publicaciones, nuevas mediciones, totales, interacción, evolución (SVG con tabla alternativa), ranking, filtro por plataforma, importar/exportar CSV con informe de errores por línea, sin duplicados al reimportar. 14 tests unitarios + e2e. Accesibilidad (axe, WCAG AA) en todas las pantallas nuevas.
+- ⬜ **Conexión automática con TikTok e Instagram**: diseñada y documentada (ARCHITECTURE.md → «Estadísticas»), **no construida**: necesita crear apps en Meta y TikTok for Developers y un Worker gratuito. La interfaz dice claramente que no está conectada.
+- 🟡 El importador CSV reconoce cabeceras en español e inglés habituales, pero **no está probado con una exportación real de TikTok Studio ni de Instagram** (no se pudo obtener ninguna); si su formato difiere, habría que añadir alias.
+- 🟡 Pendiente de ver en un móvil real (barra inferior, teclado en los formularios) y **sin desplegar** (hay que pedir un redespliegue).

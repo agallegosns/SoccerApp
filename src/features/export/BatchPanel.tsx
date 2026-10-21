@@ -4,6 +4,8 @@ import { useEffect, useState, useSyncExternalStore } from 'react';
 import type { Match } from '../../data/types.ts';
 import { MAX_GOALS_PER_TEAM, simulate, type Pace, type Score } from '../../engine/index.ts';
 import type { RenderMeta } from '../simulation/render.ts';
+import type { VideoOptions } from '../simulation/options.ts';
+import { recordExport } from '../videos/record.ts';
 import type { VideoStyle } from '../simulation/renderers.ts';
 import { BatchQueue, type BatchJob, type JobRunner } from './batchQueue.ts';
 import { exportVideo } from './exportVideo.ts';
@@ -26,11 +28,15 @@ interface Props {
   readonly fixedScore: Score | null;
   readonly pace: Pace;
   readonly meta: RenderMeta;
+  /** Personalización con la que se generan los vídeos (queda en su ficha). */
+  readonly options: VideoOptions;
   readonly onUseSeed: (seed: number) => void;
 }
 
 /** Parámetros con los que se genera cada vídeo (se fijan al añadirlo a la cola). */
 interface JobData {
+  readonly match: Match;
+  readonly options: VideoOptions;
   readonly home: string;
   readonly away: string;
   readonly style: VideoStyle;
@@ -52,7 +58,7 @@ const STATUS_LABEL: Readonly<Record<BatchJob<JobData>['status'], string>> = {
 const randomSeed = (): number => Math.floor(Math.random() * 1_000_000_000);
 const mb = (bytes: number): string => `${(bytes / 1e6).toFixed(1)} MB`;
 
-export function BatchPanel({ match, date, currentSeed, style, fixedScore, pace, meta, onUseSeed }: Props) {
+export function BatchPanel({ match, date, currentSeed, style, fixedScore, pace, meta, options, onUseSeed }: Props) {
   const support = useExportSupport();
   const [count, setCount] = useState(3);
   const [zipping, setZipping] = useState(false);
@@ -71,6 +77,9 @@ export function BatchPanel({ match, date, currentSeed, style, fixedScore, pace, 
         onProgress: (progress) => {
           onProgress(progress.ratio);
         },
+      }).then((result) => {
+        recordExport({ match: d.match, seed: job.seed, style: d.style, pace: d.pace, fixedScore: d.fixedScore, score: d.score, options: d.options }, result, job.fileName);
+        return result;
       });
     };
     return new BatchQueue<JobData>(runner);
@@ -101,6 +110,8 @@ export function BatchPanel({ match, date, currentSeed, style, fixedScore, pace, 
         seed,
         fileName: exportFileName({ competition: match.competition, home: match.home, away: match.away, date, seed }),
         data: {
+          match,
+          options,
           home: match.home,
           away: match.away,
           style,

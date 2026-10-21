@@ -7,17 +7,31 @@ import { MAX_GOALS_PER_TEAM, simulate, type Pace, type Score } from '../../engin
 import { BatchPanel } from '../export/BatchPanel.tsx';
 import { ExportPanel } from '../export/ExportPanel.tsx';
 import { exportFileName } from '../export/fileName.ts';
+import type { VideoParams } from '../videos/model.ts';
 import { CrestsPanel } from './CrestsPanel.tsx';
 import { DEFAULT_VIDEO_OPTIONS, loadVideoOptions, saveVideoOptions, type VideoOptions } from './options.ts';
 import { VideoOptionsPanel } from './VideoOptionsPanel.tsx';
 import { SimulationPreview } from './SimulationPreview.tsx';
 import { useTeamCrests } from './useTeamCrests.ts';
 import { DEFAULT_STYLE, VIDEO_STYLES, type VideoStyle } from './renderers.ts';
-import type { RenderMeta } from './render.ts';
+import { EVENT_LABELS } from './eventLabels.ts';
+import { metaFor } from './meta.ts';
 import './studio.css';
+
+/** Parámetros con los que abrir el estudio (p. ej. desde la ficha de un vídeo ya exportado). */
+export interface StudioInitial {
+  readonly seed: number;
+  readonly fixedScore: Score | null;
+  readonly style: VideoStyle;
+  readonly pace: Pace;
+  readonly options: VideoOptions;
+}
 
 interface Props {
   readonly match: Match;
+  readonly initial?: StudioInitial;
+  /** Texto del botón de vuelta (por defecto «Volver al calendario»). */
+  readonly backLabel?: string;
   readonly onBack: () => void;
 }
 
@@ -29,31 +43,17 @@ function clampGoals(value: string): number {
   return Number.isFinite(n) ? Math.min(MAX_GOALS_PER_TEAM, Math.max(0, n)) : 0;
 }
 
-const EVENT_LABELS: Readonly<Record<string, string>> = {
-  kickoff: 'Saque',
-  shot: 'Disparo',
-  goal: 'Gol',
-  save: 'Parada',
-  miss: 'Fuera',
-  post: 'Palo',
-  block: 'Bloqueo',
-  foul: 'Falta',
-  corner: 'Córner',
-  halftime: 'Descanso',
-  fulltime: 'Final',
-};
-
-export function SimulationStudio({ match, onBack }: Props) {
-  const [seed, setSeed] = useState(randomSeed);
-  const [seedText, setSeedText] = useState(String(seed));
-  const [fixed, setFixed] = useState(false);
-  const [fixedHome, setFixedHome] = useState(1);
-  const [fixedAway, setFixedAway] = useState(0);
+export function SimulationStudio({ match, initial, backLabel = 'Volver al calendario', onBack }: Props) {
+  const [seed, setSeed] = useState(() => initial?.seed ?? randomSeed());
+  const [seedText, setSeedText] = useState(() => String(initial?.seed ?? seed));
+  const [fixed, setFixed] = useState(initial?.fixedScore !== undefined && initial.fixedScore !== null);
+  const [fixedHome, setFixedHome] = useState(initial?.fixedScore?.home ?? 1);
+  const [fixedAway, setFixedAway] = useState(initial?.fixedScore?.away ?? 0);
   const [seek, setSeek] = useState<{ t: number; nonce: number } | null>(null);
-  const [style, setStyle] = useState<VideoStyle>(DEFAULT_STYLE);
-  const [pace, setPace] = useState<Pace>('fast');
+  const [style, setStyle] = useState<VideoStyle>(initial?.style ?? DEFAULT_STYLE);
+  const [pace, setPace] = useState<Pace>(initial?.pace ?? 'fast');
   const crests = useTeamCrests(match.home, match.away);
-  const [options, setOptions] = useState<VideoOptions>(loadVideoOptions);
+  const [options, setOptions] = useState<VideoOptions>(() => initial?.options ?? loadVideoOptions());
 
   function changeOptions(patch: Partial<VideoOptions>): void {
     const next = { ...options, ...patch }; // los campos de texto ya limitan su longitud (maxLength); al cargar se validan con sanitizeOptions
@@ -73,14 +73,7 @@ export function SimulationStudio({ match, onBack }: Props) {
   );
 
   const kickoff = kickoffOf(match);
-  const meta: RenderMeta = useMemo(
-    () => ({
-      competition: `${match.competition} · ${match.round}`,
-      when: `${formatDateEs(kickoff.date)} · ${kickoff.time ?? 'hora por confirmar'}`,
-      options,
-    }),
-    [match.competition, match.round, kickoff.date, kickoff.time, options],
-  );
+  const meta = useMemo(() => metaFor(match, options), [match, options]);
 
   const seedValid = /^\d+$/.test(seedText) && Number(seedText) <= MAX_SEED;
   const { teams, stats } = sim.script;
@@ -96,7 +89,7 @@ export function SimulationStudio({ match, onBack }: Props) {
       <div className="studio__bar">
         <button type="button" className="btn" onClick={onBack}>
           <ArrowLeft aria-hidden="true" size={20} />
-          Volver al calendario
+          {backLabel}
         </button>
         <span className="badge">Simulación ficticia</span>
       </div>
@@ -237,6 +230,7 @@ export function SimulationStudio({ match, onBack }: Props) {
             fileName={exportFileName({ competition: match.competition, home: match.home, away: match.away, date: kickoff.date, seed })}
             title={`Simulación ficticia: ${match.home} vs ${match.away}`}
             matchId={match.id}
+            params={{ match, seed, style, pace, fixedScore: score, score: final, options } satisfies VideoParams}
           />
 
           <BatchPanel
@@ -247,6 +241,7 @@ export function SimulationStudio({ match, onBack }: Props) {
             fixedScore={score}
             pace={pace}
             meta={meta}
+            options={options}
             onUseSeed={(s) => {
               setSeed(s);
               setSeedText(String(s));

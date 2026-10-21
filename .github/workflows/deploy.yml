@@ -1,8 +1,10 @@
-# Despliegue en GitHub Pages. SOLO MANUAL (workflow_dispatch): no se despliega nada hasta que alguien lo lance desde la pestaña Actions.
+# Despliegue en GitHub Pages. Se lanza solo al fusionar en la rama por defecto (push) y también a mano desde la pestaña Actions.
 # Antes de la primera vez: Settings → Pages → Source = «GitHub Actions».
 name: Deploy a GitHub Pages
 
 on:
+  push:
+    branches: [claude/blissful-davinci-1xqg19]
   workflow_dispatch:
 
 permissions:

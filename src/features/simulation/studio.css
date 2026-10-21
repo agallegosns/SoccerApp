@@ -79,31 +79,6 @@
   min-width: 0;
 }
 
-.card {
-  display: grid;
-  gap: var(--space-3);
-  padding: var(--space-4);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  background: var(--color-surface);
-}
-
-.card h2 {
-  font-size: var(--text-md);
-}
-
-.row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  align-items: stretch;
-}
-
-.row > input {
-  flex: 1 1 8rem;
-  min-width: 0;
-}
-
 .row--scores .field {
   flex: 1 1 8rem;
 }
@@ -111,25 +86,6 @@
 .studio__score {
   font-size: var(--text-lg);
   font-weight: 700;
-}
-
-.stats {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: var(--text-sm);
-}
-
-.stats th,
-.stats td {
-  padding: var(--space-2);
-  text-align: right;
-  border-bottom: 1px solid var(--color-border);
-}
-
-.stats th:first-child {
-  text-align: left;
-  font-weight: 500;
-  color: var(--color-text-muted);
 }
 
 .events {
