@@ -117,17 +117,6 @@ export function hashtag(name: string): string {
   return clean === '' ? '' : `#${clean.split(' ').map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join('')}`;
 }
 
-/** Descripción lista para pegar al publicar. Sin prometer nada: es una simulación ficticia. */
-export function captionFor(r: VideoRecord): string {
-  const tags = ['#Fútbol', hashtag(r.match.home), hashtag(r.match.away), hashtag(r.match.competition.replace(/\s*\d{4}[-/]\d{2,4}\s*$/, ''))].filter((t) => t !== '');
-  return [
-    `¿Quién gana? ${r.match.home} vs ${r.match.away} (${r.match.competition}, ${r.match.round}).`,
-    `Simulación ficticia: ${String(r.score.home)}–${String(r.score.away)}. No es una predicción. Comenta tu marcador.`,
-    '',
-    [...new Set(tags)].join(' '),
-  ].join('\n');
-}
-
 export interface VideoFilter {
   readonly text: string;
   readonly competition: string;

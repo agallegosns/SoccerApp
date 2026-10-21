@@ -18,9 +18,8 @@ test('exportar crea la ficha; la ficha vuelve a generar el mismo vídeo y lo des
   await page.locator('.match').first().click();
   await page.getByTestId('open-studio').click();
   await page.getByTestId('seed-input').fill('2024');
-  await page.getByTestId('fix-score').click();
-  await page.getByTestId('score-home').fill('1');
-  await page.getByTestId('score-away').fill('0');
+  const score = ((await page.getByTestId('sim-score').innerText()).match(/\d+–\d+/) ?? [''])[0];
+  expect(score).toMatch(/^\d+–\d+$/);
   const expectedSeconds = Number(await page.getByTestId('scrubber').getAttribute('max'));
 
   await page.getByTestId('export-button').click();
@@ -30,10 +29,10 @@ test('exportar crea la ficha; la ficha vuelve a generar el mismo vídeo y lo des
   await expect(page.getByTestId('nav-videos')).toContainText('1');
   await page.getByTestId('nav-videos').click();
   await expect(page.getByTestId('video-card')).toHaveCount(1);
-  await expect(page.getByTestId('video-card')).toContainText('1–0');
+  await expect(page.getByTestId('video-card')).toContainText(score);
   await expect(page.getByTestId('video-card')).toContainText('semilla 2024');
   await page.getByTestId('open-video').click();
-  await expect(page.getByTestId('video-detail')).toContainText('fijado por ti');
+  await expect(page.getByTestId('video-detail')).toContainText('salió de la física');
 
   // Re-descarga desde la ficha.
   await expect(page.getByTestId('detail-download')).toBeEnabled();

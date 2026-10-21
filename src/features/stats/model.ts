@@ -34,6 +34,8 @@ export interface Publication {
   readonly title: string;
   /** `YYYY-MM-DD`. */
   readonly publishedAt: string;
+  /** Instante exacto (ISO 8601) si la plataforma lo dio (Worker automático); permite analizar la hora de publicación. */
+  readonly publishedAtIso?: string;
   /** Ficha de vídeo de la biblioteca a la que corresponde, si se indicó. */
   readonly videoId: string | null;
   /** Ordenadas por fecha ascendente; una por fecha. */
@@ -203,6 +205,7 @@ export function mergePublications(existing: readonly Publication[], incoming: re
             url: inc.url !== '' ? inc.url : old.url,
             title: inc.title !== '' ? inc.title : old.title,
             publishedAt: inc.publishedAt,
+            ...(inc.publishedAtIso !== undefined ? { publishedAtIso: inc.publishedAtIso } : old.publishedAtIso !== undefined ? { publishedAtIso: old.publishedAtIso } : {}),
             videoId: inc.videoId ?? old.videoId,
             measurements: sortMeasurements([...old.measurements, ...inc.measurements]),
           },
@@ -244,6 +247,7 @@ export function toPublication(v: unknown): Publication | null {
     url,
     title,
     publishedAt: v['publishedAt'],
+    ...(typeof v['publishedAtIso'] === 'string' && !Number.isNaN(Date.parse(v['publishedAtIso'])) ? { publishedAtIso: v['publishedAtIso'] } : {}),
     videoId: typeof v['videoId'] === 'string' && v['videoId'] !== '' ? v['videoId'] : null,
     measurements,
   };

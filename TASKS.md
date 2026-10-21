@@ -187,3 +187,18 @@ Leyenda: ✅ hecho y probado · 🟡 hecho, pendiente de verificar · ⬜ por ha
   🟡 Aún sin ver en un móvil real (solo emulación Chromium).
 - 🟡 El importador CSV reconoce cabeceras en español e inglés habituales, pero **no está probado con una exportación real de TikTok Studio ni de Instagram** (no se pudo obtener ninguna); si su formato difiere, habría que añadir alias.
 - 🟡 Pendiente de ver en un móvil real (barra inferior, teclado en los formularios) y **sin desplegar** (hay que pedir un redespliegue).
+
+## Arena más fluida, descripciones y hora recomendada
+- ✅ Escudos con física (`discPhysics.ts`): inercia (muelle amortiguado), empujones deterministas por semilla, rebotes contra la pared del aro y entre sí; función pura del tiempo (tabla precalculada). Probado en `arena.test.ts`.
+- ✅ Gancho superior del vídeo en caja con márgenes laterales (96 px) y hasta 2 líneas.
+- ✅ Pestaña «Publicar»: descripción «Local vs Visitante» (4 versiones, rotables) + 5 hashtags por plataforma (`publish.ts`). La viralidad de un hashtag NO se puede medir: lo dice la interfaz.
+- ✅ Hora recomendada: con ≥ 8 publicaciones (≥ 3 días de antigüedad, hora conocida) y ≥ 3 en la franja, mediana de visualizaciones por franja; si no, franja orientativa (2 h antes del partido) marcada como orientativa. Sin hora de partido ni datos: «Sin recomendación todavía».
+- 🟡 La hora de cada publicación llega del Worker (`publishedAtIso`): hay que volver a pegar `cloudflare/stats-worker.js` en Cloudflare. Sin probar contra las APIs reales.
+- 🟡 Pendiente de verificar: sensación de fluidez en un móvil real (no se ha recibido el vídeo de referencia).
+
+## Arena con física libre (como los vídeos virales)
+- ✅ `src/engine/arenaSim.ts`: simulación física determinista por semilla. Dos escudos con IA sencilla (persiguen el balón y lo golpean hacia la portería en la que marcan, con errores y tirones aleatorios, ráfagas de «sprint»), balón con rozamiento y choques elásticos con la pared y entre sí, porterías que giran. **Goles, tiros y paradas salen del juego**; el marcador no se puede fijar en la Arena (decisión del usuario). Probado en `arenaSim.test.ts` (determinismo, marcador = goles, continuidad, dentro del aro, variedad de marcadores…).
+- ✅ El nivel «Rebotes» del vídeo es ahora la elasticidad de la pared (afecta a la física, no sólo al dibujo).
+- ✅ Estadísticas de la Arena: sólo tiros y a puerta (córners y faltas no existen en esta física, no se muestran).
+- ⚠ Las fichas creadas antes de este cambio avisan («versión anterior del simulador»): la misma semilla da ahora otro partido.
+- 🟡 Pendiente de verificar: la sensación de movimiento en un móvil real (solo se han revisado fotogramas y métricas).

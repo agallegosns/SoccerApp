@@ -25,7 +25,7 @@ El estudio de la captura se hizo en un navegador sin codificador H.264, por eso 
 
 ## Cómo se usa
 1. **Calendario**: elige competición en la rejilla de tarjetas (sin desplazamiento lateral), filtra por fecha («Próximos/Jugados/Todos»), busca un equipo y pulsa un partido → *Crear simulaciones*.
-2. **Estudio**: reproduce la vista previa, cambia el estilo (*Arena* o *Táctico*), el **ritmo** (*rápido* por defecto, ~26 s; *normal*, ~50 s), la semilla («Otra semilla») o fija el marcador (0–9 por equipo). En *Escudos* puedes subir el escudo de cada equipo.
+2. **Estudio**: reproduce la vista previa, cambia el estilo (*Arena* o *Táctico*), el **ritmo** (*rápido* por defecto, ~26 s; *normal*, ~50 s), la semilla («Otra semilla») o, en el estilo *Táctico*, fija el marcador (0–9 por equipo). **La Arena es física libre: el marcador sale del juego y no se puede fijar.** En *Escudos* puedes subir el escudo de cada equipo.
 3. **Exportar MP4**: un vídeo con los parámetros actuales. **Generar varias simulaciones**: de 1 a 10 vídeos con semillas distintas, con progreso, cancelar,
    reintentar y *Descargar todo (ZIP)*.
 4. Cuando descargas un vídeo (suelto o en ZIP) la tarjeta de ese partido se pone **verde** con «Hecho» en el calendario (se recuerda en tu navegador). Los partidos que ya hiciste por tu cuenta los marcas a mano con el círculo de la esquina de cada tarjeta (otra pulsación lo quita).
@@ -43,7 +43,7 @@ El estudio de la captura se hizo en un navegador sin codificador H.264, por eso 
 
 ### Personalizar el vídeo
 En el estudio, panel **Personalizar el vídeo** (se guarda en tu navegador y vale para la vista previa, la exportación y los lotes):
-- **Colores de la arena** (Noche, Neón, Césped, Fuego) y **rebotes del balón** en las paredes (sin rebotes, pocos, normal, muchos). El balón rebota en el aro con la ley de reflexión, deja un destello en la pared y los escudos lo persiguen.
+- **Colores de la arena** (Noche, Neón, Césped, Fuego) y **rebotes del balón** (apagado, poco, normal, mucho: la elasticidad de la pared en la física). Los escudos persiguen y golpean el balón, chocan con la pared y entre sí, y los goles salen del juego.
 - **Qué se muestra**: estadísticas, último suceso y estela del balón.
 - **Textos propios**: texto gancho bajo la competición («¿Quién gana? Comenta tu marcador»), marca de agua con tu usuario y texto del gol.
 

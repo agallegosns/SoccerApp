@@ -1,6 +1,5 @@
 import { RotateCcw } from 'lucide-react';
 
-import { BOUNCE_LEVELS } from './bounce.ts';
 import {
   DEFAULT_VIDEO_OPTIONS,
   MAX_GOAL_TEXT,
@@ -8,6 +7,7 @@ import {
   MAX_WATERMARK,
   THEMES,
   THEME_IDS,
+  BOUNCE_LEVELS,
   type VideoOptions,
 } from './options.ts';
 import type { VideoStyle } from './renderers.ts';

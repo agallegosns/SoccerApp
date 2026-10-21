@@ -94,9 +94,11 @@ test.describe('biblioteca de vídeos y ficha', () => {
     await page.getByTestId('open-video').first().click();
     await page.getByTestId('vd-tab-publish').click();
     const caption = page.getByTestId('caption');
-    await expect(caption).toHaveValue(/Simulación ficticia/);
+    await expect(caption).toHaveValue(/simulación ficticia/);
     await expect(caption).toHaveValue(/#AthleticClub/);
-    await expect(caption).toHaveValue(/No es una predicción/);
+    await expect(caption).toHaveValue(/no es una predicción/);
+    await expect(page.getByTestId('time-reco')).toContainText('Hora recomendada');
+    await page.getByTestId('next-variant').click();
     await page.getByTestId('copy-caption').click();
     await expect(page.getByText('Descripción copiada.')).toBeVisible();
     expect(await page.evaluate(() => navigator.clipboard.readText())).toContain('Athletic Club vs Valencia CF');

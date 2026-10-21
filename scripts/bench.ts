@@ -40,7 +40,10 @@ async function main(): Promise<void> {
       const out: Record<string, { mean: number; p95: number; max: number; samples: number }> = {};
       const warmup: Record<string, number> = {};
       const t0 = performance.now();
-      const sim = engine.simulate({ seed: 2024, home: 'Real Madrid', away: 'FC Barcelona', score: { home: 2, away: 1 } });
+      const input = { seed: 2024, home: 'Real Madrid', away: 'FC Barcelona', score: { home: 2, away: 1 } };
+      const simTactical = engine.simulate(input);
+      const simArena = engine.simulateArena(input);
+      const sim = simTactical;
       const simulateMs = performance.now() - t0;
       const f0 = performance.now();
       for (let t = 0; t < sim.script.duration; t += 1 / 30) sim.frame(t);
@@ -49,12 +52,12 @@ async function main(): Promise<void> {
         const times: number[] = [];
         // El primer dibujado incluye la creación de capas y el arranque del rasterizador: se mide aparte.
         const w0 = performance.now();
-        renderers.drawVideoFrame(ctx, sim, 0, meta, style);
+        renderers.drawVideoFrame(ctx, style === 'arena' ? simArena : simTactical, 0, meta, style);
         ctx.getImageData(0, 0, 1, 1);
         warmup[style] = performance.now() - w0;
         for (let t = 0; t < sim.script.duration; t += 0.25) {
           const s = performance.now();
-          renderers.drawVideoFrame(ctx, sim, t, meta, style);
+          renderers.drawVideoFrame(ctx, style === 'arena' ? simArena : simTactical, t, meta, style);
           ctx.getImageData(0, 0, 1, 1); // fuerza la rasterización: sin esto sólo se mide el encolado de órdenes
           times.push(performance.now() - s);
         }
@@ -85,7 +88,7 @@ async function main(): Promise<void> {
         const runs: { seconds: number; fps: number; fileMB: number; peakMB: number; afterGcMB: number }[] = [];
         const baseline = await settle();
         for (const seed of [2024, 2025]) {
-          const sim = engine.simulate({ seed, home: 'Real Madrid', away: 'FC Barcelona', score: { home: 2, away: 1 } });
+          const sim = engine.simulateArena({ seed, home: 'Real Madrid', away: 'FC Barcelona', score: { home: 2, away: 1 } });
           let peak = 0;
           const start = performance.now();
           const result = await exporter.exportVideo({

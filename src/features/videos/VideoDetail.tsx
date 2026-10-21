@@ -1,11 +1,11 @@
-import { AlertTriangle, ArrowLeft, ChevronLeft, ChevronRight, Copy, Download, Film, Plus, RotateCw, Trash2, X } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, ChevronLeft, ChevronRight, Copy, Download, Film, Plus, RefreshCw, RotateCw, Trash2, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { setBusy } from '../../app/busy.ts';
 import { hrefFor, navigate } from '../../app/route.ts';
 import { markDownloaded } from '../../data/downloaded.ts';
 import { formatDateEs, kickoffOf } from '../../data/dates.ts';
-import { simulate } from '../../engine/index.ts';
+import { simulateFor } from '../simulation/simulateFor.ts';
 import { ConfirmDialog } from '../../ui/ConfirmDialog.tsx';
 import { useDownloaded } from '../../ui/useDownloaded.ts';
 import { ExportError, classifyExportError } from '../export/errors.ts';
@@ -18,9 +18,10 @@ import { useTeamCrests } from '../simulation/useTeamCrests.ts';
 import { VIDEO_STYLES } from '../simulation/renderers.ts';
 import '../simulation/studio.css';
 import { PublicationDialog } from '../stats/PublicationDialog.tsx';
-import { engagementOf, latest, platformLabel, totalsOf } from '../stats/model.ts';
+import { engagementOf, latest, platformLabel, totalsOf, type Platform } from '../stats/model.ts';
 import { usePublications } from '../stats/store.ts';
-import { captionFor, formatBytes, formatStamp, type VideoRecord } from './model.ts';
+import { formatBytes, formatStamp, type VideoRecord } from './model.ts';
+import { descriptionFor, recommendTime } from './publish.ts';
 import { recordExport } from './record.ts';
 import { removeVideo, useVideos } from './store.ts';
 import './videos.css';
@@ -60,12 +61,16 @@ export function VideoDetail({ record, onOpenStudio }: Props) {
   const [deleting, setDeleting] = useState(false);
   const [adding, setAdding] = useState(false);
   const [copied, setCopied] = useState<'ok' | 'fail' | null>(null);
+  const [platform, setPlatform] = useState<Platform>('tiktok');
+  const [variant, setVariant] = useState(0);
+  const caption = descriptionFor(record, platform, variant);
+  const reco = recommendTime(record.match, pubs, platform);
   const abortRef = useRef<AbortController | null>(null);
   const crests = useTeamCrests(record.match.home, record.match.away);
 
   const sim = useMemo(
-    () => simulate({ seed: record.seed, home: record.match.home, away: record.match.away, score: record.fixedScore, pace: record.pace }),
-    [record.seed, record.match.home, record.match.away, record.fixedScore, record.pace],
+    () => simulateFor(record.style, { seed: record.seed, home: record.match.home, away: record.match.away, score: record.fixedScore, pace: record.pace }, record.options.bounce),
+    [record.style, record.seed, record.match.home, record.match.away, record.fixedScore, record.pace, record.options.bounce],
   );
   const meta = useMemo(() => metaFor(record.match, record.options), [record.match, record.options]);
   const kickoff = kickoffOf(record.match);
@@ -120,7 +125,7 @@ export function VideoDetail({ record, onOpenStudio }: Props) {
 
   async function copyCaption(): Promise<void> {
     try {
-      await navigator.clipboard.writeText(captionFor(record));
+      await navigator.clipboard.writeText(caption);
       setCopied('ok');
     } catch (error) {
       console.warn('No se pudo copiar al portapapeles', error);
@@ -129,7 +134,7 @@ export function VideoDetail({ record, onOpenStudio }: Props) {
   }
 
   const facts: readonly (readonly [string, string])[] = [
-    ['Marcador ficticio', `${String(record.score.home)}–${String(record.score.away)}${record.fixedScore === null ? ' (lo decidió la semilla)' : ' (fijado por ti)'}`],
+    ['Marcador ficticio', `${String(record.score.home)}–${String(record.score.away)}${record.fixedScore === null ? (record.style === 'arena' ? ' (salió de la física del partido)' : ' (lo decidió la semilla)') : ' (fijado por ti)'}`],
     ...(record.match.realScore === null ? [] : [['Resultado real (dato)', `${String(record.match.realScore.home)}–${String(record.match.realScore.away)}`] as const]),
     ['Semilla', String(record.seed)],
     ['Estilo y ritmo', `${VIDEO_STYLES.find((s) => s.id === record.style)?.label ?? record.style} · ${record.pace === 'fast' ? 'rápido' : 'normal'}`],
@@ -289,7 +294,7 @@ export function VideoDetail({ record, onOpenStudio }: Props) {
                       </tr>
                     </thead>
                     <tbody>
-                      {(['shots', 'onTarget', 'corners', 'fouls'] as const).map((key) => (
+                      {(record.style === 'tactical' ? (['shots', 'onTarget', 'corners', 'fouls'] as const) : (['shots', 'onTarget'] as const)).map((key) => (
                         <tr key={key}>
                           <th scope="row">{{ shots: 'Tiros', onTarget: 'A puerta', corners: 'Córners', fouls: 'Faltas' }[key]}</th>
                           <td>{sim.script.stats.home[key]}</td>
@@ -368,14 +373,26 @@ export function VideoDetail({ record, onOpenStudio }: Props) {
             {tab === 'publish' && (
               <div className="card">
                 <h2>Descripción para publicar</h2>
+                <div className="segmented" role="group" aria-label="Plataforma">
+                  {(['tiktok', 'instagram'] as const).map((pl) => (
+                    <button key={pl} type="button" className="segmented__btn" aria-pressed={platform === pl} onClick={() => { setPlatform(pl); setCopied(null); }}>
+                      {platformLabel(pl)}
+                    </button>
+                  ))}
+                </div>
                 <label className="field">
-                  <span>Texto sugerido (puedes editarlo al pegarlo)</span>
-                  <textarea className="textarea" readOnly rows={6} value={captionFor(record)} data-testid="caption" />
+                  <span>Texto con 5 hashtags para {platformLabel(platform)} (puedes editarlo al pegarlo)</span>
+                  <textarea className="textarea" readOnly rows={7} value={caption} data-testid="caption" />
                 </label>
+                <p className="muted">Los hashtags son los del partido y los habituales del fútbol: no se puede medir cuál se hará viral.</p>
                 <div className="row">
                   <button type="button" className="btn btn--primary" onClick={() => void copyCaption()} data-testid="copy-caption">
                     <Copy aria-hidden="true" size={20} />
                     Copiar descripción
+                  </button>
+                  <button type="button" className="btn" onClick={() => { setVariant((v) => v + 1); setCopied(null); }} data-testid="next-variant">
+                    <RefreshCw aria-hidden="true" size={20} />
+                    Otra versión
                   </button>
                 </div>
                 {copied === 'ok' && (
@@ -388,6 +405,10 @@ export function VideoDetail({ record, onOpenStudio }: Props) {
                     No se pudo copiar automáticamente. Selecciona el texto y cópialo a mano.
                   </p>
                 )}
+                <div className="notice notice--soft" data-testid="time-reco">
+                  <strong>Hora recomendada para publicar: {reco.headline}</strong>
+                  <p>{reco.detail}</p>
+                </div>
                 <ul className="checklist">
                   <li>La publicación en TikTok o Instagram es manual: descarga el MP4 y súbelo tú.</li>
                   <li>Es una simulación ficticia, no una predicción. Revisa si la plataforma te pide etiquetar el contenido como generado o simulado.</li>

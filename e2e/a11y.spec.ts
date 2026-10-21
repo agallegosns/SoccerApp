@@ -54,6 +54,7 @@ test.describe('accesibilidad (axe, WCAG AA)', () => {
     await page.goto('/');
     await page.locator('.match').first().click();
     await page.getByTestId('open-studio').click();
+    await page.getByTestId('style-tactical').click();
     await page.getByTestId('fix-score').click();
     expect(await violations(page)).toEqual([]);
   });
