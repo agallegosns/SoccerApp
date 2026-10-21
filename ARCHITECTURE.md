@@ -83,14 +83,11 @@ Puro y sin dependencias de React (ESLint lo impide). Entrada: `SimulationInput {
 ## Render (implementado en Fase 3) y exportación (planificado)
 Dos estilos de vídeo sobre **la misma simulación** (`src/features/simulation/renderers.ts`, `drawVideoFrame(ctx, sim, t, meta, style)`):
 - **Arena (por defecto, formato viral de TikTok)** — `renderArena.ts`. Un círculo con dos porterías enfrentadas (color del equipo que
-  defiende ese lado; cambian al descanso) que giran con la cámara (`cameraAngle`, ≈ 0,3 rad/s); cada equipo es un escudo que se sitúa
-  entre el centro de su equipo y el balón (más cerca del balón con posesión) y *conduce* el balón por su borde; HUD con escudos,
-  marcador, reloj y etiqueta «SPRINT» durante los ataques; estela del balón y del escudo en sprint; partículas, onda expansiva y
-  sacudida de cámara en los goles; etiquetas «¡PARADA!», «¡AL PALO!», «FUERA», «BLOQUEO», «FALTA», «CÓRNER»; barras de
-  estadísticas en vivo (`statsAt`) y último suceso. La geometría (`arena.ts`) proyecta el campo en el círculo (mapa cuadrado→disco),
-  prolonga la red hacia fuera para que **todo gol entre por la boca de la portería** (probado en 100 goles) y mantiene el balón
-  dentro del aro salvo por las bocas. Los escudos son **genéricos** (`crest.ts`: patrón según el nombre + colores + abreviatura; no
-  hay logos protegidos). El suelo y el halo se cachean en una capa; lo que depende del giro se dibuja por fotograma.
+  defiende ese lado; cambian al descanso) que giran alrededor del aro; cada equipo es un escudo con inercia que persigue el balón y lo
+  golpea; HUD con escudos, marcador, reloj y etiqueta «SPRINT» durante las ráfagas de velocidad; estela del balón y del escudo en sprint;
+  partículas, onda expansiva y sacudida de cámara en los goles; etiquetas «¡PARADA!»; barras de estadísticas en vivo (`statsAt`) y último
+  suceso. **La Arena es una simulación física libre** (ver «Física libre de la Arena»): el marcador sale del juego. Los escudos son
+  **genéricos** (`crest.ts`: patrón según el nombre + colores + abreviatura; no hay logos protegidos). El suelo y el halo se cachean en una capa.
 - **Táctico** — `render.ts`. Campo vertical con los 22 jugadores, balón, líneas del campo y marcador.
 - Ambos: 1080×1920, píldora ámbar arriba con la competición, fase y jornada («Champions League 2026-27 · Fase de liga · Jornada 3»; en todos los fotogramas, comprobada por píxel en e2e).
   **El vídeo no lleva el rótulo «Simulación ficticia»** (decisión del usuario); la interfaz, los metadatos del MP4 y el LEEME del ZIP sí lo indican. Tarjetas de intro/descanso/final:
@@ -168,48 +165,16 @@ Dos estilos de vídeo sobre **la misma simulación** (`src/features/simulation/r
 - Tokens de diseño únicos en `src/ui/tokens.css`; contraste AA comprobado por tests.
 - `npm run ci` = typecheck + lint + tests + build.
 
-## Fluidez del movimiento (Arena)
-`smoothBall` y `smoothDiscPositions` (`arena.ts`) promedian la trayectoria en una ventana de ±0,12 s (7 muestras): quitan los tirones de los cambios de pase y de posesión sin mover el instante de los sucesos.
-Medido en 4 semillas: aceleración del balón p95 12,5 → 4,3 px/fotograma², salto máximo del disco 38 px/fotograma, ≈ 0,1 ms por fotograma.
-`smoothBall` usa una ventana propia de ±0,2 s con pesos triangulares (el balón acelera y frena con suavidad: aceleración p95 12,5 → 3,6 px/fotograma²). `ballRoll` acumula la distancia rodada
-(tabla a 60 Hz por guion) y el balón del vídeo gira su dibujo (tres manchas) según esa distancia y la dirección de avance, como si rodase.
-
-## Balón «por libre», descargas y selector de ligas (móvil)
-- `ballScreen` (`arena.ts`): mientras un equipo conduce (segmento `carry`) el balón dibujado se adelanta al disco y se desvía a los lados (pulso de 1,1 Hz, ≤ 108 px, nunca fuera del aro) y el disco lo persigue. Efecto sólo visual: no toca sucesos ni marcador.
-  Medido: aceleración p95 15 px/fotograma², máx. 30; el balón gira (`ballRoll`) según el camino dibujado.
-- `src/data/downloaded.ts`: ids de partidos con algún vídeo descargado (localStorage `futbol-sim:v1:downloaded`) + `useDownloaded` (`useSyncExternalStore`). `ExportPanel` y `BatchPanel` marcan al descargar; `MatchCard` pinta
-  `match--downloaded` (tokens `--color-success*`) con el texto «Descargado» (no sólo color). La selección pasa a azul (`--color-select*`) para no confundirse con el verde.
-- `LeaguePicker`: tarjetas de ≥ 64 px con insignia (UCL, LL…), rejilla fluida sin desplazamiento lateral (antes, tira con scroll horizontal e «imán» en móvil). En móvil las fechas se despliegan a demanda.
-
-## Actualización automática, marca «hecho» manual y limpieza de avisos
-- `vite.config.ts` inyecta `__BUILD_ID__` (commit en CI o la hora) y emite `dist/version.json` con el mismo id. `src/app/updater.ts` (puro, con pruebas) consulta `version.json?t=…` (`cache: 'no-store'`) y, si difiere, recarga;
-  `src/app/busy.ts` registra trabajos no interrumpibles (`ExportPanel`, `BatchPanel`): con uno en curso espera a que termine (aviso `UpdateNotice`). Marca en `localStorage` anti-bucle (2 min) por si el servidor aún sirve la versión vieja.
-  `src/app/autoUpdate.ts` lo arranca al abrir, en `visibilitychange`, `online` y cada 5 min; en desarrollo no hace nada. **Sin service worker** a propósito (nunca hay copia vieja en caché; a cambio, no funciona sin conexión).
-- `public/manifest.webmanifest` + iconos PNG (192, 512, apple-touch 180) permiten añadirla a la pantalla de inicio.
-- `src/data/downloaded.ts` ahora es el conjunto de partidos «hechos»: lo llenan las descargas y el botón de cada tarjeta (`toggleDownloaded`).
-- Calendario: sin avisos de zona horaria/«temporada anterior»/nota de la liga (sólo se mantiene el de copia sin conexión) y sin el banner «Selecciona un partido» (el panel inferior sólo aparece con un partido elegido).
-
-## Balón con rebotes y personalización (Arena)
-- `bounce.ts` (puro): `routeBetween(a, b, semilla, nivel)` decide de forma determinista si un tramo del balón (`pass`, `cross`, `carry`, `retrieve`) rebota en la pared (radio `WALL` = 0,94 del círculo) con la **ley de reflexión**: busca en 720 ángulos los puntos
-  de la pared con error de reflexión ≈ 0 (Alhazen), los refina por búsqueda ternaria, descarta las bocas de portería y elige uno con la semilla del tramo. Los tiros y los tramos a la red van rectos. El recorrido se hace con la física de `physics.ts`.
-- `arena.ts`: `ballUnit` (ruta en el círculo, sin cámara), `ballState` (con cámara y un promedio de ±0,04 s), `bounceEvents` (instante y punto de cada rebote → destello del aro y chispas en `renderArena.ts`), `ballRoll` (giro del dibujo en el círculo)
-  y `smoothDiscPositions`: los escudos **persiguen** al balón dibujado con 0,3 s de retraso (`DISC_CHASE_DELAY`) y suavizado de ±0,12 s. Es sólo la trayectoria dibujada: los tramos empiezan y acaban donde dice el guion (probado), así que sucesos, minutos y marcador no cambian.
-  Los efectos de los sucesos (paradas, gol…) se dibujan donde está el balón dibujado en ese instante.
-- `options.ts`: `VideoOptions` (tema, rebotes, estadísticas, último suceso, estela, gancho, marca de agua, texto del gol) con `sanitizeOptions` (valida lo guardado) y `localStorage` (`video-options`); viaja en `RenderMeta.options`, de modo que lo usan vista previa, exportación y lotes.
-  `THEMES` define las paletas (capa estática de la arena cacheada por tema). `VideoOptionsPanel.tsx` es el panel de ajustes (las opciones de arena se ocultan en el estilo táctico).
-- Medido (5 semillas): 7–15 rebotes por vídeo de 26 s en «normal»; dibujo de un fotograma Arena ≈ 27 ms de media (antes 21 ms).
-
-## Física del balón (Arena)
-`physics.ts` (puro, con pruebas) da al balón dibujado un movimiento físico **sin tocar lo que dice el guion** (dónde empieza y acaba cada tramo y cuándo: así los goles, las paradas y el marcador siguen coherentes):
-- **Golpeo**: el balón sale de golpe con su velocidad máxima `v0`, calculada (búsqueda binaria sobre la fórmula cerrada) para llegar exactamente al destino a la hora del guion.
-- **Fricción**: después rueda y pierde velocidad de forma exponencial (dv/dt = −k·v; `FRICTION`: tiro 0,2 · centro 0,55 · pase 1,3 · balón suelto 1,6 · conducción 2).
-- **Pared**: rebote por la ley de reflexión (`bounce.ts`) con pérdida del 20 % de la velocidad (`WALL_KEEP`) y destello del aro.
-- **Trayectoria con efecto**: pases, centros y tiros hacen un arco suave (Bézier, 7–18 % de la longitud) hacia un lado fijado por la semilla; nunca sale del aro.
-- **Pase elevado**: parábola hasta caer (70 % del tramo en los centros), después **botes** cada vez más bajos (restitución 0,55 → cada bote alcanza 0,55² de la altura anterior); la sombra se achica y se aclara con la altura.
-- **Rodar y girar**: el dibujo del balón gira con la distancia recorrida por el suelo (menos en el aire) y la dirección de avance.
-- **Colisiones**: el escudo que golpea se lanza al balón justo antes del golpeo (contacto en el instante del golpe, `LUNGE_*`), se ve la onda del impacto (`kickEvents`) y el destello de la pared (`bounceEvents`).
-Medido (seed 2024, 26 s): ≈ 26 golpeos y 7–15 rebotes por vídeo; en cada pase sin pared la velocidad baja de forma monótona (probado); dibujado Arena ≈ 29 ms por fotograma.
-**Límites**: no es un motor físico libre (el guion manda); los escudos no rebotan en la pared y las colisiones balón–escudo son un gesto de golpeo, no un choque calculado.
+## Física libre de la Arena (a petición del usuario)
+`src/engine/arenaSim.ts` (puro, sin React; `simulateArena(input, bounce)`). Imita los vídeos virales de «arena»: nadie fija el resultado.
+- **Mundo**: círculo de radio 1. Paso fijo de 1/240 s, precalculado y guardado cada 1/120 s en `ArenaTrack` (`sampleAt(track, t)` interpola): el estado es una **función pura del tiempo** (se puede saltar a cualquier instante) y **determinista por semilla + nombres**. Cuesta ≈ 15 ms por partido.
+- **Balón**: rozamiento (según el nivel «Rebotes»), choque elástico con la pared (elasticidad 0,3 / 0,6 / 0,85 / 0,98 según el nivel) y con los escudos (masa 6:1 más un golpeo extra según la velocidad del escudo). Antibloqueo: si queda clavado contra la pared sale rebotado.
+- **Escudos**: aceleración y velocidad máximas; IA sencilla: ir detrás del balón (con predicción de 0,16 s) y empujarlo hacia la portería en la que marcan (rodeándolo si están delante); cada ~1 s pueden **equivocarse** y tienen **tirones aleatorios**; ráfagas de «sprint» por equipo (`phases` de tipo `attack`). Chocan entre sí y con la pared.
+- **Porterías**: giran (`gateAngle(seed, t)`), boca de 0,4 de ancho y 0,2 de fondo; en la 1.ª parte el local marca en la de arriba y se cambian en la 2.ª. **Gol** = el centro del balón cruza la línea de gol por la boca; el balón se queda en la red 1,15 s y sale un nuevo saque.
+- **Sucesos reales**: `shot` (un toque cuyo trayecto apunta a la boca), `save` (el rival desvía ese tiro en 1,4 s) y `goal`; más saque, descanso y final. Con ellos se construye un `MatchScript` normal (reloj en dos partes, fases, estadísticas), así que el marcador del fotograma, el banner de gol, el rótulo y la ficha funcionan igual que en Táctico. Los córners y las faltas **no existen** en esta física y no se muestran en la Arena.
+- **Integración**: `simulateFor(style, input, bounce)` elige entre `simulateArena` y el guion (`simulate`). `Simulation.arena` lleva la pista física. La Arena ignora el marcador fijado. El nivel de rebotes forma parte de las opciones del vídeo (y por tanto de la ficha).
+- Medido (24 semillas, ritmo rápido de 26 s): ≈ 2,7 goles por partido (0–5), ≈ 7 tiros, ≈ 3,6 paradas, ≈ 37 choques con la pared y ≈ 42 toques.
+**Límites**: la IA es sencilla; la portería gira mientras el balón viaja (la comprobación de «apunta a puerta» es una recta); no hay comprobación de la sensación de fluidez en un móvil real.
 
 ## Menú, rutas y biblioteca de vídeos (a petición del usuario)
 - **Rutas por hash** (`src/app/route.ts`): `#/` calendario, `#/videos`, `#/videos/<id>`, `#/estadisticas`. Funciona en cualquier alojamiento (también con subruta), el botón «atrás» navega y una ficha se puede abrir en otra pestaña.
@@ -218,7 +183,7 @@ Medido (seed 2024, 26 s): ≈ 26 golpeos y 7–15 rebotes por vídeo; en cada pa
 - **Biblioteca** (`src/features/videos`): `VideoRecord` = partido + parámetros (semilla, estilo, ritmo, marcador fijado, opciones de personalización) + marcador ficticio, nombre de archivo, tamaño, duración y fecha. **No guarda el MP4** (decenas de MB, no cabe en
   localStorage): como el motor es determinista, «Descargar MP4» desde la ficha lo regenera idéntico con `exportVideo`. El `id` es un hash de los parámetros, así que volver a exportar lo mismo actualiza la ficha en lugar de duplicarla.
   Se crea en `ExportPanel` (al terminar) y en `BatchPanel` (por cada vídeo del lote) mediante `recordExport`. Se guarda en `localStorage` (`futbol-sim:v1:videos`, máx. 200) y se valida al leer (`toVideoRecords`).
-  Límite conocido: si cambias el motor y la misma semilla da otro marcador, la ficha lo detecta y avisa (`engine-changed`).
+  Límite conocido: si cambias el motor y la misma semilla da otro marcador, la ficha lo detecta y avisa (`engine-changed`); pasó con las fichas de Arena anteriores a la física libre.
 - **Ficha** (`VideoDetail`): reproductor (`SimulationPreview`, la misma vista que el estudio) + pestañas *Resumen / Jugadas / Rendimiento / Publicar*, anterior/siguiente entre vídeos del mismo partido, migas de pan, abrir en el estudio con los mismos parámetros y eliminar con confirmación.
 - **Sin desplazamiento lateral**: las ligas son una rejilla (`auto-fill`), `.segmented` y `.tabs` son rejillas `auto-fit` que pasan a otra fila, y los contenedores en rejilla usan `minmax(0, 1fr)`. Antes, «Sin rebotes / Pocos / Normal / Muchos» quedaba cortado (`overflow: hidden`) en pantallas estrechas.
 

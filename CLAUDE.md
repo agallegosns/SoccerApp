@@ -48,6 +48,7 @@ con red y los importadores de football-data.org / fixturedownload.com con archiv
   Si cambias el motor de forma que la misma semilla dé otro resultado, las fichas antiguas avisan (`engine-changed`).
 - **Publicar**: descripción y 5 hashtags por plataforma (`src/features/videos/publish.ts`) y hora recomendada sacada de las métricas reales o, si no hay datos, franja orientativa marcada como tal. Nunca se promete viralidad.
 - **Estadísticas = datos reales introducidos por el usuario** (manual o CSV), guardados en localStorage. No se simulan ni se inventan. La actualización automática (cada 30 min) usa un **Worker propio de Cloudflare**, opcional y gratuito (decisión expresa del usuario; única excepción a «sin backend»): `cloudflare/stats-worker.ts` → `npm run build:worker` genera el `.js` que se pega en Cloudflare. 🟡 Sin probar contra las APIs reales (ver docs/ESTADISTICAS-AUTOMATICAS.md).
+- **Arena = física libre** (`src/engine/arenaSim.ts`): el marcador sale del juego y no se puede fijar (decisión expresa del usuario). El estilo **Táctico** sigue con guion y marcador fijable. Se elige con `simulateFor(style, …)` (`src/features/simulation/simulateFor.ts`).
 - **Móvil primero**: la app se usa sobre todo en el móvil. Cabecera `sticky` con `env(safe-area-inset-*)`, tarjetas largas plegables (`Collapsible`), diálogos como hoja inferior con cabecera y botones fijos.
 - Confirmaciones con `ConfirmDialog` (nunca `window.confirm`).
 

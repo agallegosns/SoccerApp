@@ -3,7 +3,8 @@ import { useMemo, useState } from 'react';
 
 import { formatDateEs, kickoffOf } from '../../data/dates.ts';
 import type { Match } from '../../data/types.ts';
-import { MAX_GOALS_PER_TEAM, simulate, type Pace, type Score } from '../../engine/index.ts';
+import { MAX_GOALS_PER_TEAM, type Pace, type Score } from '../../engine/index.ts';
+import { allowsFixedScore, simulateFor } from './simulateFor.ts';
 import { BatchPanel } from '../export/BatchPanel.tsx';
 import { ExportPanel } from '../export/ExportPanel.tsx';
 import { exportFileName } from '../export/fileName.ts';
@@ -67,10 +68,13 @@ export function SimulationStudio({ match, initial, backLabel = 'Volver al calend
     saveVideoOptions(DEFAULT_VIDEO_OPTIONS);
   }
 
-  const score: Score | null = fixed ? { home: fixedHome, away: fixedAway } : null;
+  const canFix = allowsFixedScore(style);
+  const fixedOn = fixed && canFix;
+  const score: Score | null = fixedOn ? { home: fixedHome, away: fixedAway } : null;
   const sim = useMemo(
-    () => simulate({ seed, home: match.home, away: match.away, score: fixed ? { home: fixedHome, away: fixedAway } : null, pace }),
-    [seed, match.home, match.away, fixed, fixedHome, fixedAway, pace],
+    () => simulateFor(style, { seed, home: match.home, away: match.away, score, pace }, options.bounce),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `score` se deriva de fixedOn/fixedHome/fixedAway
+    [style, seed, match.home, match.away, fixedOn, fixedHome, fixedAway, pace, options.bounce],
   );
 
   const kickoff = kickoffOf(match);
@@ -113,7 +117,7 @@ export function SimulationStudio({ match, initial, backLabel = 'Volver al calend
       <div className="studio__grid">
         <section className="studio__preview" aria-label="Vista previa">
           <SimulationPreview
-            key={`${String(seed)}|${fixed ? `${String(fixedHome)}-${String(fixedAway)}` : 'r'}|${pace}`}
+            key={`${String(seed)}|${fixedOn ? `${String(fixedHome)}-${String(fixedAway)}` : 'r'}|${pace}|${style}|${options.bounce}`}
             sim={sim}
             crestVersion={crests.version}
             meta={meta}
@@ -179,6 +183,12 @@ export function SimulationStudio({ match, initial, backLabel = 'Volver al calend
               </p>
             )}
 
+            {!canFix && (
+              <p className="muted" data-testid="arena-score-note">
+                En la Arena el marcador lo decide la física del partido (cada gol sale del juego): no se puede fijar. Cambia la semilla para otro partido.
+              </p>
+            )}
+            {canFix && (
             <div className="segmented" role="group" aria-label="Marcador de la simulación">
               <button type="button" aria-pressed={!fixed} onClick={() => { setFixed(false); }}>
                 Marcador aleatorio
@@ -187,7 +197,8 @@ export function SimulationStudio({ match, initial, backLabel = 'Volver al calend
                 Fijar marcador
               </button>
             </div>
-            {fixed && (
+            )}
+            {fixedOn && (
               <div className="row row--scores">
                 <label className="field">
                   <span>{match.home}</span>
@@ -213,7 +224,7 @@ export function SimulationStudio({ match, initial, backLabel = 'Volver al calend
                 </label>
               </div>
             )}
-            {fixed && score !== null && score.home + score.away > 6 && (
+            {fixedOn && score !== null && score.home + score.away > 6 && (
               <p className="muted">Con muchos goles el vídeo dura más (aprox. {Math.round(sim.script.duration)} s).</p>
             )}
           </Collapsible>
@@ -253,7 +264,7 @@ export function SimulationStudio({ match, initial, backLabel = 'Volver al calend
             <p className="studio__score" data-testid="sim-score">
               {match.home} {final.home}–{final.away} {match.away}
             </p>
-            <p className="muted">Marcador ficticio {sim.script.scoreWasFixed ? 'fijado por ti' : 'decidido por la semilla'}. Duración: {sim.script.duration.toFixed(0)} s.</p>
+            <p className="muted">Marcador ficticio {sim.script.scoreWasFixed ? 'fijado por ti' : canFix ? 'decidido por la semilla' : 'salido de la física del partido'}. Duración: {sim.script.duration.toFixed(0)} s.</p>
             <table className="stats">
               <caption className="visually-hidden">Estadísticas ficticias de la simulación</caption>
               <thead>
@@ -261,12 +272,12 @@ export function SimulationStudio({ match, initial, backLabel = 'Volver al calend
                   <th scope="col">
                     <span className="visually-hidden">Estadística</span>
                   </th>
-                  <th scope="col">{teams.home.style.abbr} {teams.home.formation}</th>
-                  <th scope="col">{teams.away.style.abbr} {teams.away.formation}</th>
+                  <th scope="col">{teams.home.style.abbr}{canFix ? ` ${teams.home.formation}` : ''}</th>
+                  <th scope="col">{teams.away.style.abbr}{canFix ? ` ${teams.away.formation}` : ''}</th>
                 </tr>
               </thead>
               <tbody>
-                {(['shots', 'onTarget', 'corners', 'fouls'] as const).map((key) => (
+                {(canFix ? (['shots', 'onTarget', 'corners', 'fouls'] as const) : (['shots', 'onTarget'] as const)).map((key) => (
                   <tr key={key}>
                     <th scope="row">{{ shots: 'Tiros', onTarget: 'A puerta', corners: 'Córners', fouls: 'Faltas' }[key]}</th>
                     <td>{stats.home[key]}</td>

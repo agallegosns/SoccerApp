@@ -195,3 +195,10 @@ Leyenda: ✅ hecho y probado · 🟡 hecho, pendiente de verificar · ⬜ por ha
 - ✅ Hora recomendada: con ≥ 8 publicaciones (≥ 3 días de antigüedad, hora conocida) y ≥ 3 en la franja, mediana de visualizaciones por franja; si no, franja orientativa (2 h antes del partido) marcada como orientativa. Sin hora de partido ni datos: «Sin recomendación todavía».
 - 🟡 La hora de cada publicación llega del Worker (`publishedAtIso`): hay que volver a pegar `cloudflare/stats-worker.js` en Cloudflare. Sin probar contra las APIs reales.
 - 🟡 Pendiente de verificar: sensación de fluidez en un móvil real (no se ha recibido el vídeo de referencia).
+
+## Arena con física libre (como los vídeos virales)
+- ✅ `src/engine/arenaSim.ts`: simulación física determinista por semilla. Dos escudos con IA sencilla (persiguen el balón y lo golpean hacia la portería en la que marcan, con errores y tirones aleatorios, ráfagas de «sprint»), balón con rozamiento y choques elásticos con la pared y entre sí, porterías que giran. **Goles, tiros y paradas salen del juego**; el marcador no se puede fijar en la Arena (decisión del usuario). Probado en `arenaSim.test.ts` (determinismo, marcador = goles, continuidad, dentro del aro, variedad de marcadores…).
+- ✅ El nivel «Rebotes» del vídeo es ahora la elasticidad de la pared (afecta a la física, no sólo al dibujo).
+- ✅ Estadísticas de la Arena: sólo tiros y a puerta (córners y faltas no existen en esta física, no se muestran).
+- ⚠ Las fichas creadas antes de este cambio avisan («versión anterior del simulador»): la misma semilla da ahora otro partido.
+- 🟡 Pendiente de verificar: la sensación de movimiento en un móvil real (solo se han revisado fotogramas y métricas).

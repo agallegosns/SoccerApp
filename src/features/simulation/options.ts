@@ -1,5 +1,15 @@
 import { readJson, writeJson } from '../../data/cache.ts';
-import type { BounceLevel } from './bounce.ts';
+import type { BounceLevel } from '../../engine/arenaSim.ts';
+
+export type { BounceLevel };
+
+/** Elasticidad de la pared: con «Muchos» el balón conserva casi toda su energía al chocar y rebota sin parar. */
+export const BOUNCE_LEVELS: readonly { value: BounceLevel; label: string }[] = [
+  { value: 'off', label: 'Apagado' },
+  { value: 'low', label: 'Poco' },
+  { value: 'normal', label: 'Normal' },
+  { value: 'high', label: 'Mucho' },
+];
 
 /** Personalización del vídeo (se guarda en el navegador y se aplica a la vista previa, a la exportación y a los lotes). */
 export type ThemeId = 'noche' | 'neon' | 'cesped' | 'fuego';

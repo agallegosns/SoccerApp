@@ -88,8 +88,19 @@ test.describe('estudio de simulación', () => {
     expect(b2).toBeLessThan(80);
   });
 
-  test('el ritmo rápido es el de por defecto: dura bastante menos que el normal con los mismos sucesos', async ({ page }) => {
+  test('Arena: el marcador sale de la física, no se puede fijar y el ritmo rápido dura menos', async ({ page }) => {
     await openStudio(page);
+    await setSeed(page, '2024');
+    await expect(page.getByTestId('arena-score-note')).toBeVisible();
+    await expect(page.getByTestId('fix-score')).toHaveCount(0);
+    const fast = Number(await page.getByTestId('scrubber').getAttribute('max'));
+    await page.getByTestId('pace-normal').click();
+    expect(Number(await page.getByTestId('scrubber').getAttribute('max'))).toBeGreaterThan(fast * 1.4);
+  });
+
+  test('Táctico: el ritmo rápido dura bastante menos que el normal con los mismos sucesos', async ({ page }) => {
+    await openStudio(page);
+    await page.getByTestId('style-tactical').click();
     await setSeed(page, '2024');
     await expect(page.getByTestId('pace-fast')).toHaveAttribute('aria-pressed', 'true');
     const fastEvents = await page.getByTestId('events').locator('.event__text').allTextContents();
@@ -145,8 +156,9 @@ test.describe('estudio de simulación', () => {
     await expect(page.getByTestId('crest-error')).toContainText('pesa demasiado');
   });
 
-  test('el marcador fijado se respeta: mismos goles en los sucesos y en el marcador', async ({ page }) => {
+  test('Táctico: el marcador fijado se respeta: mismos goles en los sucesos y en el marcador', async ({ page }) => {
     await openStudio(page);
+    await page.getByTestId('style-tactical').click();
     await page.getByTestId('fix-score').click();
     await page.getByTestId('score-home').fill('3');
     await page.getByTestId('score-away').fill('2');
@@ -175,9 +187,6 @@ test.describe('estudio de simulación', () => {
   test('la vista previa se dibuja de verdad: cabecera con la competición visible en todos los momentos y fotogramas distintos', async ({ page }) => {
     await openStudio(page);
     await setSeed(page, '2024');
-    await page.getByTestId('fix-score').click();
-    await page.getByTestId('score-home').fill('2');
-    await page.getByTestId('score-away').fill('1');
     const duration = Number(await page.getByTestId('scrubber').getAttribute('max'));
     expect(duration).toBeGreaterThan(15);
     const hashes = new Set<string>();
@@ -197,7 +206,7 @@ test.describe('estudio de simulación', () => {
     await setSeed(page, '2024');
     await page.locator('.event').first().click();
     const t = Number(await page.getByTestId('scrubber').inputValue());
-    expect(t).toBeGreaterThan(1);
+    expect(t).toBeGreaterThan(0.5);
     await page.getByTestId('play-toggle').click();
     await expect(page.getByTestId('play-toggle')).toHaveAttribute('aria-label', 'Pausar');
     await page.waitForTimeout(600);

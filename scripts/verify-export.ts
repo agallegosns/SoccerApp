@@ -96,7 +96,7 @@ async function main(): Promise<void> {
         // Se cargan desde el servidor de Vite (código real de la app); las rutas llegan como variables para que no se resuelvan en Node.
         const exporter = (await import(/* @vite-ignore */ modules.exporter)) as ExporterModule;
         const engine = (await import(/* @vite-ignore */ modules.engine)) as EngineModule;
-        const sim = engine.simulate({ seed: s, home: 'Real Madrid', away: 'FC Barcelona', score: sc });
+        const sim = engine.simulateArena({ seed: s, home: 'Real Madrid', away: 'FC Barcelona', score: sc });
         const meta = { competition: 'LaLiga 2026-27 · Jornada 8', when: 'sábado, 24 de octubre de 2026 · 12:30' };
         let last = 0;
         const result = await exporter.exportVideo({
@@ -143,7 +143,7 @@ async function main(): Promise<void> {
     const pngs = await page.evaluate(async ({ seed: s, score: sc, modules }) => {
       const render = (await import(/* @vite-ignore */ modules.renderers)) as RenderersModule;
       const engine = (await import(/* @vite-ignore */ modules.engine)) as EngineModule;
-      const sim = engine.simulate({ seed: s, home: 'Real Madrid', away: 'FC Barcelona', score: sc });
+      const sim = engine.simulateArena({ seed: s, home: 'Real Madrid', away: 'FC Barcelona', score: sc });
       // Estamos en un documento SVG: se crea el canvas en el espacio de nombres XHTML.
       const canvas = document.createElementNS('http://www.w3.org/1999/xhtml', 'canvas') as HTMLCanvasElement;
       canvas.width = 1080;

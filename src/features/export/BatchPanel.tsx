@@ -2,7 +2,8 @@ import { AlertTriangle, Archive, Download, Eye, Layers, RotateCw, Trash2, X } fr
 import { useEffect, useState, useSyncExternalStore } from 'react';
 
 import type { Match } from '../../data/types.ts';
-import { MAX_GOALS_PER_TEAM, simulate, type Pace, type Score } from '../../engine/index.ts';
+import { MAX_GOALS_PER_TEAM, type Pace, type Score } from '../../engine/index.ts';
+import { simulateFor } from '../simulation/simulateFor.ts';
 import type { RenderMeta } from '../simulation/render.ts';
 import type { VideoOptions } from '../simulation/options.ts';
 import { recordExport } from '../videos/record.ts';
@@ -68,7 +69,7 @@ export function BatchPanel({ match, date, currentSeed, style, fixedScore, pace, 
   const [queue] = useState(() => {
     const runner: JobRunner<JobData> = (job, signal, onProgress) => {
       const d = job.data;
-      const sim = simulate({ seed: job.seed, home: d.home, away: d.away, score: d.fixedScore, pace: d.pace });
+      const sim = simulateFor(d.style, { seed: job.seed, home: d.home, away: d.away, score: d.fixedScore, pace: d.pace }, d.options.bounce);
       return exportVideo({
         sim,
         meta: d.meta,
@@ -119,7 +120,7 @@ export function BatchPanel({ match, date, currentSeed, style, fixedScore, pace, 
           fixedScore,
           pace,
           meta,
-          score: simulate({ seed, home: match.home, away: match.away, score: fixedScore, pace }).script.score,
+          score: simulateFor(style, { seed, home: match.home, away: match.away, score: fixedScore, pace }, options.bounce).script.score,
         },
       })),
     );

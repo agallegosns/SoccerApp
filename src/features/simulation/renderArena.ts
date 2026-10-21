@@ -2,8 +2,7 @@ import { phaseAt, statsAt } from '../../engine/animate.ts';
 import { clamp, smoothstep } from '../../engine/geometry.ts';
 import { mulberry32 } from '../../engine/rng.ts';
 import type { FrameState, ResolvedTeam, ScriptEvent, Simulation } from '../../engine/index.ts';
-import { ARENA, BALL_PX, DISC_R, GATE_DEPTH, MOUTH_HALF, ballRoll, ballState, bounceEvents, cameraAngle, kickEvents, rotate, smoothDiscPositions, toScreen } from './arena.ts';
-import type { BounceLevel } from './bounce.ts';
+import { ARENA, BALL_PX, DISC_R, GATE_DEPTH, MOUTH_HALF, ballState, cameraAngle, discPositions, possession, toScreen, touchEvents, wallEvents } from './arena.ts';
 import { drawCrest } from './crest.ts';
 import { THEMES, goalTextOf, type ThemeId, type ThemePalette } from './options.ts';
 import { drawCard, drawCompetitionPill, drawHook, drawIntro, drawWatermark, fitFont, font, optionsOf, roundRect, type Ctx2D, type RenderMeta } from './render.ts';
@@ -62,7 +61,7 @@ function other(side: 'home' | 'away'): 'home' | 'away' {
 
 const GLOW_R = 440;
 
-function drawBackground(ctx: Ctx2D, sim: Simulation, frame: FrameState, theme: ThemeId): void {
+function drawBackground(ctx: Ctx2D, sim: Simulation, frame: FrameState, poss: { home: number; away: number }, theme: ThemeId): void {
   ctx.drawImage(arenaLayer(theme), 0, 0);
   // Resplandor del equipo con la posesión (sólo se rellena el cuadrado que lo contiene).
   for (const side of ['home', 'away'] as const) {
@@ -72,7 +71,7 @@ function drawBackground(ctx: Ctx2D, sim: Simulation, frame: FrameState, theme: T
     const glow = ctx.createRadialGradient(x, y, 0, x, y, GLOW_R);
     glow.addColorStop(0, team.style.primary);
     glow.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.globalAlpha = 0.1 + 0.2 * frame.possession[side];
+    ctx.globalAlpha = 0.1 + 0.2 * poss[side];
     ctx.fillStyle = glow;
     ctx.fillRect(x - GLOW_R, y - GLOW_R, 2 * GLOW_R, 2 * GLOW_R);
   }
@@ -271,43 +270,39 @@ function drawDisc(ctx: Ctx2D, team: ResolvedTeam, pos: DiscPos, active: number, 
   drawCrest(ctx, team, pos.x, pos.y, DISC_R);
 }
 
-function drawBall(ctx: Ctx2D, frame: FrameState, t: number, sim: Simulation, level: BounceLevel, trailOn: boolean): void {
-  if (!frame.ball.visible) return;
+function drawBall(ctx: Ctx2D, t: number, sim: Simulation, trailOn: boolean): void {
+  const p = ballState(sim, t);
+  if (p.alpha < 0.02) return;
+  ctx.save();
+  ctx.globalAlpha = p.alpha;
   // Estela: posiciones recientes del balón.
   const trail: { x: number; y: number }[] = [];
-  for (let k = trailOn ? 7 : 0; k >= 1; k -= 1) {
-    const b = ballState(sim, Math.max(0, t - k * 0.035), level);
-    if (!b.visible) continue;
-    trail.push(b);
-  }
+  for (let k = trailOn ? 7 : 0; k >= 1; k -= 1) trail.push(ballState(sim, Math.max(0, t - k * 0.035)));
   for (const [i, q] of trail.entries()) {
     ctx.fillStyle = `rgba(255,255,255,${String(0.05 + (0.22 * (i + 1)) / trail.length)})`;
     ctx.beginPath();
     ctx.arc(q.x, q.y, BALL_PX * (0.35 + (0.55 * (i + 1)) / trail.length), 0, Math.PI * 2);
     ctx.fill();
   }
-  const p = ballState(sim, t, level);
-  const lift = p.z * 16;
-  const r = BALL_PX * (1 + p.z * 0.07);
-  // Sombra en el suelo: más pequeña y tenue cuanto más alto va el balón (se ve cómo cae y bota).
-  ctx.fillStyle = `rgba(0,0,0,${String(0.35 / (1 + p.z * 0.4))})`;
+  const r = BALL_PX;
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
   ctx.beginPath();
-  ctx.ellipse(p.x + 3, p.y + 8, (r * 0.95) / (1 + p.z * 0.12), (r * 0.5) / (1 + p.z * 0.12), 0, 0, Math.PI * 2);
+  ctx.ellipse(p.x + 3, p.y + 8, r * 0.95, r * 0.5, 0, 0, Math.PI * 2);
   ctx.fill();
-  const g = ctx.createRadialGradient(p.x - r * 0.35, p.y - lift - r * 0.4, r * 0.1, p.x, p.y - lift, r);
+  const g = ctx.createRadialGradient(p.x - r * 0.35, p.y - r * 0.4, r * 0.1, p.x, p.y, r);
   g.addColorStop(0, '#ffffff');
   g.addColorStop(1, '#cfd8ea');
   ctx.fillStyle = g;
   ctx.strokeStyle = '#0b1220';
   ctx.lineWidth = 3;
   ctx.beginPath();
-  ctx.arc(p.x, p.y - lift, r, 0, Math.PI * 2);
+  ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
-  // Dibujo que rueda: tres manchas oscuras que giran alrededor de un eje perpendicular al avance (más estrechas cuanto más de canto).
-  const roll = ballRoll(sim, t, level) / r;
-  const ahead = ballState(sim, t + 0.03, level);
-  const behind = ballState(sim, t - 0.03, level);
+  // Dibujo que rueda: tres manchas oscuras que giran alrededor de un eje perpendicular al avance.
+  const roll = p.roll / r;
+  const ahead = ballState(sim, t + 0.03);
+  const behind = ballState(sim, Math.max(0, t - 0.03));
   const heading = Math.atan2(ahead.y - behind.y, ahead.x - behind.x);
   ctx.fillStyle = '#0b1220';
   for (let k = 0; k < 3; k += 1) {
@@ -315,18 +310,20 @@ function drawBall(ctx: Ctx2D, frame: FrameState, t: number, sim: Simulation, lev
     const facing = Math.cos(a);
     if (facing <= 0.05) continue;
     ctx.beginPath();
-    ctx.ellipse(p.x + Math.cos(heading) * Math.sin(a) * r * 0.62, p.y - lift + Math.sin(heading) * Math.sin(a) * r * 0.62, r * 0.3 * facing, r * 0.3, heading, 0, Math.PI * 2);
+    ctx.ellipse(p.x + Math.cos(heading) * Math.sin(a) * r * 0.62, p.y + Math.sin(heading) * Math.sin(a) * r * 0.62, r * 0.3 * facing, r * 0.3, heading, 0, Math.PI * 2);
     ctx.fill();
   }
+  ctx.restore();
 }
 
 /** Impacto de cada golpeo del balón: onda que se abre desde el punto de contacto y chispas, más fuertes cuanto más fuerte es el golpe. */
-function drawKickFlashes(ctx: Ctx2D, sim: Simulation, t: number, level: BounceLevel): void {
-  for (const [index, kick] of kickEvents(sim, level).entries()) {
+function drawKickFlashes(ctx: Ctx2D, sim: Simulation, t: number): void {
+  for (const [index, kick] of touchEvents(sim).entries()) {
     const age = t - kick.t;
-    if (age < 0 || age > 0.3) continue;
+    if (age < 0) break;
+    if (age > 0.3) continue;
     const k = age / 0.3;
-    const p = toScreen(rotate({ u: kick.u, v: kick.v }, cameraAngle(t)));
+    const p = toScreen({ u: kick.u, v: kick.v });
     ctx.save();
     ctx.globalAlpha = (1 - k) * (0.35 + 0.65 * kick.power);
     ctx.strokeStyle = '#ffffff';
@@ -340,12 +337,13 @@ function drawKickFlashes(ctx: Ctx2D, sim: Simulation, t: number, level: BounceLe
 }
 
 /** Destello del aro en cada rebote del balón: un arco brillante que se apaga y unas chispas. */
-function drawBounceFlashes(ctx: Ctx2D, sim: Simulation, t: number, level: BounceLevel, ringColor: string): void {
-  for (const [index, e] of bounceEvents(sim, level).entries()) {
+function drawBounceFlashes(ctx: Ctx2D, sim: Simulation, t: number, ringColor: string): void {
+  for (const [index, e] of wallEvents(sim).entries()) {
     const age = t - e.t;
-    if (age < 0 || age > 0.45) continue;
+    if (age < 0) break;
+    if (age > 0.45) continue;
     const k = age / 0.45;
-    const angle = cameraAngle(t) + Math.atan2(e.v, e.u);
+    const angle = Math.atan2(e.v, e.u);
     ctx.save();
     ctx.translate(ARENA.cx, ARENA.cy);
     ctx.strokeStyle = ringColor;
@@ -359,8 +357,7 @@ function drawBounceFlashes(ctx: Ctx2D, sim: Simulation, t: number, level: Bounce
     ctx.arc(0, 0, R, angle - spread, angle + spread);
     ctx.stroke();
     ctx.restore();
-    const p = toScreen(rotate({ u: Math.cos(angle) * 0.98, v: Math.sin(angle) * 0.98 }, 0));
-    burst(ctx, 5000 + index * 131, p.x, p.y, age, [ringColor, GOLD], 7, 0.45);
+    burst(ctx, 5000 + index * 131, ARENA.cx + Math.cos(angle) * R * 0.98, ARENA.cy + Math.sin(angle) * R * 0.98, age, [ringColor, GOLD], 7, 0.45);
   }
 }
 
@@ -393,13 +390,13 @@ function burst(ctx: Ctx2D, seed: number, x: number, y: number, age: number, colo
   ctx.globalAlpha = 1;
 }
 
-function drawEffects(ctx: Ctx2D, sim: Simulation, t: number, level: BounceLevel): void {
+function drawEffects(ctx: Ctx2D, sim: Simulation, t: number): void {
   const { teams } = sim.script;
   for (const [index, e] of sim.script.events.entries()) {
     const age = t - e.t;
     if (age < 0) break;
     if (age > 1.6 || e.type === 'kickoff' || e.type === 'shot' || e.type === 'halftime' || e.type === 'fulltime') continue;
-    const p = ballState(sim, e.t, level);
+    const p = ballState(sim, e.t);
     const seed = index * 7919 + 13;
     if (e.type === 'goal' && e.side !== null) {
       const team = teams[e.side];
@@ -542,13 +539,13 @@ export function drawArenaFrame(ctx: Ctx2D, sim: Simulation, t: number, meta: Ren
   const frame = sim.frame(t);
   const phase = phaseAt(sim.script, frame.t);
   const { home, away } = sim.script.teams;
-  const angle = cameraAngle(frame.t);
+  const angle = cameraAngle(sim, frame.t);
+  const poss = possession(sim, frame.t);
   const sprint = phase.kind === 'attack' && phase.side !== null && frame.phaseProgress < 0.9 ? phase.side : null;
   const opts = optionsOf(meta);
   const pal: ThemePalette = THEMES[opts.theme];
-  const level = opts.bounce;
 
-  drawBackground(ctx, sim, frame, opts.theme);
+  drawBackground(ctx, sim, frame, poss, opts.theme);
   drawHeader(ctx, sim, frame, meta, sprint);
 
   const shake = shakeOffset(sim, frame.t);
@@ -556,8 +553,8 @@ export function drawArenaFrame(ctx: Ctx2D, sim: Simulation, t: number, meta: Ren
   ctx.translate(shake.x, shake.y);
   drawFloorMarks(ctx, angle);
   drawRing(ctx, angle, pal.ring);
-  drawBounceFlashes(ctx, sim, frame.t, level, pal.ring);
-  drawKickFlashes(ctx, sim, frame.t, level);
+  drawBounceFlashes(ctx, sim, frame.t, pal.ring);
+  drawKickFlashes(ctx, sim, frame.t);
   // La portería de arriba es la del equipo que defiende ese lado (cambian de campo en la 2.ª parte).
   const topDefender = frame.half === 1 ? 'away' : 'home';
   const glowOf = (side: 'home' | 'away'): number => {
@@ -571,26 +568,25 @@ export function drawArenaFrame(ctx: Ctx2D, sim: Simulation, t: number, meta: Ren
   drawGate(ctx, angle, true, sim.script.teams[topDefender].style.primary, glowOf(topDefender));
   drawGate(ctx, angle, false, sim.script.teams[other(topDefender)].style.primary, glowOf(other(topDefender)));
 
-  const discs = smoothDiscPositions(sim, frame.t, level);
+  const discs = discPositions(sim, frame.t);
   const pulse = 0.5 + 0.5 * Math.sin(frame.t * 10);
   for (const team of [home, away]) {
     // Estela de sprint.
     if (sprint === team.side) {
       for (let k = 6; k >= 1; k -= 1) {
-        const prev = smoothDiscPositions(sim, Math.max(0, frame.t - k * 0.04), level)[team.side];
+        const prev = discPositions(sim, Math.max(0, frame.t - k * 0.04))[team.side];
         ctx.fillStyle = `rgba(253, 224, 71, ${String(0.05 + 0.04 * (7 - k))})`;
         ctx.beginPath();
         ctx.arc(prev.x, prev.y, DISC_R * (0.5 + 0.08 * (7 - k)), 0, Math.PI * 2);
         ctx.fill();
       }
     }
-    const holds = frame.players.some((p) => p.side === team.side && p.hasBall);
-    drawDisc(ctx, team, discs[team.side], clamp(frame.possession[team.side] * (holds ? 1 : 0.55), 0, 1), pulse);
+    drawDisc(ctx, team, discs[team.side], clamp(poss[team.side], 0, 1), pulse);
   }
-  drawBall(ctx, frame, frame.t, sim, level, opts.ballTrail);
+  drawBall(ctx, frame.t, sim, opts.ballTrail);
   ctx.restore();
 
-  drawEffects(ctx, sim, frame.t, level);
+  drawEffects(ctx, sim, frame.t);
 
   // Estadísticas en vivo (calculadas con los sucesos ya ocurridos) y último suceso.
   const live = statsAt(sim.script.events, frame.t);

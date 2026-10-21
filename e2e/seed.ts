@@ -1,6 +1,6 @@
 import type { Page } from '@playwright/test';
 
-import { simulate } from '../src/engine/index.ts';
+import { simulateArena } from '../src/engine/index.ts';
 
 const PREFIX = 'futbol-sim:v1:';
 
@@ -24,7 +24,7 @@ export const seedVideo = (seed: number) => ({
   style: 'arena',
   pace: 'fast',
   fixedScore: null,
-  score: simulate({ seed, home: SEED_MATCH.home, away: SEED_MATCH.away, score: null, pace: 'fast' }).script.score,
+  score: simulateArena({ seed, home: SEED_MATCH.home, away: SEED_MATCH.away, score: null, pace: 'fast' }, 'normal').script.score,
   options: { theme: 'noche', bounce: 'normal', showStats: true, showTicker: true, ballTrail: true, hook: '', watermark: '', goalText: '¡GOL!' },
   fileName: `laliga-2026-27_athletic-club_vs_valencia-cf_2026-10-24_${String(seed)}.mp4`,
   bytes: 2_500_000,

@@ -23,9 +23,6 @@ async function openStudio(page: Page): Promise<void> {
 
 test('exporta un MP4 vertical real: progreso, vídeo reproducible y descarga validada con ffprobe', async ({ page }) => {
   await openStudio(page);
-  await page.getByTestId('fix-score').click();
-  await page.getByTestId('score-home').fill('1');
-  await page.getByTestId('score-away').fill('0');
   const expectedSeconds = Number(await page.getByTestId('scrubber').getAttribute('max'));
 
   await expect(page.getByTestId('export-button')).toBeEnabled();
@@ -113,9 +110,6 @@ test.describe('lotes', () => {
 
   test('genera 2 vídeos distintos, los descarga uno a uno y en ZIP, y los valida con ffprobe', async ({ page }) => {
     await openStudio(page);
-    await page.getByTestId('fix-score').click();
-    await page.getByTestId('score-home').fill('0');
-    await page.getByTestId('score-away').fill('0');
     await page.getByTestId('batch-count').fill('2');
     await page.getByTestId('batch-generate').click();
     const jobs = page.getByTestId('batch-job');

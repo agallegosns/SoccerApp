@@ -5,7 +5,7 @@ import { setBusy } from '../../app/busy.ts';
 import { hrefFor, navigate } from '../../app/route.ts';
 import { markDownloaded } from '../../data/downloaded.ts';
 import { formatDateEs, kickoffOf } from '../../data/dates.ts';
-import { simulate } from '../../engine/index.ts';
+import { simulateFor } from '../simulation/simulateFor.ts';
 import { ConfirmDialog } from '../../ui/ConfirmDialog.tsx';
 import { useDownloaded } from '../../ui/useDownloaded.ts';
 import { ExportError, classifyExportError } from '../export/errors.ts';
@@ -69,8 +69,8 @@ export function VideoDetail({ record, onOpenStudio }: Props) {
   const crests = useTeamCrests(record.match.home, record.match.away);
 
   const sim = useMemo(
-    () => simulate({ seed: record.seed, home: record.match.home, away: record.match.away, score: record.fixedScore, pace: record.pace }),
-    [record.seed, record.match.home, record.match.away, record.fixedScore, record.pace],
+    () => simulateFor(record.style, { seed: record.seed, home: record.match.home, away: record.match.away, score: record.fixedScore, pace: record.pace }, record.options.bounce),
+    [record.style, record.seed, record.match.home, record.match.away, record.fixedScore, record.pace, record.options.bounce],
   );
   const meta = useMemo(() => metaFor(record.match, record.options), [record.match, record.options]);
   const kickoff = kickoffOf(record.match);
@@ -134,7 +134,7 @@ export function VideoDetail({ record, onOpenStudio }: Props) {
   }
 
   const facts: readonly (readonly [string, string])[] = [
-    ['Marcador ficticio', `${String(record.score.home)}–${String(record.score.away)}${record.fixedScore === null ? ' (lo decidió la semilla)' : ' (fijado por ti)'}`],
+    ['Marcador ficticio', `${String(record.score.home)}–${String(record.score.away)}${record.fixedScore === null ? (record.style === 'arena' ? ' (salió de la física del partido)' : ' (lo decidió la semilla)') : ' (fijado por ti)'}`],
     ...(record.match.realScore === null ? [] : [['Resultado real (dato)', `${String(record.match.realScore.home)}–${String(record.match.realScore.away)}`] as const]),
     ['Semilla', String(record.seed)],
     ['Estilo y ritmo', `${VIDEO_STYLES.find((s) => s.id === record.style)?.label ?? record.style} · ${record.pace === 'fast' ? 'rápido' : 'normal'}`],
@@ -294,7 +294,7 @@ export function VideoDetail({ record, onOpenStudio }: Props) {
                       </tr>
                     </thead>
                     <tbody>
-                      {(['shots', 'onTarget', 'corners', 'fouls'] as const).map((key) => (
+                      {(record.style === 'tactical' ? (['shots', 'onTarget', 'corners', 'fouls'] as const) : (['shots', 'onTarget'] as const)).map((key) => (
                         <tr key={key}>
                           <th scope="row">{{ shots: 'Tiros', onTarget: 'A puerta', corners: 'Córners', fouls: 'Faltas' }[key]}</th>
                           <td>{sim.script.stats.home[key]}</td>
