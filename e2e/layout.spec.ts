@@ -18,8 +18,18 @@ async function expectNoHorizontalOverflow(page: Page, label: string): Promise<vo
       })
       .slice(0, 5)
       .map((el) => `${el.tagName.toLowerCase()}.${el.className} [${String(Math.round(el.getBoundingClientRect().left))}..${String(Math.round(el.getBoundingClientRect().right))}] vw=${String(vw)}`);
-    return { page, offenders };
+    // iOS amplía la página al tocar un campo con letra menor de 16 px y la deja desplazable en horizontal.
+    const smallFields = [...document.querySelectorAll('input, select, textarea')]
+      .filter((el) => {
+        const type = el.getAttribute('type');
+        if (type === 'checkbox' || type === 'radio' || type === 'range' || type === 'hidden') return false;
+        const r = el.getBoundingClientRect();
+        return r.width > 0 && r.height > 0 && parseFloat(getComputedStyle(el).fontSize) < 16;
+      })
+      .map((el) => `${el.tagName.toLowerCase()}.${el.className}`);
+    return { page, offenders, smallFields };
   });
+  expect(result.smallFields, `${label}: campos con letra menor de 16 px (zoom en iPhone)`).toEqual([]);
   expect(result.page, `${label}: la página se desplaza en horizontal`).toBeLessThanOrEqual(0);
   expect(result.offenders, `${label}: elementos que sobresalen`).toEqual([]);
 }
@@ -86,6 +96,34 @@ test.describe('sin desplazamiento lateral en ninguna pantalla', () => {
       await page.getByTestId('add-publication').click();
       await expect(page.getByRole('dialog', { name: 'Añadir publicación' })).toBeVisible();
       await expectNoHorizontalOverflow(page, 'diálogo de publicación');
+    });
+  }
+});
+
+test.describe('programado, aviso y selección en pantallas estrechas', () => {
+  test.use({ contextOptions: { reducedMotion: 'reduce' } });
+
+  for (const width of [320, 390]) {
+    test(`ancho ${String(width)} px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 800 });
+      await mockOpenFootball(page);
+      const v1 = seedVideo(11);
+      const v2 = seedVideo(12);
+      await seedStorage(page, { videos: [v1, v2] });
+      // Los ids de ficha se calculan en la app: se programan por el propio interfaz.
+      await page.goto('/#/videos');
+      await page.getByTestId('open-video').first().click();
+      await page.getByTestId('schedule-open').click();
+      await page.getByTestId('schedule-input').fill('2020-01-01T10:00');
+      await expectNoHorizontalOverflow(page, 'diálogo de programar');
+      await page.getByTestId('schedule-save').click();
+      await expectNoHorizontalOverflow(page, 'ficha programada y aviso');
+      await page.getByRole('link', { name: 'Vídeos', exact: true }).first().click();
+      await expect(page.getByTestId('chip-scheduled')).toBeVisible();
+      await expectNoHorizontalOverflow(page, 'lista con programado y aviso');
+      await page.getByTestId('select-mode').click();
+      await page.getByTestId('select-all').click();
+      await expectNoHorizontalOverflow(page, 'lista en modo selección');
     });
   }
 });

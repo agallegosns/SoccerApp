@@ -111,6 +111,65 @@ test.describe('biblioteca de vídeos y ficha', () => {
     await expect(page.getByTestId('published-date')).toHaveCount(0);
   });
 
+  test('programar un vídeo: se ve «Programado» en la ficha y la lista; al llegar la hora pregunta y al confirmar pasa a «Publicado»', async ({ page }) => {
+    await open(page, '#/videos');
+    await page.getByTestId('open-video').first().click();
+    await page.getByTestId('schedule-open').click();
+    // Hora futura: queda «Programado», no «Pendiente de confirmar».
+    await page.getByTestId('schedule-input').fill('2099-10-21T19:00');
+    await page.getByTestId('schedule-save').click();
+    await expect(page.getByTestId('scheduled-chip')).toContainText('Programado');
+    await expect(page.getByTestId('scheduled-chip')).toContainText('19:00');
+    await expect(page.getByTestId('due-prompt')).toHaveCount(0);
+    await page.reload();
+    await expect(page.getByTestId('scheduled-chip')).toContainText('19:00');
+    await page.getByRole('link', { name: 'Vídeos', exact: true }).first().click();
+    await expect(page.getByTestId('chip-scheduled')).toHaveCount(1);
+    await page.getByTestId('videos-published').selectOption('scheduled');
+    await expect(page.getByTestId('video-card')).toHaveCount(1);
+    await page.getByTestId('videos-published').selectOption('all');
+
+    // Se cambia la hora a una ya pasada: aparece el aviso y la ficha pide confirmar.
+    await page.getByTestId('open-video').first().click();
+    await page.getByTestId('schedule-open').click();
+    await page.getByTestId('schedule-input').fill('2020-01-01T10:00');
+    await page.getByTestId('schedule-save').click();
+    await expect(page.getByTestId('scheduled-chip')).toContainText('Pendiente de confirmar');
+    await expect(page.getByTestId('due-item')).toHaveCount(1);
+    await expect(page.getByTestId('due-item')).toContainText('¿Se ha publicado');
+    // «Todavía no» lo oculta un rato.
+    await page.getByTestId('due-later').click();
+    await expect(page.getByTestId('due-item')).toHaveCount(0);
+    await page.reload();
+    await page.getByTestId('due-yes').click();
+    await expect(page.getByTestId('due-item')).toHaveCount(0);
+    await expect(page.getByTestId('published-date')).toBeVisible();
+    await expect(page.getByTestId('scheduled-chip')).toHaveCount(0);
+  });
+
+  test('eliminar desde la lista de vídeos: uno a uno y varios seleccionados, con confirmación', async ({ page }) => {
+    await open(page, '#/videos');
+    await expect(page.getByTestId('video-card')).toHaveCount(2);
+    // Cancelar no borra nada.
+    await page.getByTestId('delete-video').first().click();
+    await page.getByTestId('confirm-cancel').click();
+    await expect(page.getByTestId('video-card')).toHaveCount(2);
+    // Eliminar uno.
+    await page.getByTestId('delete-video').first().click();
+    await page.getByTestId('confirm-ok').click();
+    await expect(page.getByTestId('video-card')).toHaveCount(1);
+    await page.reload();
+    await expect(page.getByTestId('video-card')).toHaveCount(1);
+    // Selección múltiple sobre el que queda.
+    await page.getByTestId('select-mode').click();
+    await expect(page.getByTestId('delete-selected')).toBeDisabled();
+    await page.getByTestId('select-all').click();
+    await expect(page.getByTestId('delete-selected')).toContainText('(1)');
+    await page.getByTestId('delete-selected').click();
+    await page.getByTestId('confirm-ok').click();
+    await expect(page.getByTestId('videos-empty')).toBeVisible();
+  });
+
   test('«Publicar» da una descripción copiable con la etiqueta ficticia', async ({ page, context }) => {
     await context.grantPermissions(['clipboard-read', 'clipboard-write']);
     await open(page, '#/videos');

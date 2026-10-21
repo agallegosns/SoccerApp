@@ -1,4 +1,4 @@
-import { AlertTriangle, ArrowLeft, CheckCheck, ChevronLeft, ChevronRight, Copy, Download, Film, Plus, RefreshCw, RotateCw, Trash2, X } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, CalendarClock, CheckCheck, ChevronLeft, ChevronRight, Copy, Download, Film, Plus, RefreshCw, RotateCw, Trash2, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { setBusy } from '../../app/busy.ts';
@@ -8,6 +8,7 @@ import { formatDateEs, kickoffOf } from '../../data/dates.ts';
 import { simulateFor } from '../simulation/simulateFor.ts';
 import { ConfirmDialog } from '../../ui/ConfirmDialog.tsx';
 import { useDownloaded } from '../../ui/useDownloaded.ts';
+import { useNow } from '../../ui/useNow.ts';
 import { ExportError, classifyExportError } from '../export/errors.ts';
 import { exportVideo } from '../export/exportVideo.ts';
 import { downloadBlob, useExportSupport } from '../export/useExportSupport.ts';
@@ -24,6 +25,8 @@ import { formatBytes, formatStamp, type VideoRecord } from './model.ts';
 import { descriptionFor, recommendTime } from './publish.ts';
 import { usePublished, togglePublished } from './published.ts';
 import { recordExport } from './record.ts';
+import { ScheduleDialog } from './ScheduleDialog.tsx';
+import { clearScheduled, defaultSchedule, formatScheduled, publishState, setScheduled, useScheduled } from './scheduled.ts';
 import { removeVideo, useVideos } from './store.ts';
 import './videos.css';
 
@@ -57,6 +60,11 @@ export function VideoDetail({ record, onOpenStudio }: Props) {
   const pubs = usePublications();
   const published = usePublished();
   const publishedOn = published[record.id];
+  const scheduled = useScheduled();
+  const scheduledAt = scheduled[record.id];
+  const [scheduling, setScheduling] = useState(false);
+  const [scheduleInitial, setScheduleInitial] = useState('');
+  const now = useNow();
   const support = useExportSupport();
   const [tab, setTab] = useState<Tab>('summary');
   const [seek, setSeek] = useState<{ t: number; nonce: number } | null>(null);
@@ -180,10 +188,27 @@ export function VideoDetail({ record, onOpenStudio }: Props) {
               <CheckCheck aria-hidden="true" size={20} />
               {publishedOn === undefined ? 'Marcar como publicado' : 'Publicado · quitar marca'}
             </button>
+            {publishedOn === undefined && (
+              <button type="button" className="btn" onClick={() => { setScheduleInitial(scheduledAt ?? defaultSchedule(kickoff, Date.now())); setScheduling(true); }} data-testid="schedule-open">
+                <CalendarClock aria-hidden="true" size={20} />
+                {scheduledAt === undefined ? 'Programar' : 'Cambiar hora'}
+              </button>
+            )}
             {publishedOn !== undefined && (
               <span className="chip chip--done" data-testid="published-date">
                 Publicado el {formatDateEs(publishedOn)}
               </span>
+            )}
+            {publishedOn === undefined && scheduledAt !== undefined && (
+              <>
+                <span className={publishState(record.id, published, scheduled, now) === 'due' ? 'chip chip--warn' : 'chip chip--scheduled'} data-testid="scheduled-chip">
+                  <CalendarClock aria-hidden="true" size={14} />
+                  {publishState(record.id, published, scheduled, now) === 'due' ? 'Pendiente de confirmar' : 'Programado'} · {formatScheduled(scheduledAt)}
+                </span>
+                <button type="button" className="btn" onClick={() => { clearScheduled(record.id); }} data-testid="schedule-clear">
+                  Quitar programación
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -445,6 +470,14 @@ export function VideoDetail({ record, onOpenStudio }: Props) {
         onClose={() => { setAdding(false); }}
         videos={videos}
         preset={{ videoId: record.id, title: `${record.match.home} vs ${record.match.away} (${String(record.score.home)}–${String(record.score.away)} ficticio)` }}
+      />
+      <ScheduleDialog
+        open={scheduling}
+        title={scheduledAt === undefined ? 'Programar publicación' : 'Cambiar hora programada'}
+        initial={scheduleInitial}
+        hint={reco.kind === 'orientative' ? `Orientación: ${reco.headline}. No garantiza viralidad.` : `Según tus métricas: ${reco.headline}.`}
+        onSave={(value) => { setScheduled(record.id, value); setScheduling(false); }}
+        onClose={() => { setScheduling(false); }}
       />
       <ConfirmDialog
         open={deleting}

@@ -204,3 +204,10 @@ Leyenda: ✅ hecho y probado · 🟡 hecho, pendiente de verificar · ⬜ por ha
 - 🟡 Pendiente de verificar: la sensación de movimiento en un móvil real (solo se han revisado fotogramas y métricas).
 - ✅ Vídeos: botón «Marcar como publicado» en la ficha (a mano, con fecha), chip «Publicado» y filtro en la lista (`published.ts`). Es solo orden: no se conecta con TikTok/Instagram.
 - ✅ Cartel de gol más pequeño; el juego se detiene mientras dura (el balón queda en la red) y se oculta el rótulo inferior repetido. Descripciones: solo «⚽ Local vs Visitante ⚽» + 5 hashtags, sin marcador.
+
+
+## Programado, aviso de publicación y borrado (2026-10-21)
+- ✅ **Estado «Programado»** (`features/videos/scheduled.ts`, `ScheduleDialog.tsx`): en la ficha, «Programar» / «Cambiar hora» guarda la fecha y hora a la que el usuario lo programó a mano en TikTok/Instagram (localStorage `scheduled-videos`). La app NO programa nada en las plataformas. Chip «Programado · fecha · hora» en la ficha y en la lista; filtro «Solo programados».
+- ✅ **Aviso «¿Se ha publicado?»** (`DuePrompt.tsx`): al llegar la hora, la app pregunta; «Sí, ya está publicado» → pasa a «Publicado» (y deja de ser programado); «Todavía no» lo oculta 10 min; «Cambiar hora» abre la ficha. 🟡 Solo funciona con la app abierta: no hay servidor que envíe notificaciones push con la app cerrada. Opcional: «Activar aviso» pide permiso de notificaciones del navegador (en iPhone solo con la app instalada en la pantalla de inicio; sin probar en un iPhone real).
+- ✅ **Eliminar desde Vídeos**: botón «Eliminar» en cada tarjeta y modo «Seleccionar» para borrar varias; siempre con confirmación; también limpia sus marcas de publicado/programado.
+- ✅ **Desplazamiento lateral**: causa probable en iPhone = campos con letra menor de 16 px (Safari amplía la página al tocarlos y deja la pantalla desplazable). Todos los campos usan ≥16 px; `html/body` con `overflow-x: clip`; `e2e/layout.spec.ts` ahora falla si algún campo visible es menor de 16 px. 🟡 No se ha podido comprobar en un iPhone real.

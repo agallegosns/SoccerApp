@@ -78,6 +78,9 @@ describe('fichas de vídeo', () => {
     expect(filterVideos(all, { text: '', competition: '', downloaded: 'no', published: 'all' }, new Set(['prueba-2']))).toEqual([a]);
     expect(filterVideos(all, { text: '', competition: '', downloaded: 'all', published: 'yes' }, none, new Set([b.id]))).toEqual([b]);
     expect(filterVideos(all, { text: '', competition: '', downloaded: 'all', published: 'no' }, none, new Set([b.id]))).toEqual([a]);
+    // «Programado»: tiene hora y todavía no está publicado.
+    expect(filterVideos(all, { text: '', competition: '', downloaded: 'all', published: 'scheduled' }, none, new Set(), new Set([a.id, b.id]))).toEqual([a, b]);
+    expect(filterVideos(all, { text: '', competition: '', downloaded: 'all', published: 'scheduled' }, none, new Set([b.id]), new Set([a.id, b.id]))).toEqual([a]);
   });
 });
 

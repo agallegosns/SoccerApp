@@ -11,6 +11,7 @@ import type { StudioInitial } from '../features/simulation/SimulationStudio.tsx'
 import { AppNav } from './AppNav.tsx';
 import { navigate, useRoute } from './route.ts';
 import { UpdateNotice } from './UpdateNotice.tsx';
+import { DuePrompt } from '../features/videos/DuePrompt.tsx';
 
 // El estudio (motor, render, exportador y mediabunny) pesa mucho más que el calendario: se carga sólo al abrirlo.
 const SimulationStudio = lazy(() => import('../features/simulation/SimulationStudio.tsx').then((m) => ({ default: m.SimulationStudio })));
@@ -80,6 +81,7 @@ export function App() {
       </header>
       <main className="app__main">
         <UpdateNotice />
+        <DuePrompt />
         {studioVisible ? (
           <Suspense fallback={<Loading what="el estudio de simulación" />}>
             <SimulationStudio match={studio.match} initial={studio.initial} backLabel={studio.back === 'video' ? 'Volver a la ficha del vídeo' : 'Volver al calendario'} onBack={closeStudio} />
