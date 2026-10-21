@@ -31,7 +31,7 @@ export function Dialog({ open, title, onClose, children, testId }: Props) {
               <X aria-hidden="true" size={22} />
             </button>
           </div>
-          {children}
+          <div className="dialog__content">{children}</div>
         </div>
       )}
     </dialog>

@@ -205,3 +205,77 @@
 .filters-row .field--search {
   position: relative;
 }
+
+/* Tarjeta de vídeo compacta */
+.vcard__main {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-3);
+  align-items: start;
+}
+
+.vcard__score {
+  display: grid;
+  justify-items: center;
+  gap: 0;
+  min-width: 4.25rem;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-2);
+  line-height: 1.1;
+}
+
+.vcard__score strong {
+  font-size: var(--text-xl);
+}
+
+.vcard__score span {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.vcard__info {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.vcard__info p {
+  font-size: var(--text-sm);
+}
+
+.vcard__title {
+  font-size: var(--text-md);
+}
+
+.vcard__foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-3);
+}
+
+.vcard__foot .btn {
+  flex: 1 1 8rem;
+}
+
+@media (max-width: 47.99rem) {
+  .filters-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .filters-row .field--search {
+    grid-column: 1 / -1;
+  }
+  /* Ficha: descargar ocupa la fila entera; las otras dos acciones van lado a lado */
+  .actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .actions .btn--primary {
+    grid-column: 1 / -1;
+  }
+  .actions .btn {
+    padding-inline: var(--space-2);
+  }
+}

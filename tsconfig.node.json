@@ -20,5 +20,5 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true
   },
-  "include": ["vite.config.ts", "playwright.config.ts", "e2e", "scripts"]
+  "include": ["vite.config.ts", "playwright.config.ts", "e2e", "scripts", "cloudflare"]
 }

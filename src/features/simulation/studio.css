@@ -39,7 +39,7 @@
 }
 
 .preview__canvas {
-  width: min(100%, calc(72dvh * 9 / 16));
+  width: min(100%, calc(64dvh * 9 / 16));
   height: auto;
   aspect-ratio: 9 / 16;
   border-radius: var(--radius-lg);

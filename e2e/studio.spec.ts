@@ -240,7 +240,7 @@ test.describe('estudio de simulación', () => {
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
     expect(overflow).toBeLessThanOrEqual(0);
     const box = await page.getByTestId('preview-canvas').boundingBox();
-    expect(box?.width).toBeGreaterThan(280);
+    expect(box?.width).toBeGreaterThan(240);
     expect(Math.abs((box?.height ?? 0) / (box?.width ?? 1) - 16 / 9)).toBeLessThan(0.02);
   });
 });

@@ -22,6 +22,6 @@ export default defineConfig({
   build: { target: 'es2023', sourcemap: true },
   test: {
     environment: 'node',
-    include: ['src/**/*.test.{ts,tsx}'],
+    include: ['src/**/*.test.{ts,tsx}', 'cloudflare/**/*.test.ts'],
   },
 });

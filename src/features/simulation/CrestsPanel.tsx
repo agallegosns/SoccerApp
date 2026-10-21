@@ -5,6 +5,7 @@ import type { ResolvedTeam } from '../../engine/index.ts';
 import { drawCrest } from './crest.ts';
 import { customCrest } from './crestStore.ts';
 import type { TeamCrests } from './useTeamCrests.ts';
+import { Collapsible } from '../../ui/Collapsible.tsx';
 
 interface Props {
   readonly teams: readonly ResolvedTeam[];
@@ -26,8 +27,7 @@ function CrestThumb({ team, version }: { readonly team: ResolvedTeam; readonly v
 /** Escudo de cada equipo: genérico por defecto o la imagen que suba el usuario (se guarda sólo en su navegador). */
 export function CrestsPanel({ teams, crests }: Props) {
   return (
-    <div className="card" aria-label="Escudos de los equipos" data-testid="crests-panel">
-      <h2>Escudos</h2>
+    <Collapsible title="Escudos" hint="Sube el escudo de cada equipo" testId="crests-panel">
       <p className="muted">
         Por defecto se usa un escudo genérico con los colores del equipo. Puedes subir el escudo de cada equipo (PNG, JPG o WebP): aparecerá en la vista previa y en los
         vídeos. Se guarda sólo en tu navegador. Los escudos oficiales son marcas registradas: súbelos únicamente si tienes derecho a usarlos.
@@ -77,6 +77,6 @@ export function CrestsPanel({ teams, crests }: Props) {
           {crests.error}
         </p>
       )}
-    </div>
+    </Collapsible>
   );
 }

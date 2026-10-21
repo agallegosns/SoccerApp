@@ -6,6 +6,7 @@ import { downloadText } from '../../ui/download.ts';
 import { LineChart } from '../../ui/LineChart.tsx';
 import { useVideos } from '../videos/store.ts';
 import { CSV_EXAMPLE, parseStatsCsv, statsToCsv, type CsvResult } from './csv.ts';
+import { ConnectionCard, SyncStrip } from './ConnectionCard.tsx';
 import { MeasurementDialog, PublicationDialog } from './PublicationDialog.tsx';
 import {
   PLATFORMS,
@@ -28,7 +29,7 @@ type PlatformFilter = 'all' | Platform;
 const TABS: readonly { readonly id: Tab; readonly label: string }[] = [
   { id: 'summary', label: 'Resumen' },
   { id: 'list', label: 'Publicaciones' },
-  { id: 'data', label: 'Datos y conexión' },
+  { id: 'data', label: 'Conexión' },
 ];
 
 const int = new Intl.NumberFormat('es-ES');
@@ -83,13 +84,15 @@ export function StatsView({ onOpenVideo }: Props) {
       <header className="section-head">
         <div>
           <h1>Estadísticas</h1>
-          <p className="muted">Cómo rinden tus vídeos en TikTok e Instagram. Son datos reales de tus publicaciones, separados de la simulación.</p>
+          <p className="muted intro">Cómo rinden tus vídeos en TikTok e Instagram. Son datos reales de tus publicaciones, separados de la simulación.</p>
         </div>
         <button type="button" className="btn btn--primary" onClick={() => { setAdding(true); }} data-testid="add-publication">
           <Plus aria-hidden="true" size={20} />
           Añadir publicación
         </button>
       </header>
+
+      <SyncStrip onSetup={() => { setTab('data'); }} />
 
       <div className="tabs" role="tablist" aria-label="Secciones de estadísticas">
         {TABS.map((t) => (
@@ -273,6 +276,7 @@ export function StatsView({ onOpenVideo }: Props) {
 
         {tab === 'data' && (
           <>
+            <ConnectionCard />
             <div className="card">
               <h2>Importar y exportar (CSV)</h2>
               <p className="muted">
@@ -327,24 +331,6 @@ export function StatsView({ onOpenVideo }: Props) {
               </details>
             </div>
 
-            <div className="card" data-testid="stats-connection">
-              <h2>Conexión automática con TikTok e Instagram</h2>
-              <p>
-                <strong>Todavía no está conectada</strong>: por ahora los números se copian a mano o se importan en CSV. Se puede automatizar con las APIs oficiales, pero ambas necesitan un inicio de sesión con una clave secreta que no puede guardarse en el navegador, así que haría falta un pequeño servidor intermedio gratuito.
-              </p>
-              <details className="help">
-                <summary>Qué permitiría cada plataforma</summary>
-                <ul>
-                  <li>
-                    <strong>Instagram</strong> (API de Instagram, cuenta profesional): vistas, alcance, me gusta, comentarios, compartidos y guardados de cada Reel, con hasta 48 h de retraso. Requiere una app en Meta for Developers con permisos de estadísticas.
-                  </li>
-                  <li>
-                    <strong>TikTok</strong> (API Display): vistas, me gusta, comentarios y compartidos de tus vídeos. Requiere una app aprobada en TikTok for Developers con los permisos user.info.basic y video.list.
-                  </li>
-                  <li>El detalle de la arquitectura propuesta está en ARCHITECTURE.md → «Estadísticas».</li>
-                </ul>
-              </details>
-            </div>
           </>
         )}
       </div>

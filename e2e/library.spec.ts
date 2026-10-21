@@ -246,10 +246,81 @@ test.describe('estadísticas', () => {
     await expect(page.getByTestId('stats-tiles')).toContainText(n(5400));
   });
 
-  test('explica con honestidad que la conexión automática aún no existe', async ({ page }) => {
+  test('sin conexión configurada avisa de que los números son manuales y ofrece activarla', async ({ page }) => {
     await open(page, '#/estadisticas', false);
-    await page.getByTestId('stats-tab-data').click();
-    await expect(page.getByTestId('stats-connection')).toContainText('Todavía no está conectada');
+    await expect(page.getByTestId('sync-strip')).toContainText('manuales');
+    await page.getByTestId('sync-setup').click();
+    await expect(page.getByTestId('stats-connection')).toContainText('Actualización automática');
+    await expect(page.getByTestId('sync-status')).toHaveCount(0);
+  });
+
+  test.describe('actualización automática con el Worker', () => {
+    const WORKER = 'https://stats.example.workers.dev';
+    const KEY = 'clave-de-lectura-de-prueba-1234567890';
+    const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': 'authorization, content-type', 'access-control-allow-methods': 'GET, POST, OPTIONS' };
+    const snapshot = {
+      version: 1,
+      updatedAt: new Date().toISOString(),
+      sources: { instagram: { state: 'ok', message: null }, tiktok: { state: 'sin-autorizar', message: 'TikTok aún no está autorizado' } },
+      items: [
+        { platform: 'instagram', url: 'https://www.instagram.com/reel/ZZZ/', title: 'Reel desde la API', publishedAt: '2026-10-19', views: 4321, likes: 200, comments: 12, shares: 30, saves: 55, reach: 3000 },
+      ],
+    };
+
+    async function mockWorker(page: Page, status = 200): Promise<{ auth: string[] }> {
+      const seen: { auth: string[] } = { auth: [] };
+      await page.route(`${WORKER}/**`, async (route) => {
+        if (route.request().method() === 'OPTIONS') return route.fulfill({ status: 204, headers: cors });
+        seen.auth.push(route.request().headers()['authorization'] ?? '');
+        return route.fulfill({ status, headers: cors, contentType: 'application/json', body: JSON.stringify(status === 200 ? snapshot : { error: 'x' }) });
+      });
+      return seen;
+    }
+
+    test('conecta, trae las publicaciones reales, muestra el estado de cada cuenta y se puede desconectar', async ({ page }) => {
+      const seen = await mockWorker(page);
+      await open(page, '#/estadisticas', false);
+      await page.getByTestId('sync-setup').click();
+      await page.getByTestId('sync-url').fill(WORKER);
+      await page.getByTestId('sync-key').fill(KEY);
+      await page.getByTestId('sync-save').click();
+      await expect(page.getByTestId('sync-status')).toContainText('Instagram: Conectada');
+      await expect(page.getByTestId('sync-status')).toContainText('TikTok: Falta autorizar la cuenta');
+      expect(seen.auth[0]).toBe(`Bearer ${KEY}`);
+      await page.getByTestId('stats-tab-summary').click();
+      await expect(page.getByTestId('stats-tiles')).toContainText(n(4321));
+      await expect(page.getByTestId('sync-strip')).toContainText('Actualización automática activa');
+      // Sobrevive a una recarga: la app vuelve a leer sola al abrirse.
+      await page.reload();
+      await expect(page.getByTestId('sync-strip')).toContainText('Actualización automática activa');
+      await page.getByTestId('stats-tab-data').click();
+      await page.getByTestId('sync-disconnect').click();
+      await expect(page.getByTestId('sync-strip')).toContainText('manuales');
+    });
+
+    test('si el Worker rechaza la clave lo explica y no toca los datos', async ({ page }) => {
+      await mockWorker(page, 401);
+      await open(page, '#/estadisticas', false);
+      await page.getByTestId('sync-setup').click();
+      await page.getByTestId('sync-url').fill(WORKER);
+      await page.getByTestId('sync-key').fill(KEY);
+      await page.getByTestId('sync-save').click();
+      await expect(page.getByTestId('sync-error')).toContainText('rechazó la clave');
+      await expect(page.getByTestId('sync-strip')).toContainText('No se pudo actualizar');
+    });
+
+    test('valida la dirección y la clave antes de guardar nada', async ({ page }) => {
+      await open(page, '#/estadisticas', false);
+      await page.getByTestId('sync-setup').click();
+      await page.getByTestId('sync-url').fill('http://inseguro.example.com');
+      await page.getByTestId('sync-key').fill(KEY);
+      await page.getByTestId('sync-save').click();
+      await expect(page.getByTestId('sync-form-error')).toContainText('https://');
+      await page.getByTestId('sync-url').fill(WORKER);
+      await page.getByTestId('sync-key').fill('corta');
+      await page.getByTestId('sync-save').click();
+      await expect(page.getByTestId('sync-form-error')).toContainText('24 caracteres');
+    });
   });
 });
 
