@@ -38,7 +38,9 @@ const DISC_SPRINT = 2.7;
 const DISC_ACCEL = 12;
 const DISC_MASS = 6;
 const BALL_MASS = 1;
-const CELEBRATION = 1.15;
+/** Tras un gol el juego se detiene lo que dura el cartel de gol (`frameAt`: 2,2 s × timeScale, mínimo 1,5 s) más un respiro: el cartel desaparece antes de que se vuelva a jugar. */
+const BANNER_SCALE = { fast: 0.7, normal: 1 } as const;
+const bannerSeconds = (scale: number): number => Math.max(1.5, 2.2 * scale);
 
 /** Ángulo de las porterías en el instante `t`: giran de forma continua, con un balanceo que depende de la semilla. */
 export function gateAngle(seed: number, t: number): number {
@@ -223,6 +225,7 @@ export function simulateArena(input: SimulationInput, bounce: BounceLevel = 'nor
   const draft: DraftEvent[] = [];
   const touchCount: Record<Side, number> = { home: 0, away: 0 };
   const goals: Record<Side, number> = { home: 0, away: 0 };
+  const celebration = bannerSeconds(BANNER_SCALE[input.pace ?? 'fast']) + 0.2;
   const wallE = WALL_E[bounce];
   const friction = FRICTION[bounce];
 
@@ -302,8 +305,8 @@ export function simulateArena(input: SimulationInput, bounce: BounceLevel = 'nor
         ball.p = { u: sign * gTop.u * (1 + GATE_DEPTH * 0.55) + tangent.u * scoredGate.lat, v: sign * gTop.v * (1 + GATE_DEPTH * 0.55) + tangent.v * scoredGate.lat };
         ball.vel = { u: 0, v: 0 };
         const since = t - scoredAt;
-        ball.alpha = since > CELEBRATION - 0.3 ? 0 : 1;
-        if (since >= CELEBRATION) respawnBall();
+        ball.alpha = since > celebration - 0.3 ? 0 : 1;
+        if (since >= celebration) respawnBall();
       }
       // --- Escudos: IA + física ---
       for (const d of discs) {
@@ -552,7 +555,7 @@ export function simulateArena(input: SimulationInput, bounce: BounceLevel = 'nor
     score,
     scoreWasFixed: false,
     pace: input.pace ?? 'fast',
-    timeScale: 1,
+    timeScale: BANNER_SCALE[input.pace ?? 'fast'],
     duration,
     halftimeMid,
     phases,

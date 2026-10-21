@@ -463,28 +463,28 @@ function drawGoalBanner(ctx: Ctx2D, sim: Simulation, banner: NonNullable<FrameSt
   }
   ctx.translate(VIDEO_WIDTH / 2, ARENA.cy);
   ctx.scale(pop, pop);
-  const grad = ctx.createLinearGradient(-430, 0, 430, 0);
+  const grad = ctx.createLinearGradient(-360, 0, 360, 0);
   grad.addColorStop(0, team.style.primary);
   grad.addColorStop(1, 'rgba(10, 18, 40, 0.96)');
   ctx.shadowColor = team.style.primary;
   ctx.shadowBlur = 50;
   ctx.fillStyle = grad;
-  roundRect(ctx, -430, -150, 860, 300, 44);
+  roundRect(ctx, -360, -100, 720, 200, 40);
   ctx.fill();
   ctx.shadowBlur = 0;
   ctx.strokeStyle = team.style.secondary;
   ctx.lineWidth = 6;
   ctx.stroke();
-  drawCrest(ctx, team, -290, 0, 92);
+  drawCrest(ctx, team, -250, 0, 66);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillStyle = '#ffffff';
-  fitFont(ctx, goalText, 470, 150, 800);
-  ctx.fillText(goalText, 90, -34);
+  fitFont(ctx, goalText, 400, 110, 800);
+  ctx.fillText(goalText, 70, -24);
   const sub = `${team.style.short}${banner.shirt === null ? '' : ` · nº ${String(banner.shirt)}`} · ${banner.clock}`;
-  fitFont(ctx, sub, 520, 40, 700);
+  fitFont(ctx, sub, 440, 32, 700);
   ctx.fillStyle = '#e8eefc';
-  ctx.fillText(sub, 90, 86);
+  ctx.fillText(sub, 70, 62);
   ctx.restore();
 }
 
@@ -590,7 +590,7 @@ export function drawArenaFrame(ctx: Ctx2D, sim: Simulation, t: number, meta: Ren
 
   // Estadísticas en vivo (calculadas con los sucesos ya ocurridos) y último suceso.
   const live = statsAt(sim.script.events, frame.t);
-  if (opts.showTicker) drawTicker(ctx, frame);
+  if (opts.showTicker && frame.goalBanner === null) drawTicker(ctx, frame);
   if (opts.showStats) {
     statBar(ctx, sim, 'TIROS', live.home.shots, live.away.shots, 1726);
     statBar(ctx, sim, 'A PUERTA', live.home.onTarget, live.away.onTarget, 1784);

@@ -32,25 +32,35 @@ export function hashtagsFor(match: Match, platform: Platform): string[] {
   return out;
 }
 
-const OPENERS: readonly ((m: Match, s: string) => string)[] = [
-  (m, s) => `${m.home} vs ${m.away}: ${s} en esta simulación. ¿Lo ves así? Comenta tu marcador.`,
-  (m, s) => `${m.home} vs ${m.away}. Simulación ficticia (${s}): ¿quién gana de verdad? Te leo.`,
-  (m, s) => `Si ${m.home} y ${m.away} jugasen este partido... ${s}. Comenta tu marcador.`,
-  (m, s) => `${m.home} vs ${m.away}, ${m.round}: así lo he simulado (${s}). ¿Qué marcador pones tú?`,
+/**
+ * Iconos de cada versión (emojis, a petición del usuario: van dentro del TEXTO que se copia, no son iconos de la interfaz). Se escriben con
+ * secuencias \u{…} para que el código fuente no lleve emojis literales (lo vigila `rules.test.ts`).
+ */
+const BALL = '\u{26BD}';
+const FIRE = '\u{1F525}';
+const TROPHY = '\u{1F3C6}';
+const BOLT = '\u{26A1}';
+const EYES = '\u{1F440}';
+const GOAL = '\u{1F945}';
+const BOOM = '\u{1F4A5}';
+
+const ICON_SETS: readonly (readonly [string, string])[] = [
+  [BALL, FIRE],
+  [TROPHY, BALL],
+  [BOLT, GOAL],
+  [EYES, BOOM],
 ];
 
-export const DESCRIPTION_VARIANTS = OPENERS.length;
+export const DESCRIPTION_VARIANTS = ICON_SETS.length;
 
 /**
- * Descripción con estilo, del tipo «Barça vs Real Madrid», más los hashtags. La versión de partida es determinista por partido; `shift` rota a las siguientes.
- * Dice siempre que es una simulación ficticia: no es una predicción.
+ * Descripción: «[icono][icono] Real Madrid vs Barça [icono][icono]» y debajo los 5 hashtags. Sin marcador ni más texto (decisión del usuario). La versión de partida
+ * es determinista por partido; `shift` rota a las siguientes.
  */
 export function descriptionFor(r: VideoRecord, platform: Platform, shift = 0): string {
   const variant = hashOf(r.match.id) + shift;
-  const opener = OPENERS[((variant % OPENERS.length) + OPENERS.length) % OPENERS.length] ?? OPENERS[0];
-  const score = `${String(r.score.home)}–${String(r.score.away)}`;
-  const body = opener === undefined ? '' : opener(r.match, score);
-  return [body, `${cleanCompetition(r.match.competition)} · simulación ficticia, no es una predicción.`, '', hashtagsFor(r.match, platform).join(' ')].join('\n');
+  const [a, b] = ICON_SETS[((variant % ICON_SETS.length) + ICON_SETS.length) % ICON_SETS.length] ?? ICON_SETS[0] ?? [BALL, FIRE];
+  return [`${a}${b} ${r.match.home} vs ${r.match.away} ${b}${a}`, '', hashtagsFor(r.match, platform).join(' ')].join('\n');
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------------

@@ -121,16 +121,20 @@ export interface VideoFilter {
   readonly text: string;
   readonly competition: string;
   readonly downloaded: 'all' | 'yes' | 'no';
+  /** Marcado a mano como publicado. */
+  readonly published: 'all' | 'yes' | 'no';
 }
 
 const fold = (s: string): string => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
-export function filterVideos(videos: readonly VideoRecord[], f: VideoFilter, downloaded: ReadonlySet<string>): VideoRecord[] {
+export function filterVideos(videos: readonly VideoRecord[], f: VideoFilter, downloaded: ReadonlySet<string>, published: ReadonlySet<string> = new Set()): VideoRecord[] {
   const q = fold(f.text.trim());
   return videos.filter((v) => {
     if (f.competition !== '' && v.match.competition !== f.competition) return false;
     if (f.downloaded === 'yes' && !downloaded.has(v.match.id)) return false;
     if (f.downloaded === 'no' && downloaded.has(v.match.id)) return false;
+    if (f.published === 'yes' && !published.has(v.id)) return false;
+    if (f.published === 'no' && published.has(v.id)) return false;
     return q === '' || fold(`${v.match.home} ${v.match.away} ${v.match.competition} ${v.match.round} ${String(v.seed)}`).includes(q);
   });
 }
