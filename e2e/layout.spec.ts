@@ -132,6 +132,28 @@ test.describe('programado, aviso y selección en pantallas estrechas', () => {
   }
 });
 
+test.describe('cabecera en pantallas intermedias', () => {
+  // En GitHub las tipografías del sistema son más anchas que en mi entorno: con letra más grande, la cabecera debe pasar a otra fila en vez de salirse.
+  for (const width of [768, 820, 1024]) {
+    test(`la cabecera no se sale a ${String(width)} px ni con la letra más grande`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 800 });
+      await mockOpenFootball(page);
+      await page.goto('/#/videos');
+      await page.addStyleTag({ content: 'html { font-size: 21px !important; }' });
+      const result = await page.evaluate(() => {
+        const vw = document.documentElement.clientWidth;
+        return [...document.querySelectorAll('.app__header *')]
+          .filter((el) => {
+            const r = el.getBoundingClientRect();
+            return r.width > 0 && (r.right > vw + 1 || r.left < -1);
+          })
+          .map((el) => `${el.tagName.toLowerCase()}.${el.className}`);
+      });
+      expect(result).toEqual([]);
+    });
+  }
+});
+
 test.describe('diseño móvil', () => {
   test.use({ contextOptions: { reducedMotion: 'reduce' } });
 

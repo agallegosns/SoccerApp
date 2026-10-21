@@ -23,8 +23,9 @@
 
 .app__header-inner {
   display: flex;
+  flex-wrap: wrap; /* si en una pantalla intermedia no cabe todo en una fila, el menú pasa a la siguiente en vez de salirse */
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-1) var(--space-3);
   min-height: 3.5rem;
 }
 
@@ -176,6 +177,13 @@
   }
 }
 
+/* Pantallas intermedias (tablet vertical): el menú ocupa menos para que quepan marca, etiqueta, menú y nube */
+@media (min-width: 48rem) and (max-width: 63.99rem) {
+  .appnav__link {
+    padding-inline: var(--space-3);
+  }
+}
+
 /* Aviso «¿se ha publicado?» */
 .due {
   display: grid;
@@ -209,8 +217,14 @@
 }
 
 .sync-btn {
-  margin-left: auto;
   flex: none;
+}
+
+/* En el móvil la nube va al extremo derecho; en pantallas anchas ya lo empuja el menú. */
+@media (max-width: 47.99rem) {
+  .sync-btn {
+    margin-left: auto;
+  }
 }
 
 .sync-btn[data-status='error'] {
