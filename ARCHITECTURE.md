@@ -160,7 +160,7 @@ Dos estilos de vídeo sobre **la misma simulación** (`src/features/simulation/r
   violaciones; tokens con contraste AA comprobado en unitarias. Los nombres accesibles se derivan del contenido visible (WCAG 2.5.3).
 - **Reglas del proyecto como tests** (`src/test/rules.test.ts`): sin emojis, colores sólo en `tokens.css`, sin `any`/`@ts-ignore`/`catch {}` vacíos, iconos SVG con
   `aria-hidden` y zonas táctiles con `--tap`.
-- **Subruta/despliegue**: `VITE_BASE` + prueba e2e (`chromium-subpath`); workflow de Pages sólo manual (ver `docs/DESPLIEGUE.md`).
+- **Subruta/despliegue**: `VITE_BASE` + prueba e2e (`chromium-subpath`); workflow de Pages automático al fusionar en la rama por defecto (y manual) (ver `docs/DESPLIEGUE.md`).
 
 ## Calidad
 - TypeScript estricto + `noUncheckedIndexedAccess`; ESLint `strictTypeChecked`; sin `any`, sin `catch {}` vacío.

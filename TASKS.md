@@ -102,7 +102,7 @@ Leyenda: ✅ hecho y probado · 🟡 hecho, pendiente de verificar · ⬜ por ha
 - ✅ Reglas del proyecto como tests (`rules.test.ts`): detectó un `rgb()` suelto fuera de `tokens.css` (corregido con `--color-overlay`).
 - ✅ Optimización medida: JS inicial 533 → 274 kB (carga diferida del estudio); dibujado Arena 40 → 19 ms; exportación de 52 s de vídeo 76 → 41 s en el sandbox.
 - ✅ Memoria: sin fugas (heap tras GC 18,0 MB → 18,1 MB tras dos exportaciones; pico +38 MB).
-- ✅ Despliegue preparado: `VITE_BASE`, prueba e2e bajo `/SoccerApp/` (recursos, Excel de la Champions y trozo diferido sin 404), workflow de Pages **solo manual**.
+- ✅ Despliegue preparado: `VITE_BASE`, prueba e2e bajo `/SoccerApp/` (recursos, Excel de la Champions y trozo diferido sin 404), workflow de Pages automático al fusionar en la rama por defecto (y manual); pendiente de verificar en GitHub.
 - ✅ Documentación: README con capturas, ARCHITECTURE, TASKS, CLAUDE, `docs/DESPLIEGUE.md` y `docs/football-data-org.md`.
 - ✅ **Desplegado en GitHub Pages** (a petición del usuario): el workflow «Deploy a GitHub Pages» (ejecución 1, rama `claude/blissful-davinci-1xqg19`, commit `1faca99`) terminó con éxito: `npm ci`, `npm run ci`, subida del artefacto y `deploy-pages`. URL esperada: https://agallegosns.github.io/SoccerApp/
 - 🟡 **Pendiente de verificar: la web publicada.** Desde el sandbox no se puede acceder a `github.io`, así que no se ha abierto la URL; sí se verificó antes la compilación bajo `/SoccerApp/` con la prueba e2e de subruta. Comprobar en un navegador: que carga el calendario, que aparece la Champions 2026-27 (Excel bajo la subruta) y que el estudio se abre.
