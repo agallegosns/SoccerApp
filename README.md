@@ -31,6 +31,12 @@ El estudio de la captura se hizo en un navegador sin codificador H.264, por eso 
 4. Cuando descargas un vídeo (suelto o en ZIP) la tarjeta de ese partido se pone **verde** con «Hecho» en el calendario (se recuerda en tu navegador). Los partidos que ya hiciste por tu cuenta los marcas a mano con el círculo de la esquina de cada tarjeta (otra pulsación lo quita).
 4. Sube el vídeo a TikTok tú mismo.
 
+### Personalizar el vídeo
+En el estudio, panel **Personalizar el vídeo** (se guarda en tu navegador y vale para la vista previa, la exportación y los lotes):
+- **Colores de la arena** (Noche, Neón, Césped, Fuego) y **rebotes del balón** en las paredes (sin rebotes, pocos, normal, muchos). El balón rebota en el aro con la ley de reflexión, deja un destello en la pared y los escudos lo persiguen.
+- **Qué se muestra**: estadísticas, último suceso y estela del balón.
+- **Textos propios**: texto gancho bajo la competición («¿Quién gana? Comenta tu marcador»), marca de agua con tu usuario y texto del gol.
+
 ### Ritmo y escudos
 - **Ritmo rápido (por defecto)**: arranque inmediato (intro de 1 s), jugadas comprimidas para que el total sea ~26 s y descanso/final cortos: el vídeo dura **26 s** (hasta 4-3; con 10 goles o más puede llegar a ~30–35 s) en vez de 35–65 s, para que el vídeo se vea entero.
   Con la misma semilla el partido es **idéntico** (mismos sucesos, minutos y marcador) en ambos ritmos; sólo cambia el tiempo.

@@ -8,6 +8,8 @@ import { BatchPanel } from '../export/BatchPanel.tsx';
 import { ExportPanel } from '../export/ExportPanel.tsx';
 import { exportFileName } from '../export/fileName.ts';
 import { CrestsPanel } from './CrestsPanel.tsx';
+import { DEFAULT_VIDEO_OPTIONS, loadVideoOptions, saveVideoOptions, type VideoOptions } from './options.ts';
+import { VideoOptionsPanel } from './VideoOptionsPanel.tsx';
 import { SimulationPreview } from './SimulationPreview.tsx';
 import { useTeamCrests } from './useTeamCrests.ts';
 import { DEFAULT_STYLE, VIDEO_STYLES, type VideoStyle } from './renderers.ts';
@@ -51,6 +53,18 @@ export function SimulationStudio({ match, onBack }: Props) {
   const [style, setStyle] = useState<VideoStyle>(DEFAULT_STYLE);
   const [pace, setPace] = useState<Pace>('fast');
   const crests = useTeamCrests(match.home, match.away);
+  const [options, setOptions] = useState<VideoOptions>(loadVideoOptions);
+
+  function changeOptions(patch: Partial<VideoOptions>): void {
+    const next = { ...options, ...patch }; // los campos de texto ya limitan su longitud (maxLength); al cargar se validan con sanitizeOptions
+    setOptions(next);
+    saveVideoOptions(next);
+  }
+
+  function resetOptions(): void {
+    setOptions(DEFAULT_VIDEO_OPTIONS);
+    saveVideoOptions(DEFAULT_VIDEO_OPTIONS);
+  }
 
   const score: Score | null = fixed ? { home: fixedHome, away: fixedAway } : null;
   const sim = useMemo(
@@ -63,8 +77,9 @@ export function SimulationStudio({ match, onBack }: Props) {
     () => ({
       competition: `${match.competition} · ${match.round}`,
       when: `${formatDateEs(kickoff.date)} · ${kickoff.time ?? 'hora por confirmar'}`,
+      options,
     }),
-    [match.competition, match.round, kickoff.date, kickoff.time],
+    [match.competition, match.round, kickoff.date, kickoff.time, options],
   );
 
   const seedValid = /^\d+$/.test(seedText) && Number(seedText) <= MAX_SEED;
@@ -210,10 +225,12 @@ export function SimulationStudio({ match, onBack }: Props) {
             )}
           </div>
 
+          <VideoOptionsPanel options={options} style={style} onChange={changeOptions} onReset={resetOptions} />
+
           <CrestsPanel teams={[sim.script.teams.home, sim.script.teams.away]} crests={crests} />
 
           <ExportPanel
-            key={`${String(seed)}|${fixed ? `${String(fixedHome)}-${String(fixedAway)}` : 'r'}|${style}|${pace}|${String(crests.version)}`}
+            key={`${String(seed)}|${fixed ? `${String(fixedHome)}-${String(fixedAway)}` : 'r'}|${style}|${pace}|${String(crests.version)}|${JSON.stringify(options)}`}
             sim={sim}
             meta={meta}
             style={style}

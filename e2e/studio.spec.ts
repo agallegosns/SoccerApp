@@ -244,3 +244,47 @@ test.describe('estudio de simulación', () => {
     expect(Math.abs((box?.height ?? 0) / (box?.width ?? 1) - 16 / 9)).toBeLessThan(0.02);
   });
 });
+
+test.describe('personalizar el vídeo', () => {
+  test('colores, rebotes, textos y estadísticas cambian la vista previa y se recuerdan al recargar', async ({ page }) => {
+    await openStudio(page);
+    await setSeed(page, '2024');
+    await seekTo(page, 14);
+    const base = await canvasHash(page);
+
+    await page.getByTestId('theme-neon').click();
+    await expect(page.getByTestId('theme-neon')).toHaveAttribute('aria-pressed', 'true');
+    const neon = await canvasHash(page);
+    expect(neon).not.toBe(base);
+
+    await page.getByTestId('opt-hook').fill('¿Quién gana? Comenta');
+    const withHook = await canvasHash(page);
+    expect(withHook).not.toBe(neon);
+    await page.getByTestId('opt-watermark').fill('@mi_cuenta');
+    expect(await canvasHash(page)).not.toBe(withHook);
+
+    await page.getByTestId('opt-stats').uncheck();
+    await page.getByTestId('bounce-off').click();
+    await expect(page.getByTestId('bounce-off')).toHaveAttribute('aria-pressed', 'true');
+
+    // Persisten al recargar y se pueden restaurar.
+    await page.reload();
+    await page.locator('.match').first().click();
+    await page.getByTestId('open-studio').click();
+    await expect(page.getByTestId('theme-neon')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByTestId('opt-hook')).toHaveValue('¿Quién gana? Comenta');
+    await expect(page.getByTestId('opt-stats')).not.toBeChecked();
+    await expect(page.getByTestId('bounce-off')).toHaveAttribute('aria-pressed', 'true');
+    await page.getByTestId('opt-reset').click();
+    await expect(page.getByTestId('theme-noche')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByTestId('opt-hook')).toHaveValue('');
+  });
+
+  test('el estilo táctico oculta las opciones que sólo valen para la arena', async ({ page }) => {
+    await openStudio(page);
+    await expect(page.getByTestId('theme-neon')).toBeVisible();
+    await page.getByTestId('style-tactical').click();
+    await expect(page.getByTestId('theme-neon')).toHaveCount(0);
+    await expect(page.getByTestId('opt-hook')).toBeVisible();
+  });
+});

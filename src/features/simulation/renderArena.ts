@@ -1,17 +1,19 @@
-import { ballAt, phaseAt, statsAt } from '../../engine/animate.ts';
+import { phaseAt, statsAt } from '../../engine/animate.ts';
 import { clamp, smoothstep } from '../../engine/geometry.ts';
 import { mulberry32 } from '../../engine/rng.ts';
 import type { FrameState, ResolvedTeam, ScriptEvent, Simulation } from '../../engine/index.ts';
-import { ARENA, BALL_PX, DISC_R, GATE_DEPTH, MOUTH_HALF, cameraAngle, ballRoll, ballScreen, fieldToScreen, smoothBall, smoothDiscPositions } from './arena.ts';
+import { ARENA, BALL_PX, DISC_R, GATE_DEPTH, MOUTH_HALF, ballRoll, ballState, bounceEvents, cameraAngle, rotate, smoothDiscPositions, toScreen } from './arena.ts';
+import type { BounceLevel } from './bounce.ts';
 import { drawCrest } from './crest.ts';
-import { drawCard, drawCompetitionPill, drawIntro, fitFont, font, roundRect, type Ctx2D, type RenderMeta } from './render.ts';
+import { THEMES, goalTextOf, type ThemeId, type ThemePalette } from './options.ts';
+import { drawCard, drawCompetitionPill, drawHook, drawIntro, drawWatermark, fitFont, font, optionsOf, roundRect, type Ctx2D, type RenderMeta } from './render.ts';
 import { CANVAS_THEME as C, VIDEO_HEIGHT, VIDEO_WIDTH } from './theme.ts';
 
 const R = ARENA.radius;
 const GOLD = '#fde047';
 
 type Layer = HTMLCanvasElement | OffscreenCanvas;
-let staticLayer: Layer | null = null;
+const layers = new Map<ThemeId, Layer>();
 
 function makeLayer(): Layer {
   if (typeof OffscreenCanvas !== 'undefined') return new OffscreenCanvas(VIDEO_WIDTH, VIDEO_HEIGHT);
@@ -22,33 +24,35 @@ function makeLayer(): Layer {
 }
 
 /** Capa fija (no depende de la rotación ni del tiempo): degradado de fondo, halo del aro y suelo de la arena. Una sola copia por fotograma. */
-function arenaLayer(): Layer {
-  if (staticLayer !== null) return staticLayer;
+function arenaLayer(theme: ThemeId): Layer {
+  const cached = layers.get(theme);
+  if (cached !== undefined) return cached;
+  const pal = THEMES[theme];
   const layer = makeLayer();
   const ctx: Ctx2D | null = layer.getContext('2d');
   if (ctx === null) throw new Error('No se pudo crear el lienzo de la arena');
   const bg = ctx.createLinearGradient(0, 0, 0, VIDEO_HEIGHT);
-  bg.addColorStop(0, '#070d1c');
-  bg.addColorStop(0.5, '#0b1530');
-  bg.addColorStop(1, '#070d1c');
+  bg.addColorStop(0, pal.bgTop);
+  bg.addColorStop(0.5, pal.bgMid);
+  bg.addColorStop(1, pal.bgTop);
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, VIDEO_WIDTH, VIDEO_HEIGHT);
   const halo = ctx.createRadialGradient(ARENA.cx, ARENA.cy, R * 0.9, ARENA.cx, ARENA.cy, R * 1.45);
-  halo.addColorStop(0, 'rgba(96, 165, 250, 0.42)');
-  halo.addColorStop(1, 'rgba(96, 165, 250, 0)');
+  halo.addColorStop(0, pal.halo);
+  halo.addColorStop(1, pal.haloOff);
   ctx.fillStyle = halo;
   ctx.beginPath();
   ctx.arc(ARENA.cx, ARENA.cy, R * 1.45, 0, Math.PI * 2);
   ctx.fill();
   const floor = ctx.createRadialGradient(ARENA.cx, ARENA.cy - R * 0.2, R * 0.05, ARENA.cx, ARENA.cy, R);
-  floor.addColorStop(0, '#173a6b');
-  floor.addColorStop(0.65, '#0f2548');
-  floor.addColorStop(1, '#0a1730');
+  floor.addColorStop(0, pal.floor[0]);
+  floor.addColorStop(0.65, pal.floor[1]);
+  floor.addColorStop(1, pal.floor[2]);
   ctx.fillStyle = floor;
   ctx.beginPath();
   ctx.arc(ARENA.cx, ARENA.cy, R, 0, Math.PI * 2);
   ctx.fill();
-  staticLayer = layer;
+  layers.set(theme, layer);
   return layer;
 }
 
@@ -58,8 +62,8 @@ function other(side: 'home' | 'away'): 'home' | 'away' {
 
 const GLOW_R = 440;
 
-function drawBackground(ctx: Ctx2D, sim: Simulation, frame: FrameState): void {
-  ctx.drawImage(arenaLayer(), 0, 0);
+function drawBackground(ctx: Ctx2D, sim: Simulation, frame: FrameState, theme: ThemeId): void {
+  ctx.drawImage(arenaLayer(theme), 0, 0);
   // Resplandor del equipo con la posesión (sólo se rellena el cuadrado que lo contiene).
   for (const side of ['home', 'away'] as const) {
     const team = sim.script.teams[side];
@@ -182,14 +186,14 @@ function drawFloorMarks(ctx: Ctx2D, angle: number): void {
   ctx.restore();
 }
 
-function drawRing(ctx: Ctx2D, angle: number): void {
+function drawRing(ctx: Ctx2D, angle: number, color: string): void {
   const gap = Math.asin(MOUTH_HALF);
   ctx.save();
   ctx.translate(ARENA.cx, ARENA.cy);
   ctx.rotate(angle);
   ctx.lineWidth = 14;
   ctx.lineCap = 'round';
-  ctx.strokeStyle = '#f8fbff';
+  ctx.strokeStyle = color;
   // Arcos entre las dos bocas (arriba = −90°, abajo = +90°).
   ctx.beginPath();
   ctx.arc(0, 0, R, -Math.PI / 2 + gap, Math.PI / 2 - gap);
@@ -267,26 +271,24 @@ function drawDisc(ctx: Ctx2D, team: ResolvedTeam, pos: DiscPos, active: number, 
   drawCrest(ctx, team, pos.x, pos.y, DISC_R);
 }
 
-function drawBall(ctx: Ctx2D, frame: FrameState, t: number, sim: Simulation): void {
+function drawBall(ctx: Ctx2D, frame: FrameState, t: number, sim: Simulation, level: BounceLevel, trailOn: boolean): void {
   if (!frame.ball.visible) return;
   // Estela: posiciones recientes del balón.
   const trail: { x: number; y: number }[] = [];
-  for (let k = 7; k >= 1; k -= 1) {
-    const tk = Math.max(0, t - k * 0.035);
-    const b = ballScreen(sim, tk);
+  for (let k = trailOn ? 7 : 0; k >= 1; k -= 1) {
+    const b = ballState(sim, Math.max(0, t - k * 0.035), level);
     if (!b.visible) continue;
     trail.push(b);
   }
-  for (const [i, p] of trail.entries()) {
+  for (const [i, q] of trail.entries()) {
     ctx.fillStyle = `rgba(255,255,255,${String(0.05 + (0.22 * (i + 1)) / trail.length)})`;
     ctx.beginPath();
-    ctx.arc(p.x, p.y, BALL_PX * (0.35 + (0.55 * (i + 1)) / trail.length), 0, Math.PI * 2);
+    ctx.arc(q.x, q.y, BALL_PX * (0.35 + (0.55 * (i + 1)) / trail.length), 0, Math.PI * 2);
     ctx.fill();
   }
-  const sb = smoothBall(sim, t);
-  const p = ballScreen(sim, t);
-  const lift = sb.z * 10;
-  const r = BALL_PX * (1 + sb.z * 0.06);
+  const p = ballState(sim, t, level);
+  const lift = p.z * 10;
+  const r = BALL_PX * (1 + p.z * 0.06);
   ctx.fillStyle = 'rgba(0,0,0,0.35)';
   ctx.beginPath();
   ctx.ellipse(p.x + 3, p.y + 8, r * 0.95, r * 0.5, 0, 0, Math.PI * 2);
@@ -302,9 +304,9 @@ function drawBall(ctx: Ctx2D, frame: FrameState, t: number, sim: Simulation): vo
   ctx.fill();
   ctx.stroke();
   // Dibujo que rueda: tres manchas oscuras que giran alrededor de un eje perpendicular al avance (más estrechas cuanto más de canto).
-  const roll = ballRoll(sim, t) / r;
-  const ahead = ballScreen(sim, t + 0.03);
-  const behind = ballScreen(sim, t - 0.03);
+  const roll = ballRoll(sim, t, level) / r;
+  const ahead = ballState(sim, t + 0.03, level);
+  const behind = ballState(sim, t - 0.03, level);
   const heading = Math.atan2(ahead.y - behind.y, ahead.x - behind.x);
   ctx.fillStyle = '#0b1220';
   for (let k = 0; k < 3; k += 1) {
@@ -314,6 +316,31 @@ function drawBall(ctx: Ctx2D, frame: FrameState, t: number, sim: Simulation): vo
     ctx.beginPath();
     ctx.ellipse(p.x + Math.cos(heading) * Math.sin(a) * r * 0.62, p.y - lift + Math.sin(heading) * Math.sin(a) * r * 0.62, r * 0.3 * facing, r * 0.3, heading, 0, Math.PI * 2);
     ctx.fill();
+  }
+}
+
+/** Destello del aro en cada rebote del balón: un arco brillante que se apaga y unas chispas. */
+function drawBounceFlashes(ctx: Ctx2D, sim: Simulation, t: number, level: BounceLevel, ringColor: string): void {
+  for (const [index, e] of bounceEvents(sim, level).entries()) {
+    const age = t - e.t;
+    if (age < 0 || age > 0.45) continue;
+    const k = age / 0.45;
+    const angle = cameraAngle(t) + Math.atan2(e.v, e.u);
+    ctx.save();
+    ctx.translate(ARENA.cx, ARENA.cy);
+    ctx.strokeStyle = ringColor;
+    ctx.shadowColor = ringColor;
+    ctx.shadowBlur = 30 * (1 - k);
+    ctx.globalAlpha = 1 - k;
+    ctx.lineWidth = 16 + 10 * (1 - k);
+    ctx.lineCap = 'round';
+    const spread = 0.12 + 0.35 * k;
+    ctx.beginPath();
+    ctx.arc(0, 0, R, angle - spread, angle + spread);
+    ctx.stroke();
+    ctx.restore();
+    const p = toScreen(rotate({ u: Math.cos(angle) * 0.98, v: Math.sin(angle) * 0.98 }, 0));
+    burst(ctx, 5000 + index * 131, p.x, p.y, age, [ringColor, GOLD], 7, 0.45);
   }
 }
 
@@ -346,14 +373,13 @@ function burst(ctx: Ctx2D, seed: number, x: number, y: number, age: number, colo
   ctx.globalAlpha = 1;
 }
 
-function drawEffects(ctx: Ctx2D, sim: Simulation, t: number): void {
+function drawEffects(ctx: Ctx2D, sim: Simulation, t: number, level: BounceLevel): void {
   const { teams } = sim.script;
   for (const [index, e] of sim.script.events.entries()) {
     const age = t - e.t;
     if (age < 0) break;
     if (age > 1.6 || e.type === 'kickoff' || e.type === 'shot' || e.type === 'halftime' || e.type === 'fulltime') continue;
-    const ball = ballAt(sim.script, e.t);
-    const p = fieldToScreen(ball.x, ball.y, e.t);
+    const p = ballState(sim, e.t, level);
     const seed = index * 7919 + 13;
     if (e.type === 'goal' && e.side !== null) {
       const team = teams[e.side];
@@ -407,7 +433,7 @@ function shakeOffset(sim: Simulation, t: number): { x: number; y: number } {
   return { x, y };
 }
 
-function drawGoalBanner(ctx: Ctx2D, sim: Simulation, banner: NonNullable<FrameState['goalBanner']>): void {
+function drawGoalBanner(ctx: Ctx2D, sim: Simulation, banner: NonNullable<FrameState['goalBanner']>, goalText: string): void {
   const team = sim.script.teams[banner.side];
   const p = banner.progress;
   const pop = p < 0.14 ? smoothstep(p / 0.14) * 1.1 : 1.1 - 0.1 * smoothstep((p - 0.14) / 0.2);
@@ -436,8 +462,8 @@ function drawGoalBanner(ctx: Ctx2D, sim: Simulation, banner: NonNullable<FrameSt
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillStyle = '#ffffff';
-  ctx.font = font(150, 800);
-  ctx.fillText('¡GOL!', 90, -34);
+  fitFont(ctx, goalText, 470, 150, 800);
+  ctx.fillText(goalText, 90, -34);
   const sub = `${team.style.short}${banner.shirt === null ? '' : ` · nº ${String(banner.shirt)}`} · ${banner.clock}`;
   fitFont(ctx, sub, 520, 40, 700);
   ctx.fillStyle = '#e8eefc';
@@ -498,15 +524,19 @@ export function drawArenaFrame(ctx: Ctx2D, sim: Simulation, t: number, meta: Ren
   const { home, away } = sim.script.teams;
   const angle = cameraAngle(frame.t);
   const sprint = phase.kind === 'attack' && phase.side !== null && frame.phaseProgress < 0.9 ? phase.side : null;
+  const opts = optionsOf(meta);
+  const pal: ThemePalette = THEMES[opts.theme];
+  const level = opts.bounce;
 
-  drawBackground(ctx, sim, frame);
+  drawBackground(ctx, sim, frame, opts.theme);
   drawHeader(ctx, sim, frame, meta, sprint);
 
   const shake = shakeOffset(sim, frame.t);
   ctx.save();
   ctx.translate(shake.x, shake.y);
   drawFloorMarks(ctx, angle);
-  drawRing(ctx, angle);
+  drawRing(ctx, angle, pal.ring);
+  drawBounceFlashes(ctx, sim, frame.t, level, pal.ring);
   // La portería de arriba es la del equipo que defiende ese lado (cambian de campo en la 2.ª parte).
   const topDefender = frame.half === 1 ? 'away' : 'home';
   const glowOf = (side: 'home' | 'away'): number => {
@@ -520,13 +550,13 @@ export function drawArenaFrame(ctx: Ctx2D, sim: Simulation, t: number, meta: Ren
   drawGate(ctx, angle, true, sim.script.teams[topDefender].style.primary, glowOf(topDefender));
   drawGate(ctx, angle, false, sim.script.teams[other(topDefender)].style.primary, glowOf(other(topDefender)));
 
-  const discs = smoothDiscPositions(sim, frame.t);
+  const discs = smoothDiscPositions(sim, frame.t, level);
   const pulse = 0.5 + 0.5 * Math.sin(frame.t * 10);
   for (const team of [home, away]) {
     // Estela de sprint.
     if (sprint === team.side) {
       for (let k = 6; k >= 1; k -= 1) {
-        const prev = smoothDiscPositions(sim, Math.max(0, frame.t - k * 0.04))[team.side];
+        const prev = smoothDiscPositions(sim, Math.max(0, frame.t - k * 0.04), level)[team.side];
         ctx.fillStyle = `rgba(253, 224, 71, ${String(0.05 + 0.04 * (7 - k))})`;
         ctx.beginPath();
         ctx.arc(prev.x, prev.y, DISC_R * (0.5 + 0.08 * (7 - k)), 0, Math.PI * 2);
@@ -536,18 +566,22 @@ export function drawArenaFrame(ctx: Ctx2D, sim: Simulation, t: number, meta: Ren
     const holds = frame.players.some((p) => p.side === team.side && p.hasBall);
     drawDisc(ctx, team, discs[team.side], clamp(frame.possession[team.side] * (holds ? 1 : 0.55), 0, 1), pulse);
   }
-  drawBall(ctx, frame, frame.t, sim);
+  drawBall(ctx, frame, frame.t, sim, level, opts.ballTrail);
   ctx.restore();
 
-  drawEffects(ctx, sim, frame.t);
+  drawEffects(ctx, sim, frame.t, level);
 
   // Estadísticas en vivo (calculadas con los sucesos ya ocurridos) y último suceso.
   const live = statsAt(sim.script.events, frame.t);
-  drawTicker(ctx, frame);
-  statBar(ctx, sim, 'TIROS', live.home.shots, live.away.shots, 1726);
-  statBar(ctx, sim, 'A PUERTA', live.home.onTarget, live.away.onTarget, 1784);
+  if (opts.showTicker) drawTicker(ctx, frame);
+  if (opts.showStats) {
+    statBar(ctx, sim, 'TIROS', live.home.shots, live.away.shots, 1726);
+    statBar(ctx, sim, 'A PUERTA', live.home.onTarget, live.away.onTarget, 1784);
+  }
+  drawHook(ctx, opts.hook);
+  drawWatermark(ctx, opts.watermark);
 
-  if (frame.goalBanner !== null) drawGoalBanner(ctx, sim, frame.goalBanner);
+  if (frame.goalBanner !== null) drawGoalBanner(ctx, sim, frame.goalBanner, goalTextOf(opts));
   if (phase.kind === 'intro') drawIntro(ctx, sim, meta, frame.phaseProgress);
   else if (phase.kind === 'halftime') {
     const span = phase.t1 - phase.t0;

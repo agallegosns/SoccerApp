@@ -158,3 +158,11 @@ Leyenda: ✅ hecho y probado · 🟡 hecho, pendiente de verificar · ⬜ por ha
 - ✅ **Quitado el banner flotante «Selecciona un partido»**; el panel inferior sólo sale al elegir uno.
 - ✅ **Instalable en el móvil**: manifest + iconos (🟡 no verificado en un móvil real; sin service worker puede que Chrome ofrezca «Añadir a pantalla de inicio» en vez de «Instalar»).
 - 🟡 **Sin desplegar**: hay que pedir un redespliegue.
+
+## Balón con rebotes y personalización (a petición del usuario, tomando como modelo el vídeo de referencia)
+- ✅ **El balón rebota en las paredes** del aro en el estilo Arena (ley de reflexión, destello en la pared, chispas) y los escudos lo persiguen. Probado: reflexión exacta en cada rebote, balón dentro del aro, cada tramo empieza y acaba donde dice el guion
+  (los sucesos y el marcador no cambian), sin teletransportes, determinista. Revisado a ojo en una secuencia de capturas de la vista previa.
+  🟡 Diferencias con el vídeo de referencia: allí los escudos también rebotan y se chocan con el balón; aquí los escudos lo persiguen con retraso pero no rebotan en la pared. Con ritmo rápido y tramos cortos hay 7–15 rebotes por vídeo; «Muchos» sólo añade los tramos más cortos.
+- ✅ **Personalización del vídeo**: 4 paletas, nivel de rebotes, estadísticas/último suceso/estela, texto gancho, marca de agua y texto del gol; se guardan en el navegador y valen para vista previa, exportación y lotes. Tests unitarios (validación) y e2e (cambian el vídeo, persisten, se restauran).
+  🟡 Otras opciones posibles que no he añadido: velocidad del giro de la cámara, tamaño del balón o de los escudos, música/sonido (el vídeo sale sin audio).
+- 🟡 Pendiente de verificar a ojo en un vídeo exportado (exportación real VP9 probada con ffprobe) y **sin desplegar** (hay que pedir un redespliegue).

@@ -188,3 +188,13 @@ Medido en 4 semillas: aceleración del balón p95 12,5 → 4,3 px/fotograma², s
 - `public/manifest.webmanifest` + iconos PNG (192, 512, apple-touch 180) permiten añadirla a la pantalla de inicio.
 - `src/data/downloaded.ts` ahora es el conjunto de partidos «hechos»: lo llenan las descargas y el botón de cada tarjeta (`toggleDownloaded`).
 - Calendario: sin avisos de zona horaria/«temporada anterior»/nota de la liga (sólo se mantiene el de copia sin conexión) y sin el banner «Selecciona un partido» (el panel inferior sólo aparece con un partido elegido).
+
+## Balón con rebotes y personalización (Arena)
+- `bounce.ts` (puro): `routeBetween(a, b, semilla, nivel)` decide de forma determinista si un tramo del balón (`pass`, `cross`, `carry`, `retrieve`) rebota en la pared (radio `WALL` = 0,94 del círculo) con la **ley de reflexión**: busca en 720 ángulos los puntos
+  de la pared con error de reflexión ≈ 0 (Alhazen), los refina por búsqueda ternaria, descarta las bocas de portería y elige uno con la semilla del tramo. Los tiros y los tramos a la red van rectos. El recorrido se hace con ligera deceleración (`easeOut`).
+- `arena.ts`: `ballUnit` (ruta en el círculo, sin cámara), `ballState` (con cámara y un promedio de ±0,04 s), `bounceEvents` (instante y punto de cada rebote → destello del aro y chispas en `renderArena.ts`), `ballRoll` (giro del dibujo en el círculo)
+  y `smoothDiscPositions`: los escudos **persiguen** al balón dibujado con 0,3 s de retraso (`DISC_CHASE_DELAY`) y suavizado de ±0,12 s. Es sólo la trayectoria dibujada: los tramos empiezan y acaban donde dice el guion (probado), así que sucesos, minutos y marcador no cambian.
+  Los efectos de los sucesos (paradas, gol…) se dibujan donde está el balón dibujado en ese instante.
+- `options.ts`: `VideoOptions` (tema, rebotes, estadísticas, último suceso, estela, gancho, marca de agua, texto del gol) con `sanitizeOptions` (valida lo guardado) y `localStorage` (`video-options`); viaja en `RenderMeta.options`, de modo que lo usan vista previa, exportación y lotes.
+  `THEMES` define las paletas (capa estática de la arena cacheada por tema). `VideoOptionsPanel.tsx` es el panel de ajustes (las opciones de arena se ocultan en el estilo táctico).
+- Medido (5 semillas): 7–15 rebotes por vídeo de 26 s en «normal»; dibujo de un fotograma Arena ≈ 27 ms de media (antes 21 ms).

@@ -4,7 +4,8 @@ import { ballAt, frameAt } from '../../engine/animate.ts';
 import { PITCH_L, PITCH_W } from '../../engine/geometry.ts';
 import { simulate } from '../../engine/index.ts';
 import { generateScript } from '../../engine/script.ts';
-import { ARENA, BALL_R, DISC_R, MOUTH_HALF, ballRoll, ballScreen, cameraAngle, discScreenPositions, smoothBall, smoothDiscPositions, fieldToScreen, fieldToUnit, maxRadius, rotate, toScreen } from './arena.ts';
+import { ARENA, BALL_R, DISC_R, MOUTH_HALF, ballRoll, ballState, ballUnit, bounceEvents, cameraAngle, discScreenPositions, smoothDiscPositions, fieldToScreen, fieldToUnit, maxRadius, rotate, toScreen } from './arena.ts';
+import { WALL } from './bounce.ts';
 import { crestPattern } from './crest.ts';
 
 describe('geometría de la arena', () => {
@@ -123,78 +124,94 @@ describe('discos de los equipos', () => {
   });
 });
 
-describe('movimiento suavizado (fluidez del vídeo)', () => {
-  it('el balón y los discos suavizados aceleran poco entre fotogramas y no saltan', () => {
-    let ballAcc = 0;
-    let discAcc = 0;
-    let discJump = 0;
-    for (const seed of [1, 2, 2024]) {
-      const sim = simulate({ seed, home: 'Real Madrid', away: 'RB Leipzig', score: { home: 2, away: 1 } });
-      const pts: { b: { x: number; y: number } | null; d: { x: number; y: number } }[] = [];
-      for (let t = 0; t < sim.script.duration; t += 1 / 30) {
-        const f = sim.frame(t);
-        if (f.phase === 'intro' || f.phase === 'halftime' || f.phase === 'fulltime') {
-          pts.length = 0;
-          continue;
-        }
-        const sb = smoothBall(sim, t);
-        pts.push({ b: sb.visible ? fieldToScreen(sb.x, sb.y, t) : null, d: smoothDiscPositions(sim, t).home });
-        if (pts.length > 3) pts.shift();
-        const [p0, p1, p2] = pts;
-        if (p0 === undefined || p1 === undefined || p2 === undefined) continue;
-        discAcc = Math.max(discAcc, Math.hypot(p2.d.x - 2 * p1.d.x + p0.d.x, p2.d.y - 2 * p1.d.y + p0.d.y));
-        discJump = Math.max(discJump, Math.hypot(p2.d.x - p1.d.x, p2.d.y - p1.d.y));
-        if (p0.b !== null && p1.b !== null && p2.b !== null) ballAcc = Math.max(ballAcc, Math.hypot(p2.b.x - 2 * p1.b.x + p0.b.x, p2.b.y - 2 * p1.b.y + p0.b.y));
-      }
-    }
-    expect(discJump).toBeLessThan(60);
-    expect(discAcc).toBeLessThan(20);
-    expect(ballAcc).toBeLessThan(60);
-  });
-});
+describe('movimiento (escudos y balón con rebotes)', () => {
+  const sim = simulate({ seed: 2024, home: 'Real Madrid', away: 'RB Leipzig', score: { home: 2, away: 1 } });
+  const inGame = (t: number): boolean => !['intro', 'halftime', 'fulltime'].includes(sim.frame(t).phase);
 
-describe('balón que rueda', () => {
-  it('la distancia rodada nunca decrece, crece durante el juego y es continua', () => {
-    const sim = simulate({ seed: 2024, home: 'Real Madrid', away: 'RB Leipzig', score: { home: 2, away: 1 } });
+  it('los escudos persiguen al balón sin saltos ni tirones', () => {
+    let jump = 0;
+    let acc = 0;
+    const pts: { x: number; y: number }[] = [];
+    for (let t = 0; t < sim.script.duration; t += 1 / 30) {
+      if (!inGame(t)) {
+        pts.length = 0;
+        continue;
+      }
+      pts.push(smoothDiscPositions(sim, t).home);
+      if (pts.length > 3) pts.shift();
+      const [a, b, c] = pts;
+      if (a === undefined || b === undefined || c === undefined) continue;
+      jump = Math.max(jump, Math.hypot(c.x - b.x, c.y - b.y));
+      acc = Math.max(acc, Math.hypot(c.x - 2 * b.x + a.x, c.y - 2 * b.y + a.y));
+    }
+    expect(jump).toBeLessThan(70);
+    expect(acc).toBeLessThan(30);
+  });
+
+  it('el balón dibujado no se teletransporta (salvo en los reinicios, cuando está oculto)', () => {
+    let maxStep = 0;
+    let prev: { x: number; y: number } | null = null;
+    for (let t = 0; t < sim.script.duration; t += 1 / 30) {
+      const b = ballState(sim, t, 'high');
+      if (!b.visible || !inGame(t)) {
+        prev = null;
+        continue;
+      }
+      if (prev !== null) maxStep = Math.max(maxStep, Math.hypot(b.x - prev.x, b.y - prev.y));
+      prev = b;
+    }
+    expect(maxStep).toBeLessThan(260);
+  });
+
+  it('hay rebotes en la pared y cumplen la ley de reflexión (ángulo de entrada = de salida)', () => {
+    const events = bounceEvents(sim, 'high');
+    expect(events.length).toBeGreaterThan(3);
+    for (const e of events) {
+      const at = ballUnit(sim, e.t, 'high');
+      expect(Math.hypot(at.u, at.v)).toBeCloseTo(WALL, 1); // toca la pared
+      const dt = 0.01;
+      const before = ballUnit(sim, e.t - dt, 'high');
+      const after = ballUnit(sim, e.t + dt, 'high');
+      const vin = { u: at.u - before.u, v: at.v - before.v };
+      const vout = { u: after.u - at.u, v: after.v - at.v };
+      const n = { u: at.u / Math.hypot(at.u, at.v), v: at.v / Math.hypot(at.u, at.v) };
+      // La componente tangencial se conserva y la normal se invierte.
+      const tin = vin.u * -n.v + vin.v * n.u;
+      const tout = vout.u * -n.v + vout.v * n.u;
+      expect(Math.abs(tin - tout)).toBeLessThan(0.02);
+      expect(vin.u * n.u + vin.v * n.v).toBeGreaterThan(0);
+      expect(vout.u * n.u + vout.v * n.v).toBeLessThan(0);
+    }
+  });
+
+  it('con «sin rebotes» no hay ninguno y con más nivel hay más', () => {
+    expect(bounceEvents(sim, 'off')).toHaveLength(0);
+    expect(bounceEvents(sim, 'high').length).toBeGreaterThanOrEqual(bounceEvents(sim, 'normal').length);
+    expect(bounceEvents(sim, 'normal').length).toBeGreaterThanOrEqual(bounceEvents(sim, 'low').length);
+  });
+
+  it('los rebotes no cambian los instantes: al empezar y acabar cada tramo el balón está donde dice el guion', () => {
+    for (const seg of sim.script.ball) {
+      if (seg.kind === 'reset' || seg.t1 - seg.t0 < 0.05) continue;
+      const start = ballUnit(sim, seg.t0 + 1e-6, 'high');
+      const end = ballUnit(sim, seg.t1 - 1e-6, 'high');
+      const a = fieldToUnit(seg.from.x, seg.from.y);
+      const b = fieldToUnit(seg.to.x, seg.to.y);
+      expect(Math.hypot(start.u - a.u, start.v - a.v)).toBeLessThan(0.02);
+      expect(Math.hypot(end.u - b.u, end.v - b.v)).toBeLessThan(0.02);
+    }
+  });
+
+  it('la distancia rodada nunca decrece y es continua', () => {
     let prev = 0;
     let maxStep = 0;
     for (let t = 0; t <= sim.script.duration; t += 1 / 30) {
-      const r = ballRoll(sim, t);
+      const r = ballRoll(sim, t, 'high');
       expect(r).toBeGreaterThanOrEqual(prev - 1e-6);
       maxStep = Math.max(maxStep, r - prev);
       prev = r;
     }
     expect(prev).toBeGreaterThan(2000);
-    expect(maxStep).toBeLessThan(120);
-  });
-});
-
-describe('balón «por libre»', () => {
-  it('se adelanta a la trayectoria mientras lo conducen, queda dentro del aro y sigue siendo suave', () => {
-    const sim = simulate({ seed: 2024, home: 'Real Madrid', away: 'RB Leipzig', score: { home: 2, away: 1 } });
-    let free = 0;
-    let frames = 0;
-    let maxAcc = 0;
-    let prev: { x: number; y: number }[] = [];
-    for (let t = 0; t < sim.script.duration; t += 1 / 30) {
-      const b = ballScreen(sim, t);
-      if (!b.visible) {
-        prev = [];
-        continue;
-      }
-      const base = smoothBall(sim, t);
-      const p = fieldToScreen(base.x, base.y, t);
-      frames += 1;
-      if (Math.hypot(b.x - p.x, b.y - p.y) > 20) {
-        free += 1;
-        expect(Math.hypot(b.x - ARENA.cx, b.y - ARENA.cy)).toBeLessThanOrEqual(ARENA.radius); // el desvío nunca saca el balón del aro
-      }
-      prev.push(b);
-      if (prev.length > 3) prev.shift();
-      const [a, m, c] = prev;
-      if (a !== undefined && m !== undefined && c !== undefined) maxAcc = Math.max(maxAcc, Math.hypot(c.x - 2 * m.x + a.x, c.y - 2 * m.y + a.y));
-    }
-    expect(free / frames).toBeGreaterThan(0.1);
-    expect(maxAcc).toBeLessThan(60);
+    expect(maxStep).toBeLessThan(260);
   });
 });

@@ -7,11 +7,43 @@ import { CANVAS_THEME as C, FONT_STACK, PITCH_RECT, VIDEO_HEIGHT, VIDEO_WIDTH } 
 export type Ctx2D = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 type PitchCanvas = HTMLCanvasElement | OffscreenCanvas;
 
+import { DEFAULT_VIDEO_OPTIONS, goalTextOf, type VideoOptions } from './options.ts';
+
 export interface RenderMeta {
   /** «LaLiga 2026-27 · Jornada 8». */
   readonly competition: string;
   /** «sábado, 24 de octubre de 2026 · 12:30». */
   readonly when: string;
+  /** Personalización del vídeo (si falta, los valores predeterminados). */
+  readonly options?: VideoOptions;
+}
+
+export function optionsOf(meta: RenderMeta): VideoOptions {
+  return meta.options ?? DEFAULT_VIDEO_OPTIONS;
+}
+
+/** Texto gancho bajo la competición (si el usuario lo ha escrito). */
+export function drawHook(ctx: Ctx2D, raw: string): void {
+  const text = raw.trim();
+  if (text === '') return;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const size = fitFont(ctx, text, 940, 40, 800);
+  ctx.font = font(size, 800);
+  ctx.fillStyle = C.text;
+  ctx.fillText(text, VIDEO_WIDTH / 2, 262);
+}
+
+/** Marca de agua al pie (si el usuario la ha escrito). */
+export function drawWatermark(ctx: Ctx2D, raw: string): void {
+  const text = raw.trim();
+  if (text === '') return;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const size = fitFont(ctx, text, 900, 34, 700);
+  ctx.font = font(size, 700);
+  ctx.fillStyle = C.muted;
+  ctx.fillText(text, VIDEO_WIDTH / 2, 1846);
 }
 
 const SCALE = PITCH_RECT.height / PITCH_L; // px por metro
@@ -241,7 +273,7 @@ function drawTicker(ctx: Ctx2D, frame: FrameState): void {
   ctx.fillText(text, VIDEO_WIDTH / 2, 1727);
 }
 
-function drawGoalBanner(ctx: Ctx2D, sim: Simulation, banner: NonNullable<FrameState['goalBanner']>): void {
+function drawGoalBanner(ctx: Ctx2D, sim: Simulation, banner: NonNullable<FrameState['goalBanner']>, goalText: string): void {
   const team = sim.script.teams[banner.side];
   const p = banner.progress;
   const pop = p < 0.15 ? smoothstep(p / 0.15) * 1.12 : 1.12 - 0.12 * smoothstep((p - 0.15) / 0.15);
@@ -264,7 +296,8 @@ function drawGoalBanner(ctx: Ctx2D, sim: Simulation, banner: NonNullable<FrameSt
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.font = font(168, 800);
-  ctx.fillText('¡GOL!', 0, -40);
+  fitFont(ctx, goalText, 760, 168, 800);
+  ctx.fillText(goalText, 0, -40);
   const sub = `${team.style.short}${banner.shirt === null ? '' : ` · nº ${String(banner.shirt)}`} · ${banner.clock}`;
   fitFont(ctx, sub, 760, 44, 700);
   ctx.fillText(sub, 0, 90);
@@ -359,8 +392,11 @@ export function drawFrame(ctx: Ctx2D, sim: Simulation, t: number, meta: RenderMe
     ctx.setLineDash([]);
   }
   drawBall(ctx, frame);
-  drawTicker(ctx, frame);
-  if (frame.goalBanner !== null) drawGoalBanner(ctx, sim, frame.goalBanner);
+  const opts = optionsOf(meta);
+  if (opts.showTicker) drawTicker(ctx, frame);
+  drawHook(ctx, opts.hook);
+  drawWatermark(ctx, opts.watermark);
+  if (frame.goalBanner !== null) drawGoalBanner(ctx, sim, frame.goalBanner, goalTextOf(opts));
 
   if (phase.kind === 'intro') drawIntro(ctx, sim, meta, frame.phaseProgress);
   else if (phase.kind === 'halftime') {
