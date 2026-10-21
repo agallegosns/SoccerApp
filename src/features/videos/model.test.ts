@@ -71,11 +71,13 @@ describe('fichas de vídeo', () => {
     const b = record({ seed: 8, match: { ...match, id: 'prueba-2', competition: 'Premier League 2030-31', home: 'Atlético Prueba' } });
     const all = [a, b];
     const none = new Set<string>();
-    expect(filterVideos(all, { text: 'atletico', competition: '', downloaded: 'all' }, none)).toEqual([b]);
-    expect(filterVideos(all, { text: '', competition: 'LaLiga 2030-31', downloaded: 'all' }, none)).toEqual([a]);
-    expect(filterVideos(all, { text: '8', competition: '', downloaded: 'all' }, none)).toEqual([b]);
-    expect(filterVideos(all, { text: '', competition: '', downloaded: 'yes' }, new Set(['prueba-2']))).toEqual([b]);
-    expect(filterVideos(all, { text: '', competition: '', downloaded: 'no' }, new Set(['prueba-2']))).toEqual([a]);
+    expect(filterVideos(all, { text: 'atletico', competition: '', downloaded: 'all', published: 'all' }, none)).toEqual([b]);
+    expect(filterVideos(all, { text: '', competition: 'LaLiga 2030-31', downloaded: 'all', published: 'all' }, none)).toEqual([a]);
+    expect(filterVideos(all, { text: '8', competition: '', downloaded: 'all', published: 'all' }, none)).toEqual([b]);
+    expect(filterVideos(all, { text: '', competition: '', downloaded: 'yes', published: 'all' }, new Set(['prueba-2']))).toEqual([b]);
+    expect(filterVideos(all, { text: '', competition: '', downloaded: 'no', published: 'all' }, new Set(['prueba-2']))).toEqual([a]);
+    expect(filterVideos(all, { text: '', competition: '', downloaded: 'all', published: 'yes' }, none, new Set([b.id]))).toEqual([b]);
+    expect(filterVideos(all, { text: '', competition: '', downloaded: 'all', published: 'no' }, none, new Set([b.id]))).toEqual([a]);
   });
 });
 

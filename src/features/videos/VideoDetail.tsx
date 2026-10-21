@@ -1,4 +1,4 @@
-import { AlertTriangle, ArrowLeft, ChevronLeft, ChevronRight, Copy, Download, Film, Plus, RefreshCw, RotateCw, Trash2, X } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, CheckCheck, ChevronLeft, ChevronRight, Copy, Download, Film, Plus, RefreshCw, RotateCw, Trash2, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { setBusy } from '../../app/busy.ts';
@@ -22,6 +22,7 @@ import { engagementOf, latest, platformLabel, totalsOf, type Platform } from '..
 import { usePublications } from '../stats/store.ts';
 import { formatBytes, formatStamp, type VideoRecord } from './model.ts';
 import { descriptionFor, recommendTime } from './publish.ts';
+import { usePublished, togglePublished } from './published.ts';
 import { recordExport } from './record.ts';
 import { removeVideo, useVideos } from './store.ts';
 import './videos.css';
@@ -54,6 +55,8 @@ export function VideoDetail({ record, onOpenStudio }: Props) {
   const videos = useVideos();
   const downloaded = useDownloaded();
   const pubs = usePublications();
+  const published = usePublished();
+  const publishedOn = published[record.id];
   const support = useExportSupport();
   const [tab, setTab] = useState<Tab>('summary');
   const [seek, setSeek] = useState<{ t: number; nonce: number } | null>(null);
@@ -166,6 +169,23 @@ export function VideoDetail({ record, onOpenStudio }: Props) {
             {record.match.competition} · {record.match.round} · {formatDateEs(kickoff.date)}
             {kickoff.time !== null && ` · ${kickoff.time}`}
           </p>
+          <div className="row" data-testid="published-box">
+            <button
+              type="button"
+              className={publishedOn === undefined ? 'btn btn--primary' : 'btn'}
+              aria-pressed={publishedOn !== undefined}
+              onClick={() => { togglePublished(record.id); }}
+              data-testid="toggle-published"
+            >
+              <CheckCheck aria-hidden="true" size={20} />
+              {publishedOn === undefined ? 'Marcar como publicado' : 'Publicado · quitar marca'}
+            </button>
+            {publishedOn !== undefined && (
+              <span className="chip chip--done" data-testid="published-date">
+                Publicado el {formatDateEs(publishedOn)}
+              </span>
+            )}
+          </div>
         </div>
         {siblings.length > 1 && (
           <div className="pager" role="group" aria-label={`Vídeos de este partido (${String(at + 1)} de ${String(siblings.length)})`}>

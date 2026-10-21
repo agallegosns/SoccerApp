@@ -88,15 +88,38 @@ test.describe('biblioteca de vídeos y ficha', () => {
     await expect(page.getByTestId('video-next')).toBeDisabled();
   });
 
+  test('marcar un vídeo como publicado a mano: se ve en la ficha y en la lista, se filtra y se recuerda al recargar', async ({ page }) => {
+    await open(page, '#/videos');
+    await expect(page.getByTestId('video-card')).toHaveCount(2);
+    await page.getByTestId('open-video').first().click();
+    await expect(page.getByTestId('toggle-published')).toContainText('Marcar como publicado');
+    await page.getByTestId('toggle-published').click();
+    await expect(page.getByTestId('published-date')).toBeVisible();
+    await expect(page.getByTestId('toggle-published')).toHaveAttribute('aria-pressed', 'true');
+    await page.reload();
+    await expect(page.getByTestId('published-date')).toBeVisible();
+    await page.getByRole('link', { name: 'Vídeos', exact: true }).first().click();
+    await expect(page.getByTestId('chip-published')).toHaveCount(1);
+    await page.getByTestId('videos-published').selectOption('yes');
+    await expect(page.getByTestId('video-card')).toHaveCount(1);
+    await page.getByTestId('videos-published').selectOption('no');
+    await expect(page.getByTestId('video-card')).toHaveCount(1);
+    await expect(page.getByTestId('chip-published')).toHaveCount(0);
+    await page.getByTestId('videos-published').selectOption('yes');
+    await page.getByTestId('open-video').click();
+    await page.getByTestId('toggle-published').click();
+    await expect(page.getByTestId('published-date')).toHaveCount(0);
+  });
+
   test('«Publicar» da una descripción copiable con la etiqueta ficticia', async ({ page, context }) => {
     await context.grantPermissions(['clipboard-read', 'clipboard-write']);
     await open(page, '#/videos');
     await page.getByTestId('open-video').first().click();
     await page.getByTestId('vd-tab-publish').click();
     const caption = page.getByTestId('caption');
-    await expect(caption).toHaveValue(/simulación ficticia/);
+    await expect(caption).toHaveValue(/ vs /);
     await expect(caption).toHaveValue(/#AthleticClub/);
-    await expect(caption).toHaveValue(/no es una predicción/);
+    await expect(caption).not.toHaveValue(/ficticia|predicción/);
     await expect(page.getByTestId('time-reco')).toContainText('Hora recomendada');
     await page.getByTestId('next-variant').click();
     await page.getByTestId('copy-caption').click();

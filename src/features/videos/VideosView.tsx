@@ -1,4 +1,4 @@
-import { Calendar, Check, Film, Search } from 'lucide-react';
+import { Calendar, Check, CheckCheck, Film, Search } from 'lucide-react';
 import { useState } from 'react';
 
 import { videoHref } from '../../app/route.ts';
@@ -7,6 +7,7 @@ import { useDownloaded } from '../../ui/useDownloaded.ts';
 import { platformLabel } from '../stats/model.ts';
 import { usePublications } from '../stats/store.ts';
 import { filterVideos, formatBytes, type VideoFilter, type VideoRecord } from './model.ts';
+import { usePublished } from './published.ts';
 import { useVideos } from './store.ts';
 import './videos.css';
 
@@ -16,10 +17,11 @@ export function VideosView() {
   const videos = useVideos();
   const downloaded = useDownloaded();
   const pubs = usePublications();
-  const [filter, setFilter] = useState<VideoFilter>({ text: '', competition: '', downloaded: 'all' });
+  const published = usePublished();
+  const [filter, setFilter] = useState<VideoFilter>({ text: '', competition: '', downloaded: 'all', published: 'all' });
 
   const competitions = [...new Set(videos.map((v) => v.match.competition))].sort((a, b) => a.localeCompare(b));
-  const shown = filterVideos(videos, filter, downloaded);
+  const shown = filterVideos(videos, filter, downloaded, new Set(Object.keys(published)));
 
   return (
     <div className="videos" data-testid="videos-view">
@@ -76,6 +78,14 @@ export function VideosView() {
                 <option value="no">Sin descargar</option>
               </select>
             </label>
+            <label className="field">
+              <span className="visually-hidden">Publicación</span>
+              <select value={filter.published} onChange={(e) => { setFilter({ ...filter, published: e.target.value === 'yes' ? 'yes' : e.target.value === 'no' ? 'no' : 'all' }); }} data-testid="videos-published">
+                <option value="all">Publicados y sin publicar</option>
+                <option value="yes">Solo publicados</option>
+                <option value="no">Sin publicar</option>
+              </select>
+            </label>
           </div>
           <p className="muted" role="status" data-testid="videos-count">
             {shown.length === videos.length ? `${String(videos.length)} ${videos.length === 1 ? 'vídeo' : 'vídeos'}` : `${String(shown.length)} de ${String(videos.length)} vídeos`}
@@ -103,6 +113,12 @@ export function VideosView() {
                       <div className="vcard__info">
                         <div className="vcard__top">
                           <span className="chip chip--muted">{v.match.competition}</span>
+                          {v.id in published && (
+                            <span className="chip chip--done" data-testid="chip-published">
+                              <CheckCheck aria-hidden="true" size={14} />
+                              Publicado
+                            </span>
+                          )}
                           {isDownloaded && (
                             <span className="chip chip--done">
                               <Check aria-hidden="true" size={14} />
@@ -126,7 +142,7 @@ export function VideosView() {
                     <div className="vcard__foot">
                       <div className="vcard__tags">
                         {platforms.length === 0 ? (
-                          <span className="muted">Sin publicar</span>
+                          <span className="muted">{published[v.id] === undefined ? 'Sin publicar' : `Publicado el ${formatDateEs(published[v.id] ?? '')}`}</span>
                         ) : (
                           platforms.map((p) => (
                             <span key={p} className={`chip chip--${p}`}>

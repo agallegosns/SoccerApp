@@ -202,3 +202,5 @@ Leyenda: ✅ hecho y probado · 🟡 hecho, pendiente de verificar · ⬜ por ha
 - ✅ Estadísticas de la Arena: sólo tiros y a puerta (córners y faltas no existen en esta física, no se muestran).
 - ⚠ Las fichas creadas antes de este cambio avisan («versión anterior del simulador»): la misma semilla da ahora otro partido.
 - 🟡 Pendiente de verificar: la sensación de movimiento en un móvil real (solo se han revisado fotogramas y métricas).
+- ✅ Vídeos: botón «Marcar como publicado» en la ficha (a mano, con fecha), chip «Publicado» y filtro en la lista (`published.ts`). Es solo orden: no se conecta con TikTok/Instagram.
+- ✅ Cartel de gol más pequeño; el juego se detiene mientras dura (el balón queda en la red) y se oculta el rótulo inferior repetido. Descripciones: solo «⚽ Local vs Visitante ⚽» + 5 hashtags, sin marcador.

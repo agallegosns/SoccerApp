@@ -119,6 +119,28 @@ describe('Arena: simulación física libre', () => {
     expect(power('high')).toBeGreaterThan(power('off'));
   });
 
+  it('tras un gol el juego espera a que desaparezca el cartel antes de reanudarse', () => {
+    let checked = 0;
+    for (const seed of seeds) {
+      for (const pace of ['fast', 'normal'] as const) {
+        const sim = simulateArena(input(seed, pace));
+        if (sim.arena === undefined) throw new Error('sin pista');
+        for (const g of sim.script.events.filter((e) => e.type === 'goal')) {
+          const banner = Math.max(1.5, 2.2 * sim.script.timeScale);
+          if (g.t + banner + 0.1 > sim.script.halftimeMid && g.t < sim.script.halftimeMid) continue;
+          if (g.t + banner + 0.1 > sim.script.duration) continue;
+          // Mientras dura el cartel, el balón no está en juego: dentro de la red o aún sin aparecer.
+          for (let t = g.t + 0.05; t < g.t + banner; t += 0.1) {
+            const s = sampleAt(sim.arena, t);
+            expect(Math.hypot(s.ball.u, s.ball.v) > 1 || s.ball.alpha < 0.05).toBe(true);
+          }
+          checked += 1;
+        }
+      }
+    }
+    expect(checked).toBeGreaterThan(10);
+  });
+
   it('rechaza semillas no enteras', () => {
     expect(() => simulateArena({ ...input(1), seed: 1.5 })).toThrow(RangeError);
   });

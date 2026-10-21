@@ -22,11 +22,15 @@ describe('hashtags y descripción', () => {
       expect(tags).toContain('#RealMadrid');
     }
   });
-  it('la descripción empieza como «Local vs Visitante», es determinista y avisa de que es ficticia', () => {
+  it('la descripción es «Local vs Visitante» con iconos y los 5 hashtags, sin marcador, y es determinista', () => {
     const a = descriptionFor(record, 'tiktok');
     expect(a).toBe(descriptionFor(record, 'tiktok'));
-    expect(a).toContain('FC Barcelona vs Real Madrid');
-    expect(a).toContain('simulación ficticia');
+    const [title, blank, tags] = a.split('\n');
+    expect(title).toContain('FC Barcelona vs Real Madrid');
+    expect(title).toMatch(/\p{Extended_Pictographic}/u);
+    expect(blank).toBe('');
+    expect(tags?.split(' ')).toHaveLength(5);
+    expect(a).not.toMatch(/2–1|ficticia|predicci/);
     expect(descriptionFor(record, 'tiktok', 0)).not.toBe(descriptionFor(record, 'tiktok', 1));
   });
 });
