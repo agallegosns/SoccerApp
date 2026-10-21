@@ -166,3 +166,9 @@ Leyenda: ✅ hecho y probado · 🟡 hecho, pendiente de verificar · ⬜ por ha
 - ✅ **Personalización del vídeo**: 4 paletas, nivel de rebotes, estadísticas/último suceso/estela, texto gancho, marca de agua y texto del gol; se guardan en el navegador y valen para vista previa, exportación y lotes. Tests unitarios (validación) y e2e (cambian el vídeo, persisten, se restauran).
   🟡 Otras opciones posibles que no he añadido: velocidad del giro de la cámara, tamaño del balón o de los escudos, música/sonido (el vídeo sale sin audio).
 - 🟡 Pendiente de verificar a ojo en un vídeo exportado (exportación real VP9 probada con ffprobe) y **sin desplegar** (hay que pedir un redespliegue).
+
+## Física del balón (a petición del usuario)
+- ✅ El balón se mueve con física: **acelera al ser golpeado** (velocidad máxima en el golpeo), **rueda y pierde velocidad por fricción** (decaimiento exponencial), **gira** con la distancia recorrida, **rebota en la pared** (reflexión + pérdida de velocidad + destello), traza **arcos con efecto** en pases/centros/tiros y, en los pases elevados, **cae y bota** con altura decreciente (sombra que se achica con la altura). El escudo que golpea se lanza al balón y se ve la onda del impacto.
+  Probado (36 tests del módulo): fricción monótona, aceleración en el golpeo, conservación de extremos y horas del guion, reflexión, botes con restitución, altura ≥ 0, sin teletransportes; e2e y exportación real VP9 en verde.
+- 🟡 **Límites honestos**: la física está *ajustada* al guion (llega donde y cuando dice), no es un simulador libre; los escudos no rebotan en la pared ni chocan con el balón de forma calculada (es un gesto de golpeo). Revisado a ojo sólo en capturas de la vista previa: pendiente de ver un vídeo exportado en movimiento.
+- 🟡 **Sin desplegar** (hay que pedir un redespliegue).

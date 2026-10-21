@@ -41,6 +41,30 @@ function straight(a: Unit, b: Unit): Route {
   return { pts: [a, b], cum: [0, length], length, bounceAt: null };
 }
 
+/** Pase o tiro con efecto: arco suave (curva de Bézier cuadrática) que se desvía hacia un lado; nunca sale del aro. */
+function curved(a: Unit, b: Unit, bend: number): Route {
+  const direct = dist(a, b);
+  if (direct < 1e-6 || Math.abs(bend) < 1e-3) return straight(a, b);
+  const nx = -(b.v - a.v) / direct;
+  const ny = (b.u - a.u) / direct;
+  for (let k = 0; k < 5; k += 1) {
+    const amount = bend / 2 ** k;
+    const ctrl = { u: (a.u + b.u) / 2 + nx * amount * direct * 2, v: (a.v + b.v) / 2 + ny * amount * direct * 2 };
+    const pts: Unit[] = [];
+    for (let i = 0; i <= 24; i += 1) {
+      const t = i / 24;
+      const m = 1 - t;
+      pts.push({ u: m * m * a.u + 2 * m * t * ctrl.u + t * t * b.u, v: m * m * a.v + 2 * m * t * ctrl.v + t * t * b.v });
+    }
+    if (pts.every((p, i) => i === 0 || i === pts.length - 1 || Math.hypot(p.u, p.v) <= WALL)) {
+      const cum = [0];
+      for (let i = 1; i < pts.length; i += 1) cum.push((cum[i - 1] ?? 0) + dist(pts[i - 1] ?? a, pts[i] ?? b));
+      return { pts, cum, length: cum[cum.length - 1] ?? direct, bounceAt: null };
+    }
+  }
+  return straight(a, b);
+}
+
 /** Error de la ley de reflexión para una banda en el punto P de la pared (0 = rebote perfecto). */
 function reflectionError(a: Unit, b: Unit, theta: number): number {
   const p = { u: WALL * Math.cos(theta), v: WALL * Math.sin(theta) };
@@ -82,23 +106,25 @@ function candidates(a: Unit, b: Unit): number[] {
 }
 
 /** Ruta del balón entre dos puntos: recta o con una banda en la pared, según el nivel y la semilla (determinista). */
-export function routeBetween(a: Unit, b: Unit, seed: number, level: BounceLevel): Route {
+export function routeBetween(a: Unit, b: Unit, seed: number, level: BounceLevel, curve = 0): Route {
   const cfg = LEVELS[level];
   const direct = dist(a, b);
-  if (level === 'off' || direct < cfg.minLength) return straight(a, b);
+  // Sin rebote, el viaje es recto o (si lleva efecto) un arco hacia un lado elegido por la semilla.
+  const free = (): Route => (curve > 0 && direct > 0.25 ? curved(a, b, (seed % 2 === 0 ? 1 : -1) * curve) : straight(a, b));
+  if (level === 'off' || direct < cfg.minLength) return free();
   // «Dado» determinista del tramo (0–1) y otro para elegir entre las bandas posibles.
   const roll = ((Math.imul(seed ^ 0x9e3779b9, 2654435761) >>> 0) % 10000) / 10000;
-  if (roll >= cfg.chance) return straight(a, b);
+  if (roll >= cfg.chance) return free();
   const options = candidates(a, b)
     .map((theta) => {
       const p = { u: WALL * Math.cos(theta), v: WALL * Math.sin(theta) };
       return { p, length: dist(a, p) + dist(p, b) };
     })
     .filter((o) => o.length <= direct * 2.6 + 0.6);
-  if (options.length === 0) return straight(a, b);
+  if (options.length === 0) return free();
   options.sort((x, y) => x.length - y.length);
   const pick = options[Math.floor((((Math.imul(seed, 40503) >>> 0) % 1000) / 1000) * options.length)] ?? options[0];
-  if (pick === undefined) return straight(a, b);
+  if (pick === undefined) return free();
   const l1 = dist(a, pick.p);
   return { pts: [a, pick.p, b], cum: [0, l1, pick.length], length: pick.length, bounceAt: l1 / pick.length };
 }
@@ -119,8 +145,3 @@ export function pointOnRoute(route: Route, f: number): Unit {
   }
   return route.pts[route.pts.length - 1] ?? { u: 0, v: 0 };
 }
-
-/** El balón rueda y frena: ligera deceleración en pases y conducciones (los tiros salen a velocidad constante). */
-const EASE = 1.35;
-export const easeOut = (s: number): number => 1 - (1 - Math.min(Math.max(s, 0), 1)) ** EASE;
-export const easeOutInverse = (f: number): number => 1 - (1 - Math.min(Math.max(f, 0), 1)) ** (1 / EASE);

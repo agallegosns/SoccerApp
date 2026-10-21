@@ -191,10 +191,22 @@ Medido en 4 semillas: aceleración del balón p95 12,5 → 4,3 px/fotograma², s
 
 ## Balón con rebotes y personalización (Arena)
 - `bounce.ts` (puro): `routeBetween(a, b, semilla, nivel)` decide de forma determinista si un tramo del balón (`pass`, `cross`, `carry`, `retrieve`) rebota en la pared (radio `WALL` = 0,94 del círculo) con la **ley de reflexión**: busca en 720 ángulos los puntos
-  de la pared con error de reflexión ≈ 0 (Alhazen), los refina por búsqueda ternaria, descarta las bocas de portería y elige uno con la semilla del tramo. Los tiros y los tramos a la red van rectos. El recorrido se hace con ligera deceleración (`easeOut`).
+  de la pared con error de reflexión ≈ 0 (Alhazen), los refina por búsqueda ternaria, descarta las bocas de portería y elige uno con la semilla del tramo. Los tiros y los tramos a la red van rectos. El recorrido se hace con la física de `physics.ts`.
 - `arena.ts`: `ballUnit` (ruta en el círculo, sin cámara), `ballState` (con cámara y un promedio de ±0,04 s), `bounceEvents` (instante y punto de cada rebote → destello del aro y chispas en `renderArena.ts`), `ballRoll` (giro del dibujo en el círculo)
   y `smoothDiscPositions`: los escudos **persiguen** al balón dibujado con 0,3 s de retraso (`DISC_CHASE_DELAY`) y suavizado de ±0,12 s. Es sólo la trayectoria dibujada: los tramos empiezan y acaban donde dice el guion (probado), así que sucesos, minutos y marcador no cambian.
   Los efectos de los sucesos (paradas, gol…) se dibujan donde está el balón dibujado en ese instante.
 - `options.ts`: `VideoOptions` (tema, rebotes, estadísticas, último suceso, estela, gancho, marca de agua, texto del gol) con `sanitizeOptions` (valida lo guardado) y `localStorage` (`video-options`); viaja en `RenderMeta.options`, de modo que lo usan vista previa, exportación y lotes.
   `THEMES` define las paletas (capa estática de la arena cacheada por tema). `VideoOptionsPanel.tsx` es el panel de ajustes (las opciones de arena se ocultan en el estilo táctico).
 - Medido (5 semillas): 7–15 rebotes por vídeo de 26 s en «normal»; dibujo de un fotograma Arena ≈ 27 ms de media (antes 21 ms).
+
+## Física del balón (Arena)
+`physics.ts` (puro, con pruebas) da al balón dibujado un movimiento físico **sin tocar lo que dice el guion** (dónde empieza y acaba cada tramo y cuándo: así los goles, las paradas y el marcador siguen coherentes):
+- **Golpeo**: el balón sale de golpe con su velocidad máxima `v0`, calculada (búsqueda binaria sobre la fórmula cerrada) para llegar exactamente al destino a la hora del guion.
+- **Fricción**: después rueda y pierde velocidad de forma exponencial (dv/dt = −k·v; `FRICTION`: tiro 0,2 · centro 0,55 · pase 1,3 · balón suelto 1,6 · conducción 2).
+- **Pared**: rebote por la ley de reflexión (`bounce.ts`) con pérdida del 20 % de la velocidad (`WALL_KEEP`) y destello del aro.
+- **Trayectoria con efecto**: pases, centros y tiros hacen un arco suave (Bézier, 7–18 % de la longitud) hacia un lado fijado por la semilla; nunca sale del aro.
+- **Pase elevado**: parábola hasta caer (70 % del tramo en los centros), después **botes** cada vez más bajos (restitución 0,55 → cada bote alcanza 0,55² de la altura anterior); la sombra se achica y se aclara con la altura.
+- **Rodar y girar**: el dibujo del balón gira con la distancia recorrida por el suelo (menos en el aire) y la dirección de avance.
+- **Colisiones**: el escudo que golpea se lanza al balón justo antes del golpeo (contacto en el instante del golpe, `LUNGE_*`), se ve la onda del impacto (`kickEvents`) y el destello de la pared (`bounceEvents`).
+Medido (seed 2024, 26 s): ≈ 26 golpeos y 7–15 rebotes por vídeo; en cada pase sin pared la velocidad baja de forma monótona (probado); dibujado Arena ≈ 29 ms por fotograma.
+**Límites**: no es un motor físico libre (el guion manda); los escudos no rebotan en la pared y las colisiones balón–escudo son un gesto de golpeo, no un choque calculado.

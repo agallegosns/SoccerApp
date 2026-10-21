@@ -2,7 +2,7 @@ import { phaseAt, statsAt } from '../../engine/animate.ts';
 import { clamp, smoothstep } from '../../engine/geometry.ts';
 import { mulberry32 } from '../../engine/rng.ts';
 import type { FrameState, ResolvedTeam, ScriptEvent, Simulation } from '../../engine/index.ts';
-import { ARENA, BALL_PX, DISC_R, GATE_DEPTH, MOUTH_HALF, ballRoll, ballState, bounceEvents, cameraAngle, rotate, smoothDiscPositions, toScreen } from './arena.ts';
+import { ARENA, BALL_PX, DISC_R, GATE_DEPTH, MOUTH_HALF, ballRoll, ballState, bounceEvents, cameraAngle, kickEvents, rotate, smoothDiscPositions, toScreen } from './arena.ts';
 import type { BounceLevel } from './bounce.ts';
 import { drawCrest } from './crest.ts';
 import { THEMES, goalTextOf, type ThemeId, type ThemePalette } from './options.ts';
@@ -287,11 +287,12 @@ function drawBall(ctx: Ctx2D, frame: FrameState, t: number, sim: Simulation, lev
     ctx.fill();
   }
   const p = ballState(sim, t, level);
-  const lift = p.z * 10;
-  const r = BALL_PX * (1 + p.z * 0.06);
-  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  const lift = p.z * 16;
+  const r = BALL_PX * (1 + p.z * 0.07);
+  // Sombra en el suelo: más pequeña y tenue cuanto más alto va el balón (se ve cómo cae y bota).
+  ctx.fillStyle = `rgba(0,0,0,${String(0.35 / (1 + p.z * 0.4))})`;
   ctx.beginPath();
-  ctx.ellipse(p.x + 3, p.y + 8, r * 0.95, r * 0.5, 0, 0, Math.PI * 2);
+  ctx.ellipse(p.x + 3, p.y + 8, (r * 0.95) / (1 + p.z * 0.12), (r * 0.5) / (1 + p.z * 0.12), 0, 0, Math.PI * 2);
   ctx.fill();
   const g = ctx.createRadialGradient(p.x - r * 0.35, p.y - lift - r * 0.4, r * 0.1, p.x, p.y - lift, r);
   g.addColorStop(0, '#ffffff');
@@ -316,6 +317,25 @@ function drawBall(ctx: Ctx2D, frame: FrameState, t: number, sim: Simulation, lev
     ctx.beginPath();
     ctx.ellipse(p.x + Math.cos(heading) * Math.sin(a) * r * 0.62, p.y - lift + Math.sin(heading) * Math.sin(a) * r * 0.62, r * 0.3 * facing, r * 0.3, heading, 0, Math.PI * 2);
     ctx.fill();
+  }
+}
+
+/** Impacto de cada golpeo del balón: onda que se abre desde el punto de contacto y chispas, más fuertes cuanto más fuerte es el golpe. */
+function drawKickFlashes(ctx: Ctx2D, sim: Simulation, t: number, level: BounceLevel): void {
+  for (const [index, kick] of kickEvents(sim, level).entries()) {
+    const age = t - kick.t;
+    if (age < 0 || age > 0.3) continue;
+    const k = age / 0.3;
+    const p = toScreen(rotate({ u: kick.u, v: kick.v }, cameraAngle(t)));
+    ctx.save();
+    ctx.globalAlpha = (1 - k) * (0.35 + 0.65 * kick.power);
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 6 * (1 - k) + 1;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, BALL_PX * 1.2 + k * (40 + 90 * kick.power), 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+    if (kick.power > 0.25) burst(ctx, 9000 + index * 97, p.x, p.y, age, ['#ffffff', GOLD], Math.round(4 + 10 * kick.power), 0.35 + 0.4 * kick.power);
   }
 }
 
@@ -537,6 +557,7 @@ export function drawArenaFrame(ctx: Ctx2D, sim: Simulation, t: number, meta: Ren
   drawFloorMarks(ctx, angle);
   drawRing(ctx, angle, pal.ring);
   drawBounceFlashes(ctx, sim, frame.t, level, pal.ring);
+  drawKickFlashes(ctx, sim, frame.t, level);
   // La portería de arriba es la del equipo que defiende ese lado (cambian de campo en la 2.ª parte).
   const topDefender = frame.half === 1 ? 'away' : 'home';
   const glowOf = (side: 'home' | 'away'): number => {

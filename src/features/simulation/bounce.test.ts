@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { WALL, easeOut, easeOutInverse, pointOnRoute, routeBetween } from './bounce.ts';
+import { WALL, pointOnRoute, routeBetween } from './bounce.ts';
 
 const A = { u: -0.5, v: 0.3 };
 const B = { u: 0.4, v: -0.2 };
@@ -67,10 +67,17 @@ describe('rutas con rebote', () => {
     }
   });
 
-  it('la deceleración es monótona y su inversa la deshace', () => {
-    expect(easeOut(0)).toBe(0);
-    expect(easeOut(1)).toBe(1);
-    for (const s of [0.1, 0.4, 0.8]) expect(easeOutInverse(easeOut(s))).toBeCloseTo(s, 9);
-    expect(easeOut(0.5)).toBeGreaterThan(0.5);
+  it('con efecto, el pase hace un arco suave con los mismos extremos y dentro del aro', () => {
+    const r = routeBetween(A, B, 3, 'off', 0.12);
+    expect(r.bounceAt).toBeNull();
+    expect(r.pts.length).toBeGreaterThan(10);
+    expect(r.pts[0]).toEqual(A);
+    expect(r.pts.at(-1)).toEqual(B);
+    expect(r.length).toBeGreaterThan(Math.hypot(B.u - A.u, B.v - A.v));
+    for (const p of r.pts) expect(Math.hypot(p.u, p.v)).toBeLessThanOrEqual(WALL + 1e-9);
+    // Las dos semillas de distinta paridad lo curvan hacia lados opuestos.
+    const other = routeBetween(A, B, 4, 'off', 0.12);
+    const mid = (route: typeof r): number => (route.pts[12]?.u ?? 0) * (B.v - A.v) - (route.pts[12]?.v ?? 0) * (B.u - A.u);
+    expect(Math.sign(mid(r))).not.toBe(Math.sign(mid(other)));
   });
 });

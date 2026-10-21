@@ -4,7 +4,7 @@ import { ballAt, frameAt } from '../../engine/animate.ts';
 import { PITCH_L, PITCH_W } from '../../engine/geometry.ts';
 import { simulate } from '../../engine/index.ts';
 import { generateScript } from '../../engine/script.ts';
-import { ARENA, BALL_R, DISC_R, MOUTH_HALF, ballRoll, ballState, ballUnit, bounceEvents, cameraAngle, discScreenPositions, smoothDiscPositions, fieldToScreen, fieldToUnit, maxRadius, rotate, toScreen } from './arena.ts';
+import { ARENA, BALL_R, DISC_R, MOUTH_HALF, ballRoll, ballState, ballUnit, bounceEvents, cameraAngle, discScreenPositions, kickEvents, smoothDiscPositions, fieldToScreen, fieldToUnit, maxRadius, rotate, toScreen } from './arena.ts';
 import { WALL } from './bounce.ts';
 import { crestPattern } from './crest.ts';
 
@@ -144,8 +144,8 @@ describe('movimiento (escudos y balón con rebotes)', () => {
       jump = Math.max(jump, Math.hypot(c.x - b.x, c.y - b.y));
       acc = Math.max(acc, Math.hypot(c.x - 2 * b.x + a.x, c.y - 2 * b.y + a.y));
     }
-    expect(jump).toBeLessThan(70);
-    expect(acc).toBeLessThan(30);
+    expect(jump).toBeLessThan(100); // el golpeo lanza al escudo hacia el balón: rápido pero sin teletransportes
+    expect(acc).toBeLessThan(60);
   });
 
   it('el balón dibujado no se teletransporta (salvo en los reinicios, cuando está oculto)', () => {
@@ -213,5 +213,48 @@ describe('movimiento (escudos y balón con rebotes)', () => {
     }
     expect(prev).toBeGreaterThan(2000);
     expect(maxStep).toBeLessThan(260);
+  });
+
+  const speedAt = (t: number, level: 'off' | 'normal' | 'high' = 'off'): number => {
+    const a = ballUnit(sim, t - 0.01, level);
+    const b = ballUnit(sim, t + 0.01, level);
+    return (Math.hypot(b.u - a.u, b.v - a.v) / 0.02) * ARENA.radius; // px/s
+  };
+
+  it('el golpeo acelera el balón de golpe y después la fricción lo va frenando (en línea, sin pared)', () => {
+    let checked = 0;
+    for (const seg of sim.script.ball) {
+      if (seg.kind !== 'pass' && seg.kind !== 'cross') continue;
+      if (seg.t1 - seg.t0 < 0.35) continue;
+      const start = speedAt(seg.t0 + 0.03);
+      const middle = speedAt((seg.t0 + seg.t1) / 2);
+      const end = speedAt(seg.t1 - 0.04);
+      expect(start).toBeGreaterThan(middle * 0.98);
+      expect(middle).toBeGreaterThan(end * 0.98);
+      expect(start).toBeGreaterThan(end * 1.15); // frena de verdad
+      checked += 1;
+    }
+    expect(checked).toBeGreaterThan(5);
+    expect(kickEvents(sim, 'off').length).toBeGreaterThan(5);
+  });
+
+  it('el pase elevado sube, cae al suelo y bota (altura nunca negativa)', () => {
+    const crosses = sim.script.ball.filter((seg) => seg.kind === 'cross' && seg.t1 - seg.t0 > 0.3);
+    expect(crosses.length).toBeGreaterThan(0);
+    for (const seg of crosses) {
+      let peak = 0;
+      let landed = false;
+      let rebounded = false;
+      for (let tau = 0.01; tau < 1; tau += 0.01) {
+        const z = ballUnit(sim, seg.t0 + tau * (seg.t1 - seg.t0), 'normal').z;
+        expect(z).toBeGreaterThanOrEqual(0);
+        peak = Math.max(peak, z);
+        if (tau > 0.68 && tau < 0.72 && z < 0.15) landed = true;
+        if (landed && tau > 0.8 && z > 0.1) rebounded = true;
+      }
+      expect(peak).toBeGreaterThan(seg.arc * 0.9);
+      expect(landed).toBe(true);
+      expect(rebounded).toBe(true);
+    }
   });
 });
