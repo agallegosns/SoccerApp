@@ -175,3 +175,35 @@
     padding-bottom: var(--space-5);
   }
 }
+
+/* Aviso «¿se ha publicado?» */
+.due {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+
+.due__item {
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.due__text {
+  display: grid;
+  gap: var(--space-1);
+  flex: 1 1 14rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.due__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  flex: 1 1 14rem;
+}
+
+.due__actions .btn {
+  flex: 1 1 8rem;
+}

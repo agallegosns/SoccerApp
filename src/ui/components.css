@@ -140,6 +140,18 @@ a.btn:hover {
   color: var(--color-accent-contrast);
 }
 
+.chip--scheduled {
+  gap: var(--space-1);
+  background: var(--color-select-soft);
+  color: var(--color-select);
+}
+
+.chip--warn {
+  gap: var(--space-1);
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+}
+
 .chip--real {
   background: var(--color-accent-soft);
   color: var(--color-accent);

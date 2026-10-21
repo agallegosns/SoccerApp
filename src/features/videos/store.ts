@@ -1,6 +1,8 @@
 import { useSyncExternalStore } from 'react';
 
 import { readJson, writeJson } from '../../data/cache.ts';
+import { clearPublished } from './published.ts';
+import { clearScheduled } from './scheduled.ts';
 import { MAX_VIDEOS, toVideoRecords, type VideoRecord } from './model.ts';
 
 const KEY = 'videos';
@@ -49,6 +51,19 @@ export function upsertVideo(record: VideoRecord): void {
 
 export function removeVideo(id: string): void {
   if (current.some((v) => v.id === id)) commit(current.filter((v) => v.id !== id));
+  // Sin ficha no quedan marcas sueltas de publicado/programado.
+  clearPublished(id);
+  clearScheduled(id);
+}
+
+/** Elimina varias fichas de una vez (una sola escritura). */
+export function removeVideos(ids: readonly string[]): void {
+  const set = new Set(ids);
+  if (current.some((v) => set.has(v.id))) commit(current.filter((v) => !set.has(v.id)));
+  for (const id of set) {
+    clearPublished(id);
+    clearScheduled(id);
+  }
 }
 
 /** Sólo para pruebas. */

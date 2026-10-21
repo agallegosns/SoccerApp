@@ -1,6 +1,7 @@
 import { useSyncExternalStore } from 'react';
 
 import { readJson, writeJson } from '../../data/cache.ts';
+import { clearScheduled } from './scheduled.ts';
 
 /**
  * Vídeos que el usuario marca a mano como PUBLICADOS (por id de ficha), con la fecha en que los marcó (`YYYY-MM-DD`, hora local).
@@ -56,7 +57,16 @@ export function usePublished(): PublishedMap {
 /** Marca como publicado (con la fecha de hoy, o la indicada) o quita la marca si ya lo estaba. */
 export function togglePublished(videoId: string, date: string = localToday()): void {
   if (videoId in current) commit(Object.fromEntries(Object.entries(current).filter(([id]) => id !== videoId)));
-  else commit({ ...current, [videoId]: date });
+  else {
+    commit({ ...current, [videoId]: date });
+    // Al confirmar que está publicado deja de estar «programado».
+    clearScheduled(videoId);
+  }
+}
+
+/** Quita la marca de publicado (al eliminar una ficha). */
+export function clearPublished(videoId: string): void {
+  if (videoId in current) commit(Object.fromEntries(Object.entries(current).filter(([id]) => id !== videoId)));
 }
 
 /** Sólo para pruebas. */

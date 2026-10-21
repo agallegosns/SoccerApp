@@ -180,6 +180,7 @@
   background: var(--color-surface);
   color: var(--color-text);
   font: inherit;
+  font-size: max(1rem, 16px); /* 16 px mínimo: si no, iOS amplía la página al tocarlo */
   resize: vertical;
 }
 
@@ -278,4 +279,23 @@
   .actions .btn {
     padding-inline: var(--space-2);
   }
+}
+
+.vtools {
+  flex-wrap: wrap;
+}
+
+.vcard__pick {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--tap);
+  color: var(--color-text-muted);
+}
+
+.vcard__pick input {
+  width: 1.5rem;
+  height: 1.5rem;
+  accent-color: var(--color-accent);
 }

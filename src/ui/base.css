@@ -6,10 +6,14 @@
 
 html {
   -webkit-text-size-adjust: 100%;
+  /* Nada se desplaza en horizontal (clip no crea contenedor de scroll: el header sticky sigue funcionando). */
+  overflow-x: clip;
 }
 
 body {
   margin: 0;
+  max-width: 100%;
+  overflow-x: clip;
   min-height: 100dvh;
   background: var(--color-bg);
   color: var(--color-text);
@@ -27,7 +31,8 @@ p {
 
 button,
 input,
-select {
+select,
+textarea {
   font: inherit;
   color: inherit;
 }
@@ -58,4 +63,12 @@ select {
     scroll-behavior: auto !important;
     transition-duration: 0.001ms !important;
   }
+}
+
+/* iOS Safari amplía la página al tocar un campo con letra menor de 16 px y deja la pantalla desplazable en horizontal.
+   Los campos de texto, listas y áreas usan siempre 16 px como mínimo (lo vigila e2e/layout.spec.ts). */
+input:not([type='checkbox'], [type='radio'], [type='range']),
+select,
+textarea {
+  font-size: max(1rem, 16px);
 }
