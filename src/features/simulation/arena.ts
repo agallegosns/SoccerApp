@@ -2,6 +2,7 @@ import { ballAt } from '../../engine/animate.ts';
 import { PITCH_L, PITCH_W, clamp, goalLineY, lerp, smoothstep, type Side } from '../../engine/geometry.ts';
 import type { FrameState } from '../../engine/index.ts';
 import type { BallSegment } from '../../engine/types.ts';
+import { discsAt, simulateDiscs, type DiscContact, type DiscTrack } from './discPhysics.ts';
 import { pointOnRoute, routeBetween, type BounceLevel, type Route } from './bounce.ts';
 import { FRICTION, PROFILE_STEPS, buildProfile, heightAt, progressAt, type Profile } from './physics.ts';
 
@@ -389,8 +390,8 @@ function applyKickContact(sim: FrameSource, t: number, level: BounceLevel, discs
   return out;
 }
 
-/** Posición de los escudos: persiguen al balón dibujado (con retraso) y se suavizan en el tiempo, sin saltos. */
-export function smoothDiscPositions(sim: FrameSource, t: number, level: BounceLevel = 'normal'): Discs {
+/** Objetivo de los escudos (coreografía): persiguen al balón dibujado (con retraso) y se suavizan en el tiempo, sin saltos. */
+export function targetDiscPositions(sim: FrameSource, t: number, level: BounceLevel = 'normal'): Discs {
   const key = `${String(sim.script.seed)}|${sim.script.teams.home.name}|${sim.script.teams.away.name}|${sim.script.pace}|${JSON.stringify(sim.script.score)}|${sim.script.duration.toFixed(3)}|${level}|${t.toFixed(4)}`;
   const hit = discCache.get(key);
   if (hit !== undefined) return hit;
@@ -411,8 +412,48 @@ export function smoothDiscPositions(sim: FrameSource, t: number, level: BounceLe
     }
     n += 1;
   }
-  const out = applyKickContact(sim, t, level, { home: { x: acc.home.x / n, y: acc.home.y / n }, away: { x: acc.away.x / n, y: acc.away.y / n } });
+  const out: Discs = { home: { x: acc.home.x / n, y: acc.home.y / n }, away: { x: acc.away.x / n, y: acc.away.y / n } };
   if (discCache.size > 64) discCache.clear();
   discCache.set(key, out);
   return out;
+}
+
+const trackCache = new WeakMap<object, Map<BounceLevel, DiscTrack>>();
+
+function trackOf(sim: FrameSource, level: BounceLevel): DiscTrack {
+  let byLevel = trackCache.get(sim.script);
+  if (byLevel === undefined) {
+    byLevel = new Map();
+    trackCache.set(sim.script, byLevel);
+  }
+  let track = byLevel.get(level);
+  if (track === undefined) {
+    track = simulateDiscs({
+      seed: sim.script.seed,
+      duration: sim.script.duration,
+      centre: { x: ARENA.cx, y: ARENA.cy },
+      maxRadius: ARENA.radius - DISC_R * 0.35,
+      minDistance: DISC_MIN_DISTANCE,
+      targetAt: (t) => {
+        const d = targetDiscPositions(sim, t, level);
+        return [d.home, d.away];
+      },
+    });
+    byLevel.set(level, track);
+  }
+  return track;
+}
+
+/** Contactos de los escudos con la pared o entre sí (para destellos y pruebas). */
+export function discContacts(sim: FrameSource, level: BounceLevel = 'normal'): readonly DiscContact[] {
+  return trackOf(sim, level).contacts;
+}
+
+/**
+ * Posición de los escudos: cuerpos con inercia que siguen la coreografía, con empujones deterministas y rebotes contra la pared y entre sí
+ * (ver `discPhysics.ts`); encima, el escudo que golpea el balón se lanza hacia él justo en el golpeo.
+ */
+export function smoothDiscPositions(sim: FrameSource, t: number, level: BounceLevel = 'normal'): Discs {
+  const [home, away] = discsAt(trackOf(sim, level), clamp(t, 0, sim.script.duration));
+  return applyKickContact(sim, t, level, { home, away });
 }

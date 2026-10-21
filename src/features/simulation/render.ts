@@ -23,15 +23,54 @@ export function optionsOf(meta: RenderMeta): VideoOptions {
 }
 
 /** Texto gancho bajo la competición (si el usuario lo ha escrito). */
+/** Reparte `text` en como mucho `maxLines` líneas que caben en `maxWidth` (con la fuente ya fijada en `ctx`). */
+export function wrapLines(ctx: Ctx2D, text: string, maxWidth: number, maxLines: number): string[] {
+  const words = text.split(/\s+/).filter((w) => w !== '');
+  const lines: string[] = [];
+  let current = '';
+  for (const word of words) {
+    const candidate = current === '' ? word : `${current} ${word}`;
+    if (current !== '' && ctx.measureText(candidate).width > maxWidth && lines.length < maxLines - 1) {
+      lines.push(current);
+      current = word;
+    } else {
+      current = candidate;
+    }
+  }
+  if (current !== '') lines.push(current);
+  return lines;
+}
+
+/** Gancho superior: en una caja con márgenes laterales y relleno, a una o dos líneas. */
 export function drawHook(ctx: Ctx2D, raw: string): void {
   const text = raw.trim();
   if (text === '') return;
+  const margin = 96; // margen lateral mínimo del lienzo
+  const padX = 44;
+  const padY = 26;
+  const maxText = VIDEO_WIDTH - 2 * margin - 2 * padX;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  const size = fitFont(ctx, text, 940, 40, 800);
+  let size = 44;
+  let lines: string[] = [];
+  for (; size >= 28; size -= 2) {
+    ctx.font = font(size, 800);
+    lines = wrapLines(ctx, text, maxText, 2);
+    if (lines.every((l) => ctx.measureText(l).width <= maxText)) break;
+  }
   ctx.font = font(size, 800);
+  const lineH = size * 1.2;
+  const widest = Math.max(...lines.map((l) => ctx.measureText(l).width));
+  const boxW = Math.min(VIDEO_WIDTH - 2 * margin, widest + 2 * padX);
+  const boxH = lines.length * lineH + 2 * padY;
+  const cy = 262;
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.38)';
+  roundRect(ctx, (VIDEO_WIDTH - boxW) / 2, cy - boxH / 2, boxW, boxH, 32);
+  ctx.fill();
   ctx.fillStyle = C.text;
-  ctx.fillText(text, VIDEO_WIDTH / 2, 262);
+  lines.forEach((line, i) => {
+    ctx.fillText(line, VIDEO_WIDTH / 2, cy - boxH / 2 + padY + lineH * (i + 0.5));
+  });
 }
 
 /** Marca de agua al pie (si el usuario la ha escrito). */

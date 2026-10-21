@@ -187,3 +187,11 @@ Leyenda: ✅ hecho y probado · 🟡 hecho, pendiente de verificar · ⬜ por ha
   🟡 Aún sin ver en un móvil real (solo emulación Chromium).
 - 🟡 El importador CSV reconoce cabeceras en español e inglés habituales, pero **no está probado con una exportación real de TikTok Studio ni de Instagram** (no se pudo obtener ninguna); si su formato difiere, habría que añadir alias.
 - 🟡 Pendiente de ver en un móvil real (barra inferior, teclado en los formularios) y **sin desplegar** (hay que pedir un redespliegue).
+
+## Arena más fluida, descripciones y hora recomendada
+- ✅ Escudos con física (`discPhysics.ts`): inercia (muelle amortiguado), empujones deterministas por semilla, rebotes contra la pared del aro y entre sí; función pura del tiempo (tabla precalculada). Probado en `arena.test.ts`.
+- ✅ Gancho superior del vídeo en caja con márgenes laterales (96 px) y hasta 2 líneas.
+- ✅ Pestaña «Publicar»: descripción «Local vs Visitante» (4 versiones, rotables) + 5 hashtags por plataforma (`publish.ts`). La viralidad de un hashtag NO se puede medir: lo dice la interfaz.
+- ✅ Hora recomendada: con ≥ 8 publicaciones (≥ 3 días de antigüedad, hora conocida) y ≥ 3 en la franja, mediana de visualizaciones por franja; si no, franja orientativa (2 h antes del partido) marcada como orientativa. Sin hora de partido ni datos: «Sin recomendación todavía».
+- 🟡 La hora de cada publicación llega del Worker (`publishedAtIso`): hay que volver a pegar `cloudflare/stats-worker.js` en Cloudflare. Sin probar contra las APIs reales.
+- 🟡 Pendiente de verificar: sensación de fluidez en un móvil real (no se ha recibido el vídeo de referencia).

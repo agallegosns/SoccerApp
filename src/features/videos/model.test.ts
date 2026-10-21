@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { Match } from '../../data/types.ts';
 import { DEFAULT_VIDEO_OPTIONS } from '../simulation/options.ts';
-import { buildRecord, captionFor, filterVideos, hashtag, toVideoRecord, toVideoRecords, videoId, type VideoParams, type VideoRecord } from './model.ts';
+import { buildRecord, filterVideos, hashtag, toVideoRecord, toVideoRecords, videoId, type VideoParams, type VideoRecord } from './model.ts';
 import { getVideos, removeVideo, resetVideosForTests, upsertVideo } from './store.ts';
 
 const match: Match = {
@@ -59,16 +59,6 @@ describe('fichas de vídeo', () => {
     const r = record();
     expect(toVideoRecords([r, r, 5, null, record({ seed: 9 })])).toHaveLength(2);
     expect(toVideoRecords('no es una lista')).toEqual([]);
-  });
-
-  it('la descripción para publicar avisa de que es ficticio y no promete nada', () => {
-    const text = captionFor(record());
-    expect(text).toContain('Real Sociedad vs Club de Prueba');
-    expect(text).toContain('Simulación ficticia: 2–1');
-    expect(text).toContain('No es una predicción');
-    expect(text).toContain('#RealSociedad');
-    expect(text).toContain('#LaLiga');
-    expect(text).not.toMatch(/#\w*\s#\s/);
   });
 
   it('los hashtags no llevan espacios, acentos ni signos', () => {

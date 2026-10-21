@@ -43,6 +43,8 @@ export interface SnapshotItem {
   readonly title: string;
   /** `YYYY-MM-DD` (UTC). */
   readonly publishedAt: string;
+  /** Instante exacto de publicación (ISO 8601, UTC): permite saber a qué hora se publicó sin que el usuario la escriba. */
+  readonly publishedAtIso?: string;
   readonly views: number | null;
   readonly likes: number | null;
   readonly comments: number | null;
@@ -159,6 +161,7 @@ export async function collectInstagram(env: Env, fetchFn: FetchFn, now: number):
       url,
       title: cleanTitle(str(raw['caption']), 'Publicación de Instagram'),
       publishedAt: isoDay(stamp),
+      publishedAtIso: new Date(stamp).toISOString(),
       views: insights['views'] ?? null,
       likes: num(raw['like_count']),
       comments: num(raw['comments_count']),
@@ -280,6 +283,7 @@ export async function collectTikTok(env: Env, fetchFn: FetchFn, now: number): Pr
         url,
         title: cleanTitle(str(v['title']) || str(v['video_description']), 'Vídeo de TikTok'),
         publishedAt: isoDay(created * 1000),
+        publishedAtIso: new Date(created * 1000).toISOString(),
         views: num(v['view_count']),
         likes: num(v['like_count']),
         comments: num(v['comment_count']),

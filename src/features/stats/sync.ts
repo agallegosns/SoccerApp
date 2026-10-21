@@ -32,6 +32,7 @@ export interface SnapshotItem {
   readonly url: string;
   readonly title: string;
   readonly publishedAt: string;
+  readonly publishedAtIso?: string;
   readonly views: number | null;
   readonly likes: number | null;
   readonly comments: number | null;
@@ -72,6 +73,7 @@ export function parseSnapshot(raw: unknown): Snapshot | null {
       url,
       title: typeof it['title'] === 'string' ? it['title'].replace(/\s+/g, ' ').trim().slice(0, MAX_TITLE) : '',
       publishedAt: published,
+      ...(typeof it['publishedAtIso'] === 'string' && !Number.isNaN(Date.parse(it['publishedAtIso'])) ? { publishedAtIso: it['publishedAtIso'] } : {}),
       views: count(it['views']),
       likes: count(it['likes']),
       comments: count(it['comments']),
@@ -105,7 +107,7 @@ export function snapshotToPublications(snapshot: Snapshot, existing: readonly Pu
       saves: item.saves ?? last?.saves ?? 0,
       reach: item.reach ?? last?.reach ?? null,
     };
-    out.push({ id, platform: item.platform, url: item.url, title: prev?.title ?? title, publishedAt: item.publishedAt, videoId: null, measurements: [measurement] });
+    out.push({ id, platform: item.platform, url: item.url, title: prev?.title ?? title, publishedAt: item.publishedAt, ...(item.publishedAtIso !== undefined ? { publishedAtIso: item.publishedAtIso } : {}), videoId: null, measurements: [measurement] });
   }
   return out;
 }

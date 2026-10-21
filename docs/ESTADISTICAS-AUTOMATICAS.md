@@ -76,3 +76,5 @@ La primera recogida ocurre en los siguientes 30 minutos; para no esperar, pulsa 
 - ✅ Probado con respuestas simuladas de las APIs: recogida, paginación, renovación de tokens (también el cambio de `refresh_token` de TikTok), fallos parciales (se conserva lo último bueno), claves, CORS y el flujo `/tiktok/login` → `/tiktok/callback` (`cloudflare/stats-worker.test.ts`, 10 pruebas). La app: validación, fusión sin duplicados, errores en español y conexión/desconexión (`sync.test.ts` + e2e con un Worker simulado).
 - 🟡 **No probado contra las APIs reales de Instagram ni de TikTok** (no hay credenciales en este entorno). Los nombres de campos y métricas siguen la documentación oficial consultada en octubre de 2026; los pasos de los paneles de Meta y TikTok pueden haber cambiado de sitio.
 - 🟡 No probado el despliegue en Cloudflare ni el cron real.
+
+**Hora de publicación:** el Worker envía también `publishedAtIso` (instante exacto). Si ya lo tenías desplegado, vuelve a pegar `cloudflare/stats-worker.js` en Cloudflare para que la app pueda recomendar una franja horaria con tus datos.

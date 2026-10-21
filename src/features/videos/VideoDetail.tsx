@@ -1,4 +1,4 @@
-import { AlertTriangle, ArrowLeft, ChevronLeft, ChevronRight, Copy, Download, Film, Plus, RotateCw, Trash2, X } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, ChevronLeft, ChevronRight, Copy, Download, Film, Plus, RefreshCw, RotateCw, Trash2, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { setBusy } from '../../app/busy.ts';
@@ -18,9 +18,10 @@ import { useTeamCrests } from '../simulation/useTeamCrests.ts';
 import { VIDEO_STYLES } from '../simulation/renderers.ts';
 import '../simulation/studio.css';
 import { PublicationDialog } from '../stats/PublicationDialog.tsx';
-import { engagementOf, latest, platformLabel, totalsOf } from '../stats/model.ts';
+import { engagementOf, latest, platformLabel, totalsOf, type Platform } from '../stats/model.ts';
 import { usePublications } from '../stats/store.ts';
-import { captionFor, formatBytes, formatStamp, type VideoRecord } from './model.ts';
+import { formatBytes, formatStamp, type VideoRecord } from './model.ts';
+import { descriptionFor, recommendTime } from './publish.ts';
 import { recordExport } from './record.ts';
 import { removeVideo, useVideos } from './store.ts';
 import './videos.css';
@@ -60,6 +61,10 @@ export function VideoDetail({ record, onOpenStudio }: Props) {
   const [deleting, setDeleting] = useState(false);
   const [adding, setAdding] = useState(false);
   const [copied, setCopied] = useState<'ok' | 'fail' | null>(null);
+  const [platform, setPlatform] = useState<Platform>('tiktok');
+  const [variant, setVariant] = useState(0);
+  const caption = descriptionFor(record, platform, variant);
+  const reco = recommendTime(record.match, pubs, platform);
   const abortRef = useRef<AbortController | null>(null);
   const crests = useTeamCrests(record.match.home, record.match.away);
 
@@ -120,7 +125,7 @@ export function VideoDetail({ record, onOpenStudio }: Props) {
 
   async function copyCaption(): Promise<void> {
     try {
-      await navigator.clipboard.writeText(captionFor(record));
+      await navigator.clipboard.writeText(caption);
       setCopied('ok');
     } catch (error) {
       console.warn('No se pudo copiar al portapapeles', error);
@@ -368,14 +373,26 @@ export function VideoDetail({ record, onOpenStudio }: Props) {
             {tab === 'publish' && (
               <div className="card">
                 <h2>Descripción para publicar</h2>
+                <div className="segmented" role="group" aria-label="Plataforma">
+                  {(['tiktok', 'instagram'] as const).map((pl) => (
+                    <button key={pl} type="button" className="segmented__btn" aria-pressed={platform === pl} onClick={() => { setPlatform(pl); setCopied(null); }}>
+                      {platformLabel(pl)}
+                    </button>
+                  ))}
+                </div>
                 <label className="field">
-                  <span>Texto sugerido (puedes editarlo al pegarlo)</span>
-                  <textarea className="textarea" readOnly rows={6} value={captionFor(record)} data-testid="caption" />
+                  <span>Texto con 5 hashtags para {platformLabel(platform)} (puedes editarlo al pegarlo)</span>
+                  <textarea className="textarea" readOnly rows={7} value={caption} data-testid="caption" />
                 </label>
+                <p className="muted">Los hashtags son los del partido y los habituales del fútbol: no se puede medir cuál se hará viral.</p>
                 <div className="row">
                   <button type="button" className="btn btn--primary" onClick={() => void copyCaption()} data-testid="copy-caption">
                     <Copy aria-hidden="true" size={20} />
                     Copiar descripción
+                  </button>
+                  <button type="button" className="btn" onClick={() => { setVariant((v) => v + 1); setCopied(null); }} data-testid="next-variant">
+                    <RefreshCw aria-hidden="true" size={20} />
+                    Otra versión
                   </button>
                 </div>
                 {copied === 'ok' && (
@@ -388,6 +405,10 @@ export function VideoDetail({ record, onOpenStudio }: Props) {
                     No se pudo copiar automáticamente. Selecciona el texto y cópialo a mano.
                   </p>
                 )}
+                <div className="notice notice--soft" data-testid="time-reco">
+                  <strong>Hora recomendada para publicar: {reco.headline}</strong>
+                  <p>{reco.detail}</p>
+                </div>
                 <ul className="checklist">
                   <li>La publicación en TikTok o Instagram es manual: descarga el MP4 y súbelo tú.</li>
                   <li>Es una simulación ficticia, no una predicción. Revisa si la plataforma te pide etiquetar el contenido como generado o simulado.</li>

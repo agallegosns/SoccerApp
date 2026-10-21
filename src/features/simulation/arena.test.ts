@@ -4,7 +4,7 @@ import { ballAt, frameAt } from '../../engine/animate.ts';
 import { PITCH_L, PITCH_W } from '../../engine/geometry.ts';
 import { simulate } from '../../engine/index.ts';
 import { generateScript } from '../../engine/script.ts';
-import { ARENA, BALL_R, DISC_R, MOUTH_HALF, ballRoll, ballState, ballUnit, bounceEvents, cameraAngle, discScreenPositions, kickEvents, smoothDiscPositions, fieldToScreen, fieldToUnit, maxRadius, rotate, toScreen } from './arena.ts';
+import { ARENA, BALL_R, DISC_R, discContacts, MOUTH_HALF, ballRoll, ballState, ballUnit, bounceEvents, cameraAngle, discScreenPositions, kickEvents, smoothDiscPositions, fieldToScreen, fieldToUnit, maxRadius, rotate, toScreen } from './arena.ts';
 import { WALL } from './bounce.ts';
 import { crestPattern } from './crest.ts';
 
@@ -256,5 +256,40 @@ describe('movimiento (escudos y balón con rebotes)', () => {
       expect(landed).toBe(true);
       expect(rebounded).toBe(true);
     }
+  });
+});
+
+describe('física de los escudos', () => {
+  const mk = (seed: number) => simulate({ seed, home: 'Real Madrid', away: 'RB Leipzig', score: { home: 2, away: 1 } });
+  const inGame = (s: ReturnType<typeof mk>, t: number): boolean => !['intro', 'halftime', 'fulltime'].includes(s.frame(t).phase);
+
+  it('es determinista por semilla, distinta entre semillas y se puede saltar a cualquier instante', () => {
+    const a = mk(7);
+    const b = mk(7);
+    const c = mk(8);
+    const t = a.script.duration * 0.6;
+    expect(smoothDiscPositions(a, t)).toEqual(smoothDiscPositions(b, t));
+    expect(smoothDiscPositions(a, t)).not.toEqual(smoothDiscPositions(c, t));
+    const early = smoothDiscPositions(a, 3);
+    smoothDiscPositions(a, t);
+    expect(smoothDiscPositions(a, 3)).toEqual(early);
+  });
+
+  it('rebotan contra la pared y entre sí, sin salir del aro ni amontonarse', () => {
+    let wall = 0;
+    for (const seed of [1, 2, 3, 4]) {
+      const s = mk(seed);
+      wall += discContacts(s).filter((c) => c.kind === 'wall').length;
+      for (let t = 0; t <= s.script.duration; t += 1 / 30) {
+        const d = smoothDiscPositions(s, t);
+        for (const side of ['home', 'away'] as const) expect(Math.hypot(d[side].x - ARENA.cx, d[side].y - ARENA.cy)).toBeLessThanOrEqual(ARENA.radius);
+        if (inGame(s, t)) expect(Math.hypot(d.home.x - d.away.x, d.home.y - d.away.y)).toBeGreaterThanOrEqual(DISC_R * 2.5);
+      }
+    }
+    expect(wall).toBeGreaterThan(0);
+  });
+
+  it('el marcador no depende de la física', () => {
+    expect(mk(5).script.score).toEqual({ home: 2, away: 1 });
   });
 });
