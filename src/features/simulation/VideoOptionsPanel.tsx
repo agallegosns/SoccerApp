@@ -11,6 +11,7 @@ import {
   type VideoOptions,
 } from './options.ts';
 import type { VideoStyle } from './renderers.ts';
+import { Collapsible } from '../../ui/Collapsible.tsx';
 
 interface Props {
   readonly options: VideoOptions;
@@ -24,8 +25,7 @@ export function VideoOptionsPanel({ options, style, onChange, onReset }: Props) 
   const arena = style === 'arena';
   const changed = JSON.stringify(options) !== JSON.stringify(DEFAULT_VIDEO_OPTIONS);
   return (
-    <div className="card" aria-label="Personalizar el vídeo" data-testid="options-panel">
-      <h2>Personalizar el vídeo</h2>
+    <Collapsible title="Personalizar el vídeo" hint="Colores, rebotes, textos y qué se muestra" testId="options-panel">
       <p className="muted">Lo que elijas se guarda en tu navegador y se aplica a la vista previa, a la exportación y a los lotes.</p>
 
       {arena && (
@@ -115,6 +115,6 @@ export function VideoOptionsPanel({ options, style, onChange, onReset }: Props) 
         <RotateCcw aria-hidden="true" size={18} />
         Restaurar valores
       </button>
-    </div>
+    </Collapsible>
   );
 }

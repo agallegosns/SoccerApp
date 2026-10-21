@@ -36,7 +36,12 @@ test.describe('sin desplazamiento lateral en ninguna pantalla', () => {
       await page.goto('/');
       await expect(page.locator('.match').first()).toBeVisible();
       await expectNoHorizontalOverflow(page, 'calendario');
-      // Todas las ligas están a la vista (no hay tira que desplazar).
+      // En el móvil la lista de competiciones está plegada: se despliega y todas caben sin desplazar.
+      const toggle = page.locator('.league-current');
+      if (await toggle.isVisible()) {
+        await toggle.click();
+        await expectNoHorizontalOverflow(page, 'calendario con competiciones desplegadas');
+      }
       for (const card of await page.locator('.leagues .league').all()) {
         const box = await card.boundingBox();
         expect(box?.x ?? -1).toBeGreaterThanOrEqual(0);
@@ -47,6 +52,10 @@ test.describe('sin desplazamiento lateral en ninguna pantalla', () => {
       await page.getByTestId('open-studio').click();
       await expect(page.getByTestId('preview-canvas')).toBeVisible();
       await expectNoHorizontalOverflow(page, 'estudio');
+      // En el móvil las secciones del estudio vienen plegadas: se abren todas para comprobar también su contenido.
+      const closed = page.locator('.collapsible__toggle[aria-expanded="false"]');
+      while ((await closed.count()) > 0) await closed.first().click();
+      await expectNoHorizontalOverflow(page, 'estudio con todas las secciones abiertas');
       // Los cuatro niveles de rebotes se ven enteros y se pueden pulsar.
       for (const level of ['off', 'low', 'normal', 'high']) {
         const button = page.getByTestId(`bounce-${level}`);
@@ -79,4 +88,55 @@ test.describe('sin desplazamiento lateral en ninguna pantalla', () => {
       await expectNoHorizontalOverflow(page, 'diálogo de publicación');
     });
   }
+});
+
+test.describe('diseño móvil', () => {
+  test.use({ contextOptions: { reducedMotion: 'reduce' } });
+
+  test('el diálogo de publicación deja siempre a la vista el título y los botones (360×640)', async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 640 });
+    await mockOpenFootball(page);
+    await page.goto('/#/estadisticas');
+    await page.getByRole('button', { name: /Añadir publicación/ }).first().click();
+    const dialog = page.locator('dialog[open][data-testid="publication-dialog"]');
+    await expect(dialog).toBeVisible();
+    for (const target of [dialog.getByRole('heading', { name: 'Añadir publicación' }), dialog.getByTestId('pub-save')]) {
+      const box = await target.boundingBox();
+      expect(box).not.toBeNull();
+      expect((box?.y ?? -1)).toBeGreaterThanOrEqual(0);
+      expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual(640);
+    }
+    // El formulario se desplaza dentro del diálogo: el último contador es alcanzable.
+    await dialog.getByTestId('counter-reach').scrollIntoViewIfNeeded();
+    await expect(dialog.getByTestId('counter-reach')).toBeVisible();
+  });
+
+  test('las pestañas caben en una sola fila y la cabecera se queda fija', async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 640 });
+    await mockOpenFootball(page);
+    await seedStorage(page, { stats: [seedPublication] });
+    await page.goto('/#/estadisticas');
+    const tabs = page.locator('.tabs [role="tab"]');
+    await expect(tabs.first()).toBeVisible();
+    const ys = await tabs.evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().top)));
+    expect(new Set(ys).size).toBe(1);
+    await page.evaluate(() => { window.scrollTo(0, 400); });
+    const top = await page.locator('.app__header').evaluate((el) => el.getBoundingClientRect().top);
+    expect(top).toBe(0);
+  });
+
+  test('en el móvil el estudio muestra abiertos sólo parámetros y exportación; el resto se despliega al pulsar', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 740 });
+    await mockOpenFootball(page);
+    await page.goto('/');
+    await page.locator('.match').first().click();
+    await page.getByTestId('open-studio').click();
+    await expect(page.getByTestId('preview-canvas')).toBeVisible();
+    const options = page.getByTestId('options-panel');
+    await expect(options.locator('.collapsible__toggle')).toHaveAttribute('aria-expanded', 'false');
+    await expect(page.getByTestId('theme-neon')).toBeHidden();
+    await expect(page.getByRole('button', { name: /Exportar MP4/ })).toBeAttached();
+    await options.locator('.collapsible__toggle').click();
+    await expect(page.getByTestId('theme-neon')).toBeVisible();
+  });
 });

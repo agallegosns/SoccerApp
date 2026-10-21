@@ -30,7 +30,7 @@ type Tab = 'summary' | 'events' | 'stats' | 'publish';
 const TABS: readonly { readonly id: Tab; readonly label: string }[] = [
   { id: 'summary', label: 'Resumen' },
   { id: 'events', label: 'Jugadas' },
-  { id: 'stats', label: 'Rendimiento' },
+  { id: 'stats', label: 'Métricas' },
   { id: 'publish', label: 'Publicar' },
 ];
 

@@ -1,0 +1,366 @@
+// ARCHIVO GENERADO desde cloudflare/stats-worker.ts con «npm run build:worker». No lo edites a mano.
+/**
+ * Worker de Cloudflare (plan gratuito) que recoge cada 30 minutos las estadísticas de TUS publicaciones de Instagram y TikTok
+ * con las APIs oficiales y las deja en una «instantánea» que la app lee en `GET /stats`.
+ *
+ * Por qué existe: ambas APIs exigen un inicio de sesión (OAuth) con una clave secreta; esa clave no puede vivir en el navegador.
+ * Aquí viven como secretos del Worker. El código NO lleva ninguna clave.
+ *
+ * Ver `docs/ESTADISTICAS-AUTOMATICAS.md` para publicarlo paso a paso. Se compila a `cloudflare/stats-worker.js` con `npm run build:worker`.
+ */
+export class SourceError extends Error {
+    state;
+    constructor(message, state = 'error') {
+        super(message);
+        this.state = state;
+        this.name = 'SourceError';
+    }
+}
+const DAY_MS = 86_400_000;
+const DEFAULT_MAX_ITEMS = 20;
+const HARD_MAX_ITEMS = 25; // 1 lista + 1 insights por publicación + renovaciones < 50 peticiones (límite del plan gratuito)
+const isRecord = (v) => typeof v === 'object' && v !== null && !Array.isArray(v);
+const num = (v) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? Math.trunc(v) : null);
+const str = (v) => (typeof v === 'string' ? v : '');
+const isoDay = (ms) => new Date(ms).toISOString().slice(0, 10);
+export function maxItems(env) {
+    const n = Number(env.MAX_ITEMS);
+    return Number.isInteger(n) && n >= 1 ? Math.min(n, HARD_MAX_ITEMS) : DEFAULT_MAX_ITEMS;
+}
+const cleanTitle = (raw, fallback) => {
+    const t = raw.replace(/\s+/g, ' ').trim().slice(0, 120);
+    return t === '' ? fallback : t;
+};
+async function readJson(res, what) {
+    const text = await res.text();
+    let body;
+    try {
+        body = text === '' ? null : JSON.parse(text);
+    }
+    catch (error) {
+        console.warn(`${what}: respuesta no es JSON`, error);
+        throw new SourceError(`${what}: respuesta no válida (HTTP ${String(res.status)}).`);
+    }
+    if (!res.ok) {
+        const detail = isRecord(body) && isRecord(body['error']) ? str(body['error']['message']) : '';
+        throw new SourceError(`${what}: HTTP ${String(res.status)}${detail === '' ? '' : ` — ${detail}`}`);
+    }
+    return body;
+}
+// ---------------------------------------------------------------------------------------------------------------------------------
+// Instagram (graph.instagram.com, «Instagram API con inicio de sesión de Instagram»; permisos instagram_business_basic y _manage_insights)
+const IG_TOKEN_KEY = 'ig_token';
+const IG_TOKEN_AT_KEY = 'ig_token_refreshed_at';
+const IG_REFRESH_EVERY_MS = 7 * DAY_MS; // el token dura 60 días; se renueva cada semana (la API exige que tenga ≥ 24 h)
+/** Devuelve el token vigente y lo renueva cuando toca. */
+export async function instagramToken(env, fetchFn, now) {
+    const stored = await env.STATS.get(IG_TOKEN_KEY);
+    const token = stored ?? env.IG_TOKEN ?? '';
+    if (token === '')
+        throw new SourceError('Falta el secreto IG_TOKEN.', 'sin-configurar');
+    const at = Number(await env.STATS.get(IG_TOKEN_AT_KEY));
+    if (Number.isFinite(at) && at > 0 && now - at < IG_REFRESH_EVERY_MS)
+        return token;
+    try {
+        const url = `https://graph.instagram.com/refresh_access_token?grant_type=ig_refresh_token&access_token=${encodeURIComponent(token)}`;
+        const body = await readJson(await fetchFn(url), 'Renovar el token de Instagram');
+        const fresh = isRecord(body) ? str(body['access_token']) : '';
+        if (fresh === '')
+            throw new SourceError('Renovar el token de Instagram: la respuesta no trae token.');
+        await env.STATS.put(IG_TOKEN_KEY, fresh);
+        await env.STATS.put(IG_TOKEN_AT_KEY, String(now));
+        return fresh;
+    }
+    catch (error) {
+        // Si no se pudo renovar pero aún no ha caducado, se sigue con el actual; la siguiente consulta dirá si ya no vale.
+        console.warn('No se pudo renovar el token de Instagram', error);
+        if (at === 0 || Number.isNaN(at))
+            await env.STATS.put(IG_TOKEN_AT_KEY, String(now - IG_REFRESH_EVERY_MS + DAY_MS));
+        return token;
+    }
+}
+export async function collectInstagram(env, fetchFn, now) {
+    const token = await instagramToken(env, fetchFn, now);
+    const version = env.IG_API_VERSION ?? 'v26.0';
+    const limit = maxItems(env);
+    const base = `https://graph.instagram.com/${version}`;
+    const listUrl = `${base}/me/media?fields=id,caption,permalink,timestamp,like_count,comments_count&limit=${String(limit)}&access_token=${encodeURIComponent(token)}`;
+    const list = await readJson(await fetchFn(listUrl), 'Lista de publicaciones de Instagram');
+    const data = isRecord(list) && Array.isArray(list['data']) ? list['data'] : [];
+    const items = [];
+    for (const raw of data.slice(0, limit)) {
+        if (!isRecord(raw))
+            continue;
+        const id = str(raw['id']);
+        const url = str(raw['permalink']);
+        const stamp = Date.parse(str(raw['timestamp']));
+        if (id === '' || url === '' || Number.isNaN(stamp))
+            continue;
+        const insights = await instagramInsights(base, id, token, fetchFn);
+        items.push({
+            platform: 'instagram',
+            url,
+            title: cleanTitle(str(raw['caption']), 'Publicación de Instagram'),
+            publishedAt: isoDay(stamp),
+            views: insights['views'] ?? null,
+            likes: num(raw['like_count']),
+            comments: num(raw['comments_count']),
+            shares: insights['shares'] ?? null,
+            saves: insights['saved'] ?? null,
+            reach: insights['reach'] ?? null,
+        });
+    }
+    return items;
+}
+/** Contadores de una publicación. Si la API no los da (publicación en álbum, muy reciente…), devuelve vacío: nunca se inventan ceros. */
+async function instagramInsights(base, id, token, fetchFn) {
+    const url = `${base}/${id}/insights?metric=views,reach,saved,shares&access_token=${encodeURIComponent(token)}`;
+    try {
+        const body = await readJson(await fetchFn(url), `Insights de la publicación ${id}`);
+        const out = {};
+        const rows = isRecord(body) && Array.isArray(body['data']) ? body['data'] : [];
+        for (const row of rows) {
+            if (!isRecord(row))
+                continue;
+            const values = Array.isArray(row['values']) ? row['values'] : [];
+            const first = values[0];
+            const value = isRecord(first) ? num(first['value']) : isRecord(row['total_value']) ? num(row['total_value']['value']) : null;
+            if (value !== null)
+                out[str(row['name'])] = value;
+        }
+        return out;
+    }
+    catch (error) {
+        if (error instanceof SourceError) {
+            console.warn(error.message);
+            return {};
+        }
+        throw error;
+    }
+}
+// ---------------------------------------------------------------------------------------------------------------------------------
+// TikTok (Display API v2, scope video.list)
+const TT_AUTH_KEY = 'tt_auth';
+const TT_TOKEN_URL = 'https://open.tiktokapis.com/v2/oauth/token/';
+function parseTikTokAuth(raw) {
+    if (raw === null)
+        return null;
+    try {
+        const v = JSON.parse(raw);
+        if (!isRecord(v))
+            return null;
+        const a = { access: str(v['access']), accessExpiresAt: Number(v['accessExpiresAt']), refresh: str(v['refresh']), refreshExpiresAt: Number(v['refreshExpiresAt']) };
+        return a.refresh !== '' && Number.isFinite(a.accessExpiresAt) && Number.isFinite(a.refreshExpiresAt) ? a : null;
+    }
+    catch (error) {
+        console.warn('Datos de TikTok ilegibles en el KV', error);
+        return null;
+    }
+}
+function authFromTokenResponse(body, now) {
+    if (!isRecord(body) || str(body['access_token']) === '' || str(body['refresh_token']) === '') {
+        const why = isRecord(body) ? str(body['error_description']) || str(body['error']) : '';
+        throw new SourceError(`TikTok no devolvió tokens${why === '' ? '' : ` (${why})`}.`);
+    }
+    return {
+        access: str(body['access_token']),
+        accessExpiresAt: now + (num(body['expires_in']) ?? 3600) * 1000,
+        refresh: str(body['refresh_token']),
+        refreshExpiresAt: now + (num(body['refresh_expires_in']) ?? 365 * 86400) * 1000,
+    };
+}
+async function tikTokTokenRequest(env, fetchFn, params) {
+    const form = new URLSearchParams({ client_key: env.TIKTOK_CLIENT_KEY ?? '', client_secret: env.TIKTOK_CLIENT_SECRET ?? '', ...params });
+    const res = await fetchFn(TT_TOKEN_URL, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded' }, body: form.toString() });
+    return readJson(res, 'Token de TikTok');
+}
+export async function tikTokAccessToken(env, fetchFn, now) {
+    if ((env.TIKTOK_CLIENT_KEY ?? '') === '' || (env.TIKTOK_CLIENT_SECRET ?? '') === '')
+        throw new SourceError('Faltan los secretos TIKTOK_CLIENT_KEY y TIKTOK_CLIENT_SECRET.', 'sin-configurar');
+    const auth = parseTikTokAuth(await env.STATS.get(TT_AUTH_KEY));
+    if (auth === null)
+        throw new SourceError('TikTok aún no está autorizado: abre /tiktok/login?key=… una vez.', 'sin-autorizar');
+    if (auth.accessExpiresAt - now > 5 * 60_000)
+        return auth.access;
+    if (auth.refreshExpiresAt <= now)
+        throw new SourceError('La autorización de TikTok caducó: vuelve a abrir /tiktok/login?key=….', 'sin-autorizar');
+    const next = authFromTokenResponse(await tikTokTokenRequest(env, fetchFn, { grant_type: 'refresh_token', refresh_token: auth.refresh }), now);
+    await env.STATS.put(TT_AUTH_KEY, JSON.stringify(next)); // el refresh_token puede cambiar: se guarda siempre el nuevo
+    return next.access;
+}
+const TT_FIELDS = 'id,title,video_description,create_time,share_url,view_count,like_count,comment_count,share_count';
+export async function collectTikTok(env, fetchFn, now) {
+    const token = await tikTokAccessToken(env, fetchFn, now);
+    const limit = maxItems(env);
+    const items = [];
+    let cursor = null;
+    for (let page = 0; page < 3 && items.length < limit; page += 1) {
+        const body = { max_count: Math.min(20, limit - items.length) };
+        if (cursor !== null)
+            body.cursor = cursor;
+        const res = await fetchFn(`https://open.tiktokapis.com/v2/video/list/?fields=${TT_FIELDS}`, {
+            method: 'POST',
+            headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+            body: JSON.stringify(body),
+        });
+        const json = await readJson(res, 'Lista de vídeos de TikTok');
+        const data = isRecord(json) && isRecord(json['data']) ? json['data'] : null;
+        const errCode = isRecord(json) && isRecord(json['error']) ? str(json['error']['code']) : 'ok';
+        if (data === null || (errCode !== 'ok' && errCode !== ''))
+            throw new SourceError(`Lista de vídeos de TikTok: ${errCode === '' ? 'respuesta inesperada' : errCode}.`);
+        const videos = Array.isArray(data['videos']) ? data['videos'] : [];
+        for (const v of videos) {
+            if (!isRecord(v))
+                continue;
+            const created = num(v['create_time']);
+            const url = str(v['share_url']);
+            if (created === null || url === '')
+                continue;
+            items.push({
+                platform: 'tiktok',
+                url,
+                title: cleanTitle(str(v['title']) || str(v['video_description']), 'Vídeo de TikTok'),
+                publishedAt: isoDay(created * 1000),
+                views: num(v['view_count']),
+                likes: num(v['like_count']),
+                comments: num(v['comment_count']),
+                shares: num(v['share_count']),
+                saves: null, // la API de TikTok no da «guardados»
+                reach: null,
+            });
+        }
+        if (data['has_more'] !== true)
+            break;
+        cursor = num(data['cursor']);
+        if (cursor === null)
+            break;
+    }
+    return items.slice(0, limit);
+}
+// ---------------------------------------------------------------------------------------------------------------------------------
+// Recogida y almacenamiento
+const SNAPSHOT_KEY = 'snapshot';
+export function parseStoredSnapshot(raw) {
+    if (raw === null)
+        return null;
+    try {
+        const v = JSON.parse(raw);
+        return isRecord(v) && v['version'] === 1 && Array.isArray(v['items']) && isRecord(v['sources']) && typeof v['updatedAt'] === 'string' ? v : null;
+    }
+    catch (error) {
+        console.warn('Instantánea ilegible en el KV', error);
+        return null;
+    }
+}
+/** Recoge ambas plataformas. Si una falla, conserva lo último bueno de esa plataforma y lo indica en `sources`. */
+export async function collect(env, fetchFn, now = Date.now()) {
+    const previous = parseStoredSnapshot(await env.STATS.get(SNAPSHOT_KEY));
+    const run = async (platform, job) => {
+        try {
+            return { items: await job(), state: 'ok', message: null };
+        }
+        catch (error) {
+            const state = error instanceof SourceError ? error.state : 'error';
+            const message = error instanceof Error ? error.message : 'Error desconocido';
+            console.warn(`Fallo al recoger ${platform}`, error);
+            return { items: previous?.items.filter((i) => i.platform === platform) ?? [], state, message };
+        }
+    };
+    const ig = await run('instagram', () => collectInstagram(env, fetchFn, now));
+    const tt = await run('tiktok', () => collectTikTok(env, fetchFn, now));
+    const snapshot = {
+        version: 1,
+        updatedAt: new Date(now).toISOString(),
+        sources: { instagram: { state: ig.state, message: ig.message }, tiktok: { state: tt.state, message: tt.message } },
+        items: [...ig.items, ...tt.items],
+    };
+    await env.STATS.put(SNAPSHOT_KEY, JSON.stringify(snapshot));
+    return snapshot;
+}
+// ---------------------------------------------------------------------------------------------------------------------------------
+// HTTP
+function timingSafeEqual(a, b) {
+    if (a.length !== b.length)
+        return false;
+    let diff = 0;
+    for (let i = 0; i < a.length; i += 1)
+        diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+    return diff === 0;
+}
+const MIN_KEY_LENGTH = 24;
+function authorized(request, env, url) {
+    if (env.STATS_KEY.length < MIN_KEY_LENGTH)
+        return false;
+    const header = request.headers.get('authorization') ?? '';
+    const given = header.startsWith('Bearer ') ? header.slice(7) : (url.searchParams.get('key') ?? '');
+    return timingSafeEqual(given, env.STATS_KEY);
+}
+function cors(env) {
+    return {
+        'access-control-allow-origin': env.ALLOWED_ORIGIN ?? '*',
+        'access-control-allow-headers': 'authorization, content-type',
+        'access-control-allow-methods': 'GET, POST, OPTIONS',
+        vary: 'origin',
+    };
+}
+const json = (env, body, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', ...cors(env) } });
+const page = (title, text, status = 200) => new Response(`<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${title}</title><body style="font:16px system-ui;max-width:32rem;margin:3rem auto;padding:0 1rem"><h1>${title}</h1><p>${text}</p>`, {
+    status,
+    headers: { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' },
+});
+export async function handleRequest(request, env, fetchFn = (i, init) => fetch(i, init), now = Date.now()) {
+    const url = new URL(request.url);
+    if (request.method === 'OPTIONS')
+        return new Response(null, { status: 204, headers: cors(env) });
+    if (url.pathname === '/tiktok/login' && request.method === 'GET') {
+        if (!authorized(request, env, url))
+            return page('No autorizado', 'Falta la clave correcta (?key=…).', 401);
+        if ((env.TIKTOK_CLIENT_KEY ?? '') === '')
+            return page('Falta configurar TikTok', 'Añade el secreto TIKTOK_CLIENT_KEY.', 400);
+        const state = crypto.randomUUID();
+        await env.STATS.put(`tt_state_${state}`, '1', { expirationTtl: 600 });
+        const redirect = `${url.origin}/tiktok/callback`;
+        const target = `https://www.tiktok.com/v2/auth/authorize/?client_key=${encodeURIComponent(env.TIKTOK_CLIENT_KEY ?? '')}&scope=${encodeURIComponent('user.info.basic,video.list')}&response_type=code&redirect_uri=${encodeURIComponent(redirect)}&state=${state}`;
+        return new Response(null, { status: 302, headers: { location: target, 'cache-control': 'no-store' } });
+    }
+    if (url.pathname === '/tiktok/callback' && request.method === 'GET') {
+        const state = url.searchParams.get('state') ?? '';
+        const code = url.searchParams.get('code') ?? '';
+        if (state === '' || (await env.STATS.get(`tt_state_${state}`)) === null)
+            return page('Enlace caducado', 'Vuelve a abrir /tiktok/login?key=… para empezar de nuevo.', 400);
+        await env.STATS.delete(`tt_state_${state}`);
+        if (code === '')
+            return page('TikTok no concedió el permiso', url.searchParams.get('error_description') ?? 'No se recibió ningún código.', 400);
+        try {
+            const auth = authFromTokenResponse(await tikTokTokenRequest(env, fetchFn, { grant_type: 'authorization_code', code, redirect_uri: `${url.origin}/tiktok/callback` }), now);
+            await env.STATS.put(TT_AUTH_KEY, JSON.stringify(auth));
+        }
+        catch (error) {
+            console.warn('Fallo al autorizar TikTok', error);
+            return page('No se pudo conectar TikTok', error instanceof Error ? error.message : 'Error desconocido', 502);
+        }
+        return page('TikTok conectado', 'Ya puedes cerrar esta pestaña. Las estadísticas se actualizarán solas cada 30 minutos.');
+    }
+    if (url.pathname === '/stats' && request.method === 'GET') {
+        if (!authorized(request, env, url))
+            return json(env, { error: 'No autorizado' }, 401);
+        const snapshot = parseStoredSnapshot(await env.STATS.get(SNAPSHOT_KEY));
+        return snapshot === null ? json(env, { error: 'Todavía no hay datos: espera a la primera ejecución o llama a POST /refresh.' }, 404) : json(env, snapshot);
+    }
+    if (url.pathname === '/refresh' && request.method === 'POST') {
+        if (!authorized(request, env, url))
+            return json(env, { error: 'No autorizado' }, 401);
+        const last = parseStoredSnapshot(await env.STATS.get(SNAPSHOT_KEY));
+        // Para no agotar las cuotas de las APIs: como mucho una recogida manual por minuto.
+        if (last !== null && now - Date.parse(last.updatedAt) < 60_000)
+            return json(env, last);
+        return json(env, await collect(env, fetchFn, now));
+    }
+    return json(env, { error: 'No encontrado' }, 404);
+}
+export default {
+    fetch: (request, env) => handleRequest(request, env),
+    scheduled: async (_event, env) => {
+        await collect(env, (i, init) => fetch(i, init));
+    },
+};

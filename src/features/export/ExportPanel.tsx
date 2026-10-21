@@ -13,6 +13,7 @@ import { ExportError, classifyExportError } from './errors.ts';
 import { PRODUCT_CODEC, codecLabel } from './codec.ts';
 import { exportVideo, type ExportProgress, type ExportResult } from './exportVideo.ts';
 import { useExportSupport } from './useExportSupport.ts';
+import { Collapsible } from '../../ui/Collapsible.tsx';
 
 interface Props {
   readonly sim: Simulation;
@@ -91,8 +92,7 @@ export function ExportPanel({ sim, meta, style, fileName, title, matchId, params
 
   const running = job.phase === 'running';
   return (
-    <div className="card export" aria-label="Exportar vídeo">
-      <h2>Exportar vídeo</h2>
+    <Collapsible title="Exportar vídeo" defaultOpen className="export">
       <p className="muted">
         MP4 vertical 1080×1920 (9:16) · {VIDEO_FPS} fps · {codecLabel(PRODUCT_CODEC)} · {sim.script.duration.toFixed(0)} s. Después lo subes tú a TikTok.
       </p>
@@ -170,6 +170,6 @@ export function ExportPanel({ sim, meta, style, fileName, title, matchId, params
           </a>
         </div>
       )}
-    </div>
+    </Collapsible>
   );
 }

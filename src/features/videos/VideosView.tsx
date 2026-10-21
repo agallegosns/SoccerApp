@@ -6,7 +6,7 @@ import { formatDateEs, kickoffOf } from '../../data/dates.ts';
 import { useDownloaded } from '../../ui/useDownloaded.ts';
 import { platformLabel } from '../stats/model.ts';
 import { usePublications } from '../stats/store.ts';
-import { filterVideos, formatBytes, formatStamp, type VideoFilter, type VideoRecord } from './model.ts';
+import { filterVideos, formatBytes, type VideoFilter, type VideoRecord } from './model.ts';
 import { useVideos } from './store.ts';
 import './videos.css';
 
@@ -26,7 +26,7 @@ export function VideosView() {
       <header className="section-head">
         <div>
           <h1>Vídeos</h1>
-          <p className="muted">Todos los vídeos que has exportado. Abre la ficha de uno para revisarlo, volver a descargarlo, copiar su descripción o ver cómo rinde.</p>
+          <p className="muted intro">Todos los vídeos que has exportado. Abre la ficha de uno para revisarlo, volver a descargarlo, copiar su descripción o ver cómo rinde.</p>
         </div>
         <a className="btn btn--primary" href="#/">
           <Calendar aria-hidden="true" size={20} />
@@ -60,7 +60,7 @@ export function VideosView() {
             <label className="field">
               <span className="visually-hidden">Competición</span>
               <select value={filter.competition} onChange={(e) => { setFilter({ ...filter, competition: e.target.value }); }} data-testid="videos-competition">
-                <option value="">Todas las competiciones</option>
+                <option value="">Todas las ligas</option>
                 {competitions.map((c) => (
                   <option key={c} value={c}>
                     {c}
@@ -71,7 +71,7 @@ export function VideosView() {
             <label className="field">
               <span className="visually-hidden">Descarga</span>
               <select value={filter.downloaded} onChange={(e) => { setFilter({ ...filter, downloaded: e.target.value === 'yes' ? 'yes' : e.target.value === 'no' ? 'no' : 'all' }); }} data-testid="videos-downloaded">
-                <option value="all">Descargados o no</option>
+                <option value="all">Cualquiera</option>
                 <option value="yes">Solo descargados</option>
                 <option value="no">Sin descargar</option>
               </select>
@@ -93,46 +93,52 @@ export function VideosView() {
                 const isDownloaded = downloaded.has(v.match.id);
                 return (
                   <li className="vcard card" key={v.id} data-testid="video-card">
-                    <div className="vcard__top">
-                      <span className="chip chip--muted">{v.match.competition}</span>
-                      {isDownloaded && (
-                        <span className="chip chip--done">
-                          <Check aria-hidden="true" size={14} />
-                          Descargado
-                        </span>
-                      )}
+                    <div className="vcard__main">
+                      <div className="vcard__score" aria-label={`Marcador ficticio ${String(v.score.home)} a ${String(v.score.away)}`}>
+                        <strong>
+                          {v.score.home}–{v.score.away}
+                        </strong>
+                        <span>ficticio</span>
+                      </div>
+                      <div className="vcard__info">
+                        <div className="vcard__top">
+                          <span className="chip chip--muted">{v.match.competition}</span>
+                          {isDownloaded && (
+                            <span className="chip chip--done">
+                              <Check aria-hidden="true" size={14} />
+                              Descargado
+                            </span>
+                          )}
+                        </div>
+                        <h2 className="vcard__title">
+                          <a href={videoHref(v.id)}>
+                            {v.match.home} <span className="muted">vs</span> {v.match.away}
+                          </a>
+                        </h2>
+                        <p className="muted">
+                          {v.match.round} · {formatDateEs(kickoffOf(v.match).date)}
+                        </p>
+                        <p className="muted">
+                          {styleLabel(v)} · {v.durationSeconds.toFixed(0)} s · {formatBytes(v.bytes)} · semilla {v.seed}
+                        </p>
+                      </div>
                     </div>
-                    <h2 className="vcard__title">
-                      <a href={videoHref(v.id)}>
-                        {v.match.home} <span className="muted">vs</span> {v.match.away}
+                    <div className="vcard__foot">
+                      <div className="vcard__tags">
+                        {platforms.length === 0 ? (
+                          <span className="muted">Sin publicar</span>
+                        ) : (
+                          platforms.map((p) => (
+                            <span key={p} className={`chip chip--${p}`}>
+                              {platformLabel(p)}
+                            </span>
+                          ))
+                        )}
+                      </div>
+                      <a className="btn btn--primary" href={videoHref(v.id)} data-testid="open-video">
+                        Abrir ficha
                       </a>
-                    </h2>
-                    <p className="vcard__score">
-                      <strong>
-                        {v.score.home}–{v.score.away}
-                      </strong>{' '}
-                      <span className="muted">ficticio · {v.match.round}</span>
-                    </p>
-                    <p className="muted">
-                      {formatDateEs(kickoffOf(v.match).date)} · semilla {v.seed}
-                    </p>
-                    <p className="muted">
-                      {styleLabel(v)} · {v.durationSeconds.toFixed(0)} s · {formatBytes(v.bytes)} · {formatStamp(v.createdAt)}
-                    </p>
-                    <div className="vcard__tags">
-                      {platforms.length === 0 ? (
-                        <span className="muted">Sin publicar</span>
-                      ) : (
-                        platforms.map((p) => (
-                          <span key={p} className={`chip chip--${p}`}>
-                            {platformLabel(p)}
-                          </span>
-                        ))
-                      )}
                     </div>
-                    <a className="btn btn--primary" href={videoHref(v.id)} data-testid="open-video">
-                      Abrir ficha
-                    </a>
                   </li>
                 );
               })}

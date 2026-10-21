@@ -16,20 +16,63 @@
   line-height: 1.2;
 }
 
-/* Selector de competición: rejilla que reparte las tarjetas en filas (sin desplazamiento lateral). */
+/* Selector de competición: en el móvil, un botón que despliega la lista; desde 48 rem, rejilla compacta siempre visible. */
+.league-picker {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-2);
+}
+
+.league-current {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--tap);
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  font: inherit;
+  color: var(--color-text);
+  border: 1px solid var(--color-select);
+  border-radius: var(--radius-lg);
+  background: var(--color-select-soft);
+  cursor: pointer;
+}
+
+.league-current .league__text {
+  flex: 1;
+}
+
+.league-current__hint {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.league-current__chevron {
+  flex: none;
+  transition: transform var(--motion-fast) var(--ease);
+}
+
+.league-current[aria-expanded='true'] .league-current__chevron {
+  transform: rotate(180deg);
+}
+
 .leagues {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 13rem), 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-2);
+}
+
+.leagues[data-open='false'] {
+  display: none;
 }
 
 .league {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-2);
   min-width: 0;
-  min-height: 4rem;
-  padding: var(--space-2) var(--space-4) var(--space-2) var(--space-2);
+  min-height: var(--tap);
+  padding: var(--space-1) var(--space-3) var(--space-1) var(--space-1);
   text-align: left;
   font: inherit;
   color: var(--color-text);
@@ -54,8 +97,8 @@
   flex: none;
   display: grid;
   place-items: center;
-  width: 2.75rem;
-  height: 2.75rem;
+  width: 2.25rem;
+  height: 2.25rem;
   border-radius: var(--radius-pill);
   background: var(--color-surface-2);
   border: 1px solid var(--color-control-border);
@@ -64,7 +107,8 @@
   letter-spacing: 0.02em;
 }
 
-.league[aria-pressed='true'] .league__badge {
+.league[aria-pressed='true'] .league__badge,
+.league-current .league__badge {
   background: var(--color-select);
   border-color: var(--color-select);
   color: var(--color-bg);
@@ -78,7 +122,8 @@
 
 .league__name {
   font-weight: 700;
-  font-size: var(--text-md);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
 }
 
 .league__season {
@@ -88,6 +133,17 @@
 
 .league[aria-pressed='true'] .league__season {
   color: var(--color-text);
+}
+
+@media (min-width: 48rem) {
+  .league-current {
+    display: none;
+  }
+  .leagues,
+  .leagues[data-open='false'] {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 10.5rem), 1fr));
+  }
 }
 
 .league--import {
@@ -179,7 +235,7 @@
   flex: 1 1 100%;
   min-width: 0;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 7.5rem), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 5.5rem), 1fr));
   gap: var(--space-1);
   padding: var(--space-1);
   border: 1px solid var(--color-control-border);
@@ -478,9 +534,13 @@
 }
 
 @media (min-width: 40rem) {
-  .segmented {
+  .filters .segmented {
+    display: flex;
     flex: 0 1 auto;
     max-width: 100%;
+  }
+  .filters .segmented button {
+    flex: 1 1 auto;
   }
 }
 
@@ -491,5 +551,22 @@
   .calendar__side {
     top: var(--space-5);
     bottom: auto;
+  }
+}
+
+@media (max-width: 63.99rem) {
+  /* La hoja del partido elegido queda por encima de la barra de navegación y es compacta */
+  .calendar__side {
+    bottom: calc(3.5rem + env(safe-area-inset-bottom) + var(--space-2));
+  }
+  .selected__teams {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0 var(--space-2);
+    font-size: var(--text-md);
+  }
+  .selected .muted {
+    font-size: var(--text-xs);
   }
 }

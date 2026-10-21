@@ -6,7 +6,7 @@ import globals from 'globals';
 import tseslint from 'typescript-eslint';
 
 export default defineConfig(
-  globalIgnores(['dist', 'dist-vp9', 'dist-base', 'e2e/artifacts', 'coverage', 'playwright-report', 'test-results', 'node_modules']),
+  globalIgnores(['dist', 'dist-vp9', 'dist-base', 'e2e/artifacts', 'coverage', 'playwright-report', 'test-results', 'node_modules', 'cloudflare/stats-worker.js']),
   js.configs.recommended,
   ...tseslint.configs.strictTypeChecked,
   {

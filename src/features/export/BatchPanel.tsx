@@ -14,6 +14,7 @@ import { setBusy } from '../../app/busy.ts';
 import { markDownloaded } from '../../data/downloaded.ts';
 import { downloadBlob, useExportSupport } from './useExportSupport.ts';
 import { buildZip, zipReadme } from './zip.ts';
+import { Collapsible } from '../../ui/Collapsible.tsx';
 
 /** Tope por lote: cada vídeo ocupa ≈ 35 MB en memoria hasta que se descarga o se quita. */
 export const MAX_BATCH = 10;
@@ -158,8 +159,7 @@ export function BatchPanel({ match, date, currentSeed, style, fixedScore, pace, 
   const bytes = jobs.reduce((a, j) => a + (j.result?.bytes ?? 0), 0);
 
   return (
-    <div className="card batch" aria-label="Generar varias simulaciones" data-testid="batch-panel">
-      <h2>Generar varias simulaciones</h2>
+    <Collapsible title="Generar varias simulaciones" hint="Varios vídeos con otras semillas" className="batch" testId="batch-panel">
       <p className="muted">
         Cada vídeo usa una semilla distinta (jugadas, minutos y formaciones distintos del mismo partido). Se generan de uno en uno con los parámetros actuales
         (estilo {style === 'arena' ? 'Arena' : 'Táctico'}, ritmo {pace === 'fast' ? 'rápido' : 'normal'}, marcador {fixedScore === null ? 'aleatorio' : `${String(fixedScore.home)}–${String(fixedScore.away)}`}).
@@ -296,6 +296,6 @@ export function BatchPanel({ match, date, currentSeed, style, fixedScore, pace, 
           </ul>
         </>
       )}
-    </div>
+    </Collapsible>
   );
 }

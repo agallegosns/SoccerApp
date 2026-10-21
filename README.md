@@ -62,6 +62,9 @@ En el estudio, panel **Personalizar el vídeo** (se guarda en tu navegador y val
   `Jornada · Fecha · Hora · Equipo Local · Equipo Visitante` (como el de la Champions), o un JSON/TXT (openfootball, football-data.org o fixturedownload.com).
   Se guarda sólo en tu navegador. Otros orígenes: ver [docs/football-data-org.md](docs/football-data-org.md) (no activado).
 
+## Estadísticas automáticas (opcional)
+Cada 30 minutos, con un Worker gratuito de Cloudflare propio: ver [`docs/ESTADISTICAS-AUTOMATICAS.md`](docs/ESTADISTICAS-AUTOMATICAS.md). Sin él, las estadísticas se escriben a mano o se importan en CSV.
+
 ## Instalar en el móvil y actualizaciones
 - **Añadir a la pantalla de inicio** (Safari: Compartir → «Añadir a pantalla de inicio»; Chrome: menú → «Instalar app» o «Añadir a pantalla de inicio»): se abre como una app, con su icono.
 - **Se actualiza sola**: al abrirla, al volver a ella, al recuperar la conexión y cada 5 minutos comprueba `version.json`; si hay versión nueva se recarga sola. Si estás exportando, espera a que termine.
@@ -86,6 +89,7 @@ npm run bench         # rendimiento del dibujado (BENCH_EXPORT=1 añade la medic
 - [TASKS.md](TASKS.md): qué está hecho y **probado**, qué queda **pendiente de verificar** y límites conocidos.
 - [CLAUDE.md](CLAUDE.md): reglas permanentes del proyecto.
 - [docs/DESPLIEGUE.md](docs/DESPLIEGUE.md): publicación en GitHub Pages (preparada, **sin desplegar**).
+- [docs/ESTADISTICAS-AUTOMATICAS.md](docs/ESTADISTICAS-AUTOMATICAS.md): Worker gratuito que actualiza las estadísticas de TikTok e Instagram cada 30 minutos.
 - [docs/football-data-org.md](docs/football-data-org.md): cómo enchufar football-data.org (no activado).
 
 ## Calidad (resumen medido)

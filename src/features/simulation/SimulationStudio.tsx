@@ -17,6 +17,7 @@ import { DEFAULT_STYLE, VIDEO_STYLES, type VideoStyle } from './renderers.ts';
 import { EVENT_LABELS } from './eventLabels.ts';
 import { metaFor } from './meta.ts';
 import './studio.css';
+import { Collapsible } from '../../ui/Collapsible.tsx';
 
 /** Parámetros con los que abrir el estudio (p. ej. desde la ficha de un vídeo ya exportado). */
 export interface StudioInitial {
@@ -123,8 +124,7 @@ export function SimulationStudio({ match, initial, backLabel = 'Volver al calend
         </section>
 
         <section className="studio__side">
-          <div className="card" aria-label="Parámetros">
-            <h2>Parámetros</h2>
+          <Collapsible title="Parámetros" defaultOpen>
             <div className="segmented" role="group" aria-label="Estilo del vídeo">
               {VIDEO_STYLES.map((v) => (
                 <button key={v.id} type="button" aria-pressed={style === v.id} title={v.hint} onClick={() => { setStyle(v.id); }} data-testid={`style-${v.id}`}>
@@ -216,11 +216,10 @@ export function SimulationStudio({ match, initial, backLabel = 'Volver al calend
             {fixed && score !== null && score.home + score.away > 6 && (
               <p className="muted">Con muchos goles el vídeo dura más (aprox. {Math.round(sim.script.duration)} s).</p>
             )}
-          </div>
+          </Collapsible>
 
           <VideoOptionsPanel options={options} style={style} onChange={changeOptions} onReset={resetOptions} />
 
-          <CrestsPanel teams={[sim.script.teams.home, sim.script.teams.away]} crests={crests} />
 
           <ExportPanel
             key={`${String(seed)}|${fixed ? `${String(fixedHome)}-${String(fixedAway)}` : 'r'}|${style}|${pace}|${String(crests.version)}|${JSON.stringify(options)}`}
@@ -248,8 +247,9 @@ export function SimulationStudio({ match, initial, backLabel = 'Volver al calend
             }}
           />
 
-          <div className="card" aria-label="Resultado de la simulación">
-            <h2>Esta simulación</h2>
+          <CrestsPanel teams={[sim.script.teams.home, sim.script.teams.away]} crests={crests} />
+
+          <Collapsible title="Esta simulación" hint="Marcador y estadísticas ficticias">
             <p className="studio__score" data-testid="sim-score">
               {match.home} {final.home}–{final.away} {match.away}
             </p>
@@ -275,10 +275,10 @@ export function SimulationStudio({ match, initial, backLabel = 'Volver al calend
                 ))}
               </tbody>
             </table>
-          </div>
 
-          <div className="card" aria-label="Sucesos">
-            <h2>Sucesos</h2>
+          </Collapsible>
+
+          <Collapsible title="Sucesos" hint="Las jugadas con su minuto">
             <ol className="events plain-list" data-testid="events">
               {sim.script.events
                 .filter((e) => e.type !== 'kickoff')
@@ -296,7 +296,8 @@ export function SimulationStudio({ match, initial, backLabel = 'Volver al calend
                   </li>
                 ))}
             </ol>
-          </div>
+
+          </Collapsible>
         </section>
       </div>
     </div>

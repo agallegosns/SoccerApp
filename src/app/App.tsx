@@ -1,9 +1,10 @@
 import { Trophy } from 'lucide-react';
-import { Suspense, lazy, useState } from 'react';
+import { Suspense, lazy, useEffect, useState } from 'react';
 
 import { createServices } from '../data/registry.ts';
 import type { Match } from '../data/types.ts';
 import { CalendarView } from '../features/calendar/CalendarView.tsx';
+import { startAutoSync } from '../features/stats/sync.ts';
 import { useVideos } from '../features/videos/store.ts';
 import type { VideoRecord } from '../features/videos/model.ts';
 import type { StudioInitial } from '../features/simulation/SimulationStudio.tsx';
@@ -34,6 +35,9 @@ const Loading = ({ what }: { readonly what: string }) => (
 
 export function App() {
   const [services] = useState(createServices);
+
+  // Estadísticas automáticas: si hay un Worker conectado, se leen al abrir la app y cada 30 minutos (no hace nada si no hay conexión configurada).
+  useEffect(() => startAutoSync(), []);
   const [selected, setSelected] = useState<Match | null>(null);
   const [studio, setStudio] = useState<StudioState | null>(null);
   const route = useRoute();

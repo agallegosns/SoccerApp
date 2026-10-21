@@ -13,6 +13,7 @@
     "test": "vitest run",
     "test:e2e": "playwright test",
     "ci": "npm run typecheck && npm run lint && npm run test && npm run build",
+    "build:worker": "node --experimental-transform-types --no-warnings scripts/build-worker.ts",
     "verify:export": "node --experimental-transform-types --no-warnings scripts/verify-export.ts",
     "bench": "node --experimental-transform-types --no-warnings scripts/bench.ts"
   },
