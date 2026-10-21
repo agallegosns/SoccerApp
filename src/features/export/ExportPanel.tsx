@@ -7,6 +7,8 @@ import type { Simulation } from '../../engine/index.ts';
 import type { RenderMeta } from '../simulation/render.ts';
 import type { VideoStyle } from '../simulation/renderers.ts';
 import { VIDEO_FPS } from '../simulation/theme.ts';
+import type { VideoParams } from '../videos/model.ts';
+import { recordExport } from '../videos/record.ts';
 import { ExportError, classifyExportError } from './errors.ts';
 import { PRODUCT_CODEC, codecLabel } from './codec.ts';
 import { exportVideo, type ExportProgress, type ExportResult } from './exportVideo.ts';
@@ -20,6 +22,8 @@ interface Props {
   readonly title: string;
   /** Partido al que pertenece el vídeo: se marca como descargado (tarjeta verde en el calendario). */
   readonly matchId: string;
+  /** Parámetros con los que se crea la ficha del vídeo en la biblioteca cuando termina la exportación. */
+  readonly params: VideoParams;
 }
 
 type Job =
@@ -31,7 +35,7 @@ type Job =
 const mb = (bytes: number): string => `${(bytes / 1e6).toFixed(1)} MB`;
 
 /** Exporta la simulación mostrada a un MP4 vertical 9:16. El estado se reinicia remontando el componente (key) al cambiar la simulación. */
-export function ExportPanel({ sim, meta, style, fileName, title, matchId }: Props) {
+export function ExportPanel({ sim, meta, style, fileName, title, matchId, params }: Props) {
   const support = useExportSupport();
   const [job, setJob] = useState<Job>({ phase: 'idle' });
   const abortRef = useRef<AbortController | null>(null);
@@ -78,6 +82,7 @@ export function ExportPanel({ sim, meta, style, fileName, title, matchId }: Prop
       });
       const url = URL.createObjectURL(result.blob);
       urlRef.current = url;
+      recordExport(params, result, fileName);
       setJob({ phase: 'done', url, result });
     } catch (error) {
       setJob({ phase: 'error', error: classifyExportError(error) });

@@ -22,7 +22,7 @@ export default defineConfig({
   projects: [
     {
       name: 'chromium-desktop',
-      testIgnore: /(export-ui|subpath)\.spec\.ts/,
+      testIgnore: /(export-ui|library-export|subpath)\.spec\.ts/,
       use: {
         ...devices['Desktop Chrome'],
         baseURL: `http://127.0.0.1:${PORT}`,
@@ -40,7 +40,7 @@ export default defineConfig({
     },
     {
       name: 'chromium-export-vp9',
-      testMatch: /export-ui\.spec\.ts/,
+      testMatch: /(export-ui|library-export)\.spec\.ts/,
       timeout: 360_000,
       use: {
         ...devices['Desktop Chrome'],

@@ -24,12 +24,22 @@ El estudio de la captura se hizo en un navegador sin codificador H.264, por eso 
 | ![Arena](docs/img/video-arena.png) | ![Arena en juego](docs/img/video-arena-juego.png) | ![Táctico](docs/img/video-tactico.png) |
 
 ## Cómo se usa
-1. **Calendario**: elige competición en la tira de tarjetas (desliza en el móvil), filtra por fecha («Próximos/Jugados/Todos»), busca un equipo y pulsa un partido → *Crear simulaciones*.
+1. **Calendario**: elige competición en la rejilla de tarjetas (sin desplazamiento lateral), filtra por fecha («Próximos/Jugados/Todos»), busca un equipo y pulsa un partido → *Crear simulaciones*.
 2. **Estudio**: reproduce la vista previa, cambia el estilo (*Arena* o *Táctico*), el **ritmo** (*rápido* por defecto, ~26 s; *normal*, ~50 s), la semilla («Otra semilla») o fija el marcador (0–9 por equipo). En *Escudos* puedes subir el escudo de cada equipo.
 3. **Exportar MP4**: un vídeo con los parámetros actuales. **Generar varias simulaciones**: de 1 a 10 vídeos con semillas distintas, con progreso, cancelar,
    reintentar y *Descargar todo (ZIP)*.
 4. Cuando descargas un vídeo (suelto o en ZIP) la tarjeta de ese partido se pone **verde** con «Hecho» en el calendario (se recuerda en tu navegador). Los partidos que ya hiciste por tu cuenta los marcas a mano con el círculo de la esquina de cada tarjeta (otra pulsación lo quita).
 4. Sube el vídeo a TikTok tú mismo.
+
+### Menú: Calendario · Vídeos · Estadísticas
+- **Calendario**: lo de arriba. Es la pantalla de inicio.
+- **Vídeos**: la biblioteca de todo lo que has exportado (se guarda en tu navegador). Busca por equipo, competición o semilla y filtra por descargados. La **ficha** de cada vídeo tiene
+  reproductor, *Resumen* (marcador ficticio, semilla, duración, tamaño, estilo), *Jugadas* (pulsa una y el reproductor salta a ella), *Rendimiento* (publicaciones de ese vídeo y sus números)
+  y *Publicar* (descripción lista para copiar). Desde la ficha puedes volver a descargar el MP4 (se regenera idéntico, no se guarda el archivo), abrirlo en el estudio o eliminar la ficha.
+  Si el partido tiene varios vídeos, hay botones anterior/siguiente.
+- **Estadísticas**: tus publicaciones en TikTok e Instagram con sus números (vistas, me gusta, comentarios, compartidos, guardados, interacción), evolución de las vistas, ranking y filtro por plataforma.
+  Los números **los introduces tú** (*Añadir publicación* / *Nueva medición*) o los **importas en CSV** (*Datos y conexión*: plantilla, importar, exportar). La conexión automática con las APIs de TikTok e Instagram
+  **todavía no existe** (ver ARCHITECTURE.md → «Estadísticas»). Son datos reales de tus publicaciones, separados de las simulaciones.
 
 ### Personalizar el vídeo
 En el estudio, panel **Personalizar el vídeo** (se guarda en tu navegador y vale para la vista previa, la exportación y los lotes):

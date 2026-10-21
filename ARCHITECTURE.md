@@ -179,7 +179,7 @@ Medido en 4 semillas: aceleración del balón p95 12,5 → 4,3 px/fotograma², s
   Medido: aceleración p95 15 px/fotograma², máx. 30; el balón gira (`ballRoll`) según el camino dibujado.
 - `src/data/downloaded.ts`: ids de partidos con algún vídeo descargado (localStorage `futbol-sim:v1:downloaded`) + `useDownloaded` (`useSyncExternalStore`). `ExportPanel` y `BatchPanel` marcan al descargar; `MatchCard` pinta
   `match--downloaded` (tokens `--color-success*`) con el texto «Descargado» (no sólo color). La selección pasa a azul (`--color-select*`) para no confundirse con el verde.
-- `LeaguePicker`: tarjetas de ≥ 64 px con insignia (UCL, LL…), tira con scroll horizontal e «imán» en móvil (centra la elegida) y rejilla fluida en pantallas ≥ 48 rem. En móvil las fechas se despliegan a demanda.
+- `LeaguePicker`: tarjetas de ≥ 64 px con insignia (UCL, LL…), rejilla fluida sin desplazamiento lateral (antes, tira con scroll horizontal e «imán» en móvil). En móvil las fechas se despliegan a demanda.
 
 ## Actualización automática, marca «hecho» manual y limpieza de avisos
 - `vite.config.ts` inyecta `__BUILD_ID__` (commit en CI o la hora) y emite `dist/version.json` con el mismo id. `src/app/updater.ts` (puro, con pruebas) consulta `version.json?t=…` (`cache: 'no-store'`) y, si difiere, recarga;
@@ -210,3 +210,31 @@ Medido en 4 semillas: aceleración del balón p95 12,5 → 4,3 px/fotograma², s
 - **Colisiones**: el escudo que golpea se lanza al balón justo antes del golpeo (contacto en el instante del golpe, `LUNGE_*`), se ve la onda del impacto (`kickEvents`) y el destello de la pared (`bounceEvents`).
 Medido (seed 2024, 26 s): ≈ 26 golpeos y 7–15 rebotes por vídeo; en cada pase sin pared la velocidad baja de forma monótona (probado); dibujado Arena ≈ 29 ms por fotograma.
 **Límites**: no es un motor físico libre (el guion manda); los escudos no rebotan en la pared y las colisiones balón–escudo son un gesto de golpeo, no un choque calculado.
+
+## Menú, rutas y biblioteca de vídeos (a petición del usuario)
+- **Rutas por hash** (`src/app/route.ts`): `#/` calendario, `#/videos`, `#/videos/<id>`, `#/estadisticas`. Funciona en cualquier alojamiento (también con subruta), el botón «atrás» navega y una ficha se puede abrir en otra pestaña.
+  El estudio sigue siendo un estado de `App` ligado a la sección en la que se abrió; al cambiar de sección se cierra. Vídeos y Estadísticas se cargan en trozos aparte (`React.lazy`), igual que el estudio.
+- **`AppNav`**: barra inferior fija en móvil (con `safe-area-inset-bottom`) y pestañas en la cabecera en pantallas ≥ 48 rem; la sección actual lleva `aria-current="page"` y «Vídeos» muestra cuántas fichas hay.
+- **Biblioteca** (`src/features/videos`): `VideoRecord` = partido + parámetros (semilla, estilo, ritmo, marcador fijado, opciones de personalización) + marcador ficticio, nombre de archivo, tamaño, duración y fecha. **No guarda el MP4** (decenas de MB, no cabe en
+  localStorage): como el motor es determinista, «Descargar MP4» desde la ficha lo regenera idéntico con `exportVideo`. El `id` es un hash de los parámetros, así que volver a exportar lo mismo actualiza la ficha en lugar de duplicarla.
+  Se crea en `ExportPanel` (al terminar) y en `BatchPanel` (por cada vídeo del lote) mediante `recordExport`. Se guarda en `localStorage` (`futbol-sim:v1:videos`, máx. 200) y se valida al leer (`toVideoRecords`).
+  Límite conocido: si cambias el motor y la misma semilla da otro marcador, la ficha lo detecta y avisa (`engine-changed`).
+- **Ficha** (`VideoDetail`): reproductor (`SimulationPreview`, la misma vista que el estudio) + pestañas *Resumen / Jugadas / Rendimiento / Publicar*, anterior/siguiente entre vídeos del mismo partido, migas de pan, abrir en el estudio con los mismos parámetros y eliminar con confirmación.
+- **Sin desplazamiento lateral**: las ligas son una rejilla (`auto-fill`), `.segmented` y `.tabs` son rejillas `auto-fit` que pasan a otra fila, y los contenedores en rejilla usan `minmax(0, 1fr)`. Antes, «Sin rebotes / Pocos / Normal / Muchos» quedaba cortado (`overflow: hidden`) en pantallas estrechas.
+
+## Estadísticas (TikTok / Instagram)
+**Implementado (sin backend, coste 0 €)** — `src/features/stats`:
+- Modelo: `Publication` (plataforma, enlace, título, fecha, vídeo enlazado opcional) con `Measurement[]` (una «foto» acumulada por fecha: vistas, me gusta, comentarios, compartidos, guardados, alcance opcional). Totales = suma de la última medición de cada publicación;
+  evolución = para cada fecha, la última medición conocida de cada publicación; interacción = (me gusta + comentarios + compartidos + guardados) / vistas.
+- Entrada de datos: formulario (valida enlace según plataforma, fechas y enteros ≥ 0) y **CSV** (`csv.ts`: separador coma/`;`/tab, BOM, comillas, cabeceras en español o inglés, fechas AAAA-MM-DD o DD/MM/AAAA, errores por línea sin perder las filas buenas). La identidad de una publicación es plataforma + enlace normalizado,
+  así que importar el mismo archivo dos veces no duplica y las mediciones se fusionan por fecha. Exportar produce el mismo formato.
+- Persistencia: `localStorage` (`futbol-sim:v1:stats`, máx. 500 publicaciones). Sólo existe en este navegador: hay que exportar el CSV para tener copia.
+
+**NO implementado: conexión automática.** Lo investigado en la documentación oficial (octubre de 2026):
+- *Instagram* — API de Instagram (Graph API) con «Instagram Login» o «Facebook Login»: por Reel da `views`, `reach`, `likes`, `comments`, `shares`, `saved` y `ig_reels_avg_watch_time`. Requiere cuenta **profesional**, una app en Meta for Developers y permisos de estadísticas
+  (`instagram_business_basic` + `instagram_business_manage_insights`, o `instagram_basic` + `instagram_manage_insights` + `pages_read_engagement`). Datos con hasta 48 h de retraso.
+- *TikTok* — API Display (`video.list`, scopes `user.info.basic` + `video.list`): por vídeo `view_count`, `like_count`, `comment_count`, `share_count`. Requiere app aprobada en TikTok for Developers. Access token de 24 h, refresh token de 365 días. No da guardados ni alcance.
+- Ambas usan OAuth con un **secreto de cliente** que no puede ir en el navegador. Propuesta (no construida): un **Cloudflare Worker gratuito** (como el que usa otro proyecto del usuario) con `/auth/<plataforma>/start`, `/auth/<plataforma>/callback` y `/api/<plataforma>/media`; los secretos
+  como *secrets* del Worker, los tokens cifrados en KV, el refresco de tokens en el Worker, y la app sólo recibe las métricas y las guarda como `Measurement` del día. Pasos previos que sólo puede hacer el usuario: crear la app en Meta y en TikTok, pedir el acceso a esas APIs y (si la plataforma lo exige) pasar su revisión.
+  🟡 No he podido verificar cuánto tarda ni qué exige cada revisión: pendiente.
+- Mientras tanto, la app pide los números a mano o por CSV y lo dice en la pantalla («Todavía no está conectada»).

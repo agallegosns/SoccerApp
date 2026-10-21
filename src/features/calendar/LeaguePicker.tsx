@@ -1,5 +1,4 @@
 import { FileUp } from 'lucide-react';
-import { useEffect, useRef } from 'react';
 
 import type { League } from '../../data/types.ts';
 import { leagueBadge } from './leagueBadge.ts';
@@ -11,23 +10,10 @@ interface Props {
   readonly onImport: () => void;
 }
 
-/**
- * Selector de competición pensado para el móvil: tarjetas grandes en una tira con desplazamiento horizontal y «imán»
- * (en pantallas grandes se reparten en rejilla). La elegida se centra sola.
- */
+/** Selector de competición: tarjetas grandes repartidas en una rejilla que ocupa varias filas (sin desplazamiento lateral). */
 export function LeaguePicker({ leagues, activeId, onChoose, onImport }: Props) {
-  const stripRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const strip = stripRef.current;
-    const active = strip?.querySelector<HTMLElement>('[aria-pressed="true"]');
-    if (strip === null || active === null || active === undefined) return;
-    // Sólo se mueve la propia tira (scrollIntoView movería también la página).
-    strip.scrollTo({ left: active.offsetLeft - (strip.clientWidth - active.offsetWidth) / 2, behavior: 'auto' });
-  }, [activeId]);
-
   return (
-    <div className="leagues" role="group" aria-label="Competición" ref={stripRef}>
+    <div className="leagues" role="group" aria-label="Competición">
       {leagues.map((l) => (
         <button
           key={l.id}

@@ -33,13 +33,21 @@ La publicación en TikTok es manual. Idioma de la interfaz y de la documentació
   **no** ejecutar `playwright install`).
 - `src/engine`: motor de simulación puro, determinista por semilla, **sin dependencias de React** (ESLint lo impide).
 - `src/data`: proveedores de partidos (`MatchProvider`). La UI no conoce el origen de los datos.
-- `src/features/{calendar,simulation,export}`: funcionalidades de la interfaz.
+- `src/features/{calendar,simulation,export,videos,stats}`: funcionalidades de la interfaz. `src/app/route.ts`: rutas por hash (`#/`, `#/videos`, `#/videos/ID`, `#/estadisticas`).
 - `src/ui`: componentes y estilos compartidos. `src/app`: composición de la aplicación. `src/test`: utilidades de prueba.
 
 ## Estado
 Las seis fases están hechas (ver `TASKS.md` para lo probado y lo pendiente de verificar). Lo no verificado más importante: la **codificación H.264 en un
 navegador real** (el Chromium del sandbox no tiene codificador H.264; se verificó con VP9 y el empaquetado H.264 aparte), el uso del calendario real desde un navegador
 con red y los importadores de football-data.org / fixturedownload.com con archivos reales.
+
+## Decisiones de la interfaz (a petición del usuario)
+- **Nada se desplaza en horizontal**, en ninguna pantalla: las ligas van en rejilla y los grupos de opciones (`.segmented`, `.tabs`) pasan a otra fila en vez de cortarse. Lo vigila `e2e/layout.spec.ts`
+  (320–1280 px, cada elemento visible). Los contenedores `display: grid` usan `grid-template-columns: minmax(0, 1fr)` para no ensancharse con su contenido.
+- **Menú** Calendario · Vídeos · Estadísticas (`AppNav`, barra inferior en móvil). **La ficha de vídeo guarda parámetros, no el MP4** (`VideoRecord`): el motor es determinista y el archivo se regenera idéntico.
+  Si cambias el motor de forma que la misma semilla dé otro resultado, las fichas antiguas avisan (`engine-changed`).
+- **Estadísticas = datos reales introducidos por el usuario** (manual o CSV), guardados en localStorage. No se simulan ni se inventan. La conexión con las APIs de TikTok/Instagram NO existe (ver ARCHITECTURE.md).
+- Confirmaciones con `ConfirmDialog` (nunca `window.confirm`).
 
 ## Comandos
 - `npm run dev` · `npm run build` · `npm run preview`

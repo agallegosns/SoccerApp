@@ -16,29 +16,18 @@
   line-height: 1.2;
 }
 
-/* Selector de competición (móvil primero): tira de tarjetas con desplazamiento horizontal e «imán». */
+/* Selector de competición: rejilla que reparte las tarjetas en filas (sin desplazamiento lateral). */
 .leagues {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 13rem), 1fr));
   gap: var(--space-2);
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
-  scroll-snap-type: x proximity;
-  scrollbar-width: none;
-  margin-inline: calc(-1 * var(--gutter));
-  padding: var(--space-1) var(--gutter) var(--space-2);
-  scroll-padding-inline: var(--gutter);
-}
-
-.leagues::-webkit-scrollbar {
-  display: none;
 }
 
 .league {
-  flex: 0 0 auto;
   display: flex;
   align-items: center;
   gap: var(--space-3);
-  min-width: 11.5rem;
+  min-width: 0;
   min-height: 4rem;
   padding: var(--space-2) var(--space-4) var(--space-2) var(--space-2);
   text-align: left;
@@ -48,7 +37,6 @@
   border-radius: var(--radius-lg);
   background: var(--color-surface);
   cursor: pointer;
-  scroll-snap-align: center;
   transition: background var(--motion-fast) var(--ease), border-color var(--motion-fast) var(--ease);
 }
 
@@ -108,14 +96,8 @@
   background: transparent;
 }
 
-@media (min-width: 48rem) {
-  .leagues {
-    flex-wrap: wrap;
-    overflow: visible;
-    margin-inline: 0;
-    padding-inline: 0;
-  }
-}
+
+
 
 .chips {
   display: flex;
@@ -192,22 +174,25 @@
   padding-left: 2.5rem;
 }
 
+/* Grupo de opciones: las que no caben en una fila pasan a la siguiente (nunca se cortan ni obligan a desplazarse). */
 .segmented {
   flex: 1 1 100%;
-  display: flex;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 7.5rem), 1fr));
+  gap: var(--space-1);
+  padding: var(--space-1);
   border: 1px solid var(--color-control-border);
   border-radius: var(--radius-md);
-  overflow: hidden;
 }
 
 .segmented button {
-  flex: 1 0 auto;
+  min-width: 0;
+  padding-inline: var(--space-3);
   border: 0;
-  border-radius: 0;
-}
-
-.segmented button + button {
-  border-left: 1px solid var(--color-control-border);
+  border-radius: var(--radius-sm);
+  text-align: center;
+  overflow-wrap: anywhere;
 }
 
 .segmented button[aria-pressed='true'] {
@@ -494,7 +479,8 @@
 
 @media (min-width: 40rem) {
   .segmented {
-    flex: 0 0 auto;
+    flex: 0 1 auto;
+    max-width: 100%;
   }
 }
 
