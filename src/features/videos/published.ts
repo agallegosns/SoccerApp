@@ -69,6 +69,11 @@ export function clearPublished(videoId: string): void {
   if (videoId in current) commit(Object.fromEntries(Object.entries(current).filter(([id]) => id !== videoId)));
 }
 
+/** Sustituye todas las marcas (al recibir cambios de otro dispositivo). */
+export function replacePublished(map: PublishedMap): void {
+  commit(map);
+}
+
 /** Sólo para pruebas. */
 export function resetPublishedForTests(map: PublishedMap = {}): void {
   current = map;

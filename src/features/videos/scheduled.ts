@@ -61,6 +61,11 @@ export function clearScheduled(videoId: string): void {
   if (videoId in current) commit(Object.fromEntries(Object.entries(current).filter(([id]) => id !== videoId)));
 }
 
+/** Sustituye todas las horas programadas (al recibir cambios de otro dispositivo). */
+export function replaceScheduled(map: ScheduledMap): void {
+  commit(map);
+}
+
 /** Sólo para pruebas. */
 export function resetScheduledForTests(map: ScheduledMap = {}): void {
   current = map;

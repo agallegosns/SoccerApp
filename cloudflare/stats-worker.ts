@@ -341,6 +341,91 @@ export async function collect(env: Env, fetchFn: FetchFn, now: number = Date.now
 }
 
 // ---------------------------------------------------------------------------------------------------------------------------------
+// Sincronización entre dispositivos (móvil ⇄ ordenador): `POST /sync`
+//
+// El Worker guarda UN documento en KV con todos los elementos del usuario (fichas de vídeo, publicado, programado…), cada uno con la
+// marca de tiempo de su último cambio. Cada dispositivo envía sólo lo que ha cambiado desde la última vez y recibe lo que cambió en los
+// demás. Gana el cambio más reciente por elemento; los borrados se guardan como «lápidas». No interpreta los datos: sólo los guarda.
+
+export const SYNC_KEY = 'sync_doc';
+export const SYNC_COLLECTIONS: readonly string[] = ['videos', 'published', 'scheduled', 'downloaded', 'stats', 'imported', 'crests'];
+export const MAX_SYNC_BYTES = 20_000_000;
+export const MAX_SYNC_ENTRY_BYTES = 2_000_000;
+export const MAX_SYNC_CHANGES = 5_000;
+const TOMBSTONE_TTL_MS = 365 * DAY_MS;
+const FUTURE_SLACK_MS = DAY_MS;
+
+export interface SyncEntry {
+  /** Instante del último cambio (ms). */
+  readonly t: number;
+  readonly d?: true;
+  readonly v?: unknown;
+  /** Revisión del documento en la que cambió por última vez. */
+  readonly r: number;
+}
+
+export interface SyncDoc {
+  readonly rev: number;
+  readonly entries: Readonly<Record<string, SyncEntry>>;
+}
+
+export interface SyncReply {
+  readonly rev: number;
+  /** Hora del servidor (ms): el dispositivo la usa para corregir un reloj mal puesto. */
+  readonly now: number;
+  readonly entries: Readonly<Record<string, { readonly t: number; readonly d?: true; readonly v?: unknown }>>;
+}
+
+export type SyncResult = { readonly ok: true; readonly doc: SyncDoc; readonly reply: SyncReply; readonly changed: boolean } | { readonly ok: false; readonly status: number; readonly error: string };
+
+export function parseSyncDoc(raw: string | null): SyncDoc {
+  if (raw === null) return { rev: 0, entries: {} };
+  try {
+    const data: unknown = JSON.parse(raw);
+    if (isRecord(data) && typeof data['rev'] === 'number' && isRecord(data['entries'])) return { rev: data['rev'], entries: data['entries'] as Readonly<Record<string, SyncEntry>> };
+  } catch (error) {
+    console.warn('Documento de sincronización dañado: se empieza de cero', error);
+  }
+  return { rev: 0, entries: {} };
+}
+
+const SYNC_KEY_RE = /^[a-z]+\/[^\s].{0,199}$/;
+
+/** Fusiona los cambios de un dispositivo con el documento. Función pura: no toca KV. */
+export function syncMerge(doc: SyncDoc, body: unknown, now: number): SyncResult {
+  if (!isRecord(body) || typeof body['since'] !== 'number' || !Number.isFinite(body['since']) || !isRecord(body['changes'])) return { ok: false, status: 400, error: 'Petición no válida: faltan `since` y `changes`.' };
+  const since = body['since'];
+  const changes = Object.entries(body['changes']);
+  if (changes.length > MAX_SYNC_CHANGES) return { ok: false, status: 413, error: `Demasiados cambios de una vez (máximo ${String(MAX_SYNC_CHANGES)}).` };
+  const nextRev = doc.rev + 1;
+  const entries: Record<string, SyncEntry> = { ...doc.entries };
+  const accepted = new Set<string>();
+  for (const [key, raw] of changes) {
+    const collection = key.slice(0, key.indexOf('/'));
+    if (!SYNC_KEY_RE.test(key) || !SYNC_COLLECTIONS.includes(collection)) return { ok: false, status: 400, error: `Clave no permitida: ${key.slice(0, 40)}` };
+    if (!isRecord(raw) || typeof raw['t'] !== 'number' || !Number.isFinite(raw['t']) || raw['t'] <= 0 || raw['t'] > now + FUTURE_SLACK_MS) return { ok: false, status: 400, error: `Marca de tiempo no válida en ${key.slice(0, 40)}` };
+    const deleted = raw['d'] === true;
+    if (!deleted && raw['v'] === undefined) return { ok: false, status: 400, error: `Falta el valor de ${key.slice(0, 40)}` };
+    if (!deleted && JSON.stringify(raw['v']).length > MAX_SYNC_ENTRY_BYTES) return { ok: false, status: 413, error: `${key.slice(0, 40)} es demasiado grande (máximo ${String(MAX_SYNC_ENTRY_BYTES / 1_000_000)} MB).` };
+    const existing = entries[key];
+    if (existing !== undefined && existing.t >= raw['t']) continue; // ya hay algo igual de reciente o más: se queda lo del servidor
+    entries[key] = deleted ? { t: raw['t'], d: true, r: nextRev } : { t: raw['t'], v: raw['v'], r: nextRev };
+    accepted.add(key);
+  }
+  // Las lápidas muy antiguas se eliminan para que el documento no crezca sin fin.
+  for (const [key, e] of Object.entries(entries)) if (e.d === true && now - e.t > TOMBSTONE_TTL_MS && !accepted.has(key)) Reflect.deleteProperty(entries, key);
+  const changed = accepted.size > 0;
+  const next: SyncDoc = changed ? { rev: nextRev, entries } : { rev: doc.rev, entries };
+  if (changed && JSON.stringify(next).length > MAX_SYNC_BYTES) return { ok: false, status: 413, error: `Se superó el tamaño máximo de la sincronización (${String(MAX_SYNC_BYTES / 1_000_000)} MB).` };
+  const out: Record<string, { t: number; d?: true; v?: unknown }> = {};
+  for (const [key, e] of Object.entries(next.entries)) {
+    if (e.r <= since || accepted.has(key)) continue;
+    out[key] = e.d === true ? { t: e.t, d: true } : { t: e.t, v: e.v };
+  }
+  return { ok: true, doc: next, reply: { rev: next.rev, now, entries: out }, changed };
+}
+
+// ---------------------------------------------------------------------------------------------------------------------------------
 // HTTP
 
 function timingSafeEqual(a: string, b: string): boolean {
@@ -411,6 +496,21 @@ export async function handleRequest(request: Request, env: Env, fetchFn: FetchFn
     if (!authorized(request, env, url)) return json(env, { error: 'No autorizado' }, 401);
     const snapshot = parseStoredSnapshot(await env.STATS.get(SNAPSHOT_KEY));
     return snapshot === null ? json(env, { error: 'Todavía no hay datos: espera a la primera ejecución o llama a POST /refresh.' }, 404) : json(env, snapshot);
+  }
+
+  if (url.pathname === '/sync' && request.method === 'POST') {
+    if (!authorized(request, env, url)) return json(env, { error: 'No autorizado' }, 401);
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch (error) {
+      console.warn('Cuerpo de /sync no válido', error);
+      return json(env, { error: 'El cuerpo debe ser JSON.' }, 400);
+    }
+    const result = syncMerge(parseSyncDoc(await env.STATS.get(SYNC_KEY)), body, now);
+    if (!result.ok) return json(env, { error: result.error }, result.status);
+    if (result.changed) await env.STATS.put(SYNC_KEY, JSON.stringify(result.doc));
+    return json(env, result.reply);
   }
 
   if (url.pathname === '/refresh' && request.method === 'POST') {

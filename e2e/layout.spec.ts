@@ -112,6 +112,10 @@ test.describe('programado, aviso y selección en pantallas estrechas', () => {
       await seedStorage(page, { videos: [v1, v2] });
       // Los ids de ficha se calculan en la app: se programan por el propio interfaz.
       await page.goto('/#/videos');
+      await page.getByTestId('sync-open').click();
+      await page.getByTestId('sync-url').fill('https://futbol-stats.un-nombre-bastante-largo-de-usuario.workers.dev');
+      await expectNoHorizontalOverflow(page, 'diálogo de sincronización');
+      await page.getByRole('button', { name: 'Cerrar' }).click();
       await page.getByTestId('open-video').first().click();
       await page.getByTestId('schedule-open').click();
       await page.getByTestId('schedule-input').fill('2020-01-01T10:00');

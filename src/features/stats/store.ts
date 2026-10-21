@@ -73,6 +73,11 @@ export function importPublications(incoming: readonly Publication[]): string | n
   return commit(mergePublications(current, incoming));
 }
 
+/** Sustituye todas las publicaciones (al recibir cambios de otro dispositivo). */
+export function replacePublications(pubs: readonly Publication[]): string | null {
+  return commit(pubs);
+}
+
 /** Sólo para pruebas. */
 export function resetStatsForTests(pubs: readonly Publication[] = []): void {
   current = pubs;

@@ -12,6 +12,8 @@ import { AppNav } from './AppNav.tsx';
 import { navigate, useRoute } from './route.ts';
 import { UpdateNotice } from './UpdateNotice.tsx';
 import { DuePrompt } from '../features/videos/DuePrompt.tsx';
+import { startDeviceSync } from '../features/sync/deviceSync.ts';
+import { SyncButton } from '../features/sync/SyncDialog.tsx';
 
 // El estudio (motor, render, exportador y mediabunny) pesa mucho más que el calendario: se carga sólo al abrirlo.
 const SimulationStudio = lazy(() => import('../features/simulation/SimulationStudio.tsx').then((m) => ({ default: m.SimulationStudio })));
@@ -39,6 +41,8 @@ export function App() {
 
   // Estadísticas automáticas: si hay un Worker conectado, se leen al abrir la app y cada 30 minutos (no hace nada si no hay conexión configurada).
   useEffect(() => startAutoSync(), []);
+  // Sincronización móvil ⇄ ordenador (opcional): sólo actúa si el usuario conectó su Worker.
+  useEffect(() => startDeviceSync(), []);
   const [selected, setSelected] = useState<Match | null>(null);
   const [studio, setStudio] = useState<StudioState | null>(null);
   const route = useRoute();
@@ -77,6 +81,7 @@ export function App() {
           </div>
           <span className="badge">Simulación ficticia</span>
           <AppNav route={route} videoCount={videos.length} onNavigate={() => { setStudio(null); }} />
+          <SyncButton />
         </div>
       </header>
       <main className="app__main">

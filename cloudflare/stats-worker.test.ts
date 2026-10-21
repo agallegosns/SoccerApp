@@ -203,3 +203,59 @@ describe('API HTTP del Worker', () => {
     expect(kv.data.has(`tt_state_${state}`)).toBe(false); // el state sólo sirve una vez
   });
 });
+
+describe('sincronización entre dispositivos (POST /sync)', () => {
+  const kv = (): MemoryKV => new MemoryKV();
+  const post = (env: Env, body: unknown, auth = `Bearer ${KEY}`, now = NOW) =>
+    handleRequest(new Request('https://stats.example.workers.dev/sync', { method: 'POST', headers: { authorization: auth, 'content-type': 'application/json' }, body: typeof body === 'string' ? body : JSON.stringify(body) }), env, fakeApis().fetchFn, now);
+
+  it('exige la clave y un cuerpo válido', async () => {
+    const env: Env = { STATS: kv(), STATS_KEY: KEY };
+    expect((await post(env, { since: 0, changes: {} }, 'Bearer mala')).status).toBe(401);
+    expect((await post(env, 'no json')).status).toBe(400);
+    expect((await post(env, { since: 'x', changes: {} })).status).toBe(400);
+    expect((await post(env, { since: 0, changes: { 'otra/a': { t: NOW, v: 1 } } })).status).toBe(400); // colección no permitida
+    expect((await post(env, { since: 0, changes: { 'videos/a': { t: NOW + 10 * 86_400_000, v: 1 } } })).status).toBe(400); // fecha del futuro
+    expect((await post(env, { since: 0, changes: { 'videos/a': { t: NOW } } })).status).toBe(400); // sin valor ni lápida
+  });
+
+  it('guarda lo nuevo, devuelve a otros lo que cambió y rechaza lo más antiguo', async () => {
+    const env: Env = { STATS: kv(), STATS_KEY: KEY };
+    const a = (await (await post(env, { since: 0, changes: { 'videos/a': { t: NOW, v: { x: 1 } } } })).json()) as { rev: number; entries: Record<string, unknown> };
+    expect(a.rev).toBe(1);
+    expect(a.entries).toEqual({}); // al que lo envía no se le devuelve lo suyo
+    const b = (await (await post(env, { since: 0, changes: {} })).json()) as { rev: number; entries: Record<string, unknown> };
+    expect(b.entries).toEqual({ 'videos/a': { t: NOW, v: { x: 1 } } });
+    const c = (await (await post(env, { since: 1, changes: {} })).json()) as { entries: Record<string, unknown> };
+    expect(c.entries).toEqual({}); // ya lo tiene
+    // Un cambio más antiguo no pisa; el que lo envía recibe el que se quedó.
+    const old = (await (await post(env, { since: 1, changes: { 'videos/a': { t: NOW - 5000, v: { x: 0 } } } })).json()) as { rev: number; entries: Record<string, unknown> };
+    expect(old.rev).toBe(1);
+    expect(old.entries).toEqual({});
+    const stored = JSON.parse((await env.STATS.get('sync_doc')) ?? '{}') as { entries: Record<string, { v: unknown }> };
+    expect(stored.entries['videos/a']?.v).toEqual({ x: 1 });
+    // Una lápida más reciente borra.
+    await post(env, { since: 1, changes: { 'videos/a': { t: NOW + 1000, d: true } } });
+    const d = (await (await post(env, { since: 0, changes: {} })).json()) as { entries: Record<string, unknown> };
+    expect(d.entries).toEqual({ 'videos/a': { t: NOW + 1000, d: true } });
+  });
+
+  it('no escribe en KV si no cambió nada y descarta lápidas de más de un año', async () => {
+    const store = kv();
+    const env: Env = { STATS: store, STATS_KEY: KEY };
+    await post(env, { since: 0, changes: { 'videos/a': { t: NOW, v: 1 }, 'videos/viejo': { t: NOW - 400 * 86_400_000, d: true } } });
+    const before = store.data.get('sync_doc');
+    await post(env, { since: 0, changes: {} });
+    expect(store.data.get('sync_doc')).toBe(before);
+    // La lápida vieja sólo se limpia cuando hay una escritura posterior.
+    await post(env, { since: 1, changes: { 'videos/b': { t: NOW + 1, v: 2 } } });
+    const doc = JSON.parse(store.data.get('sync_doc') ?? '{}') as { entries: Record<string, unknown> };
+    expect(Object.keys(doc.entries).sort()).toEqual(['videos/a', 'videos/b']);
+  });
+
+  it('rechaza elementos demasiado grandes', async () => {
+    const env: Env = { STATS: kv(), STATS_KEY: KEY };
+    const res = await post(env, { since: 0, changes: { 'crests/x': { t: NOW, v: 'a'.repeat(2_100_000) } } });
+    expect(res.status).toBe(413);
+  });
+});

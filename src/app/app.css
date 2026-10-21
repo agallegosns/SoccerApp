@@ -207,3 +207,22 @@
 .due__actions .btn {
   flex: 1 1 8rem;
 }
+
+.sync-btn {
+  margin-left: auto;
+  flex: none;
+}
+
+.sync-btn[data-status='error'] {
+  color: var(--color-warning);
+}
+
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
