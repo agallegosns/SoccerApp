@@ -233,3 +233,11 @@ Leyenda: ✅ hecho y probado · 🟡 hecho, pendiente de verificar · ⬜ por ha
   Tests nuevos (17 en el módulo): volumen medio, pico, graves, que pitidos/golpes/goles sobresalgan, patrón 1-2-3 de pitidos, separación mínima y `thin`.
 - 🟡 **Pendiente de verificar a oído** en tu móvil: yo no puedo escuchar; todo lo anterior son mediciones. Si algo sigue sin gustarte (volumen de los golpes, el rugido del gol, el tono del pitido…) dime qué y lo ajusto: son constantes en `synth.ts`.
 
+### Sonido, segunda revisión (2026-10-22): «el gol suena a estruendo y el pitido tiene que ser mejor»
+- **Causa del estruendo:** el rugido del gol era ruido blanco filtrado de 3,2 s (una masa de ruido continuo). Reemplazado por capas que se distinguen: **aplauso** de palmadas sueltas (densidad que sube y baja), **coro de voces «aaah»** (6 voces desafinadas con vibrato y resonancias vocales) y **campanilla** más suave. «Ooh» de lamento en paradas, palos y ocasiones falladas.
+  Medido: el nivel sostenido del gol queda ≈ −6 dB **por debajo** del nivel medio de la pista (antes ≈ +5 dB por encima) y el arranque ≈ +3 dB; el espectrograma muestra bandas vocales y granos en vez de un muro de ruido.
+- **Pitido rehecho:** silbato de dos cámaras (≈ 2,85 y 3,55 kHz que baten), trino de bolita a 32 Hz, golpe de aire al arrancar y ligero ascenso de tono. Sigue siendo ≈ +10 dB sobre el nivel medio.
+- **Calidad general:** reverberación de estadio suave (Schroeder, 35 %) para dar cuerpo y espacio, ambiente más bajo y volumen medio fijado a −15,7 LUFS (Arena) / −14,6 LUFS (Táctico), pico real −1,5 dBFS (sin recortes). Generar la pista tarda ≈ 0,4 s.
+- Tests: 19 en el módulo (incluyen «el gol no es un estruendo»: por debajo de los pitidos, cola ≤ 0,9× el nivel medio, y nivel que varía como granos).
+- 🟡 Sigue sin poder comprobarse **a oído** (no puedo escuchar): todo son mediciones. Se adjunta una muestra para escucharla sin abrir la app.
+

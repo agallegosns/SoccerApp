@@ -73,10 +73,34 @@ describe.each([['tactical', () => simulate(input)], ['arena', () => simulateAren
     };
     const cues = soundCues(sim, style);
     for (const c of cues.filter((x) => x.kind === 'whistle' && x.t > 0.3)) expect(peakNear(c, 0.3)).toBeGreaterThan(1.6); // ≥ +4 dB
-    for (const c of cues.filter((x) => x.kind === 'goal')) expect(peakNear(c, 0.9)).toBeGreaterThan(1.4);
+    for (const c of cues.filter((x) => x.kind === 'goal')) expect(peakNear(c, 0.9)).toBeGreaterThan(1.25);
     const hits = cues.filter((x) => (x.kind === 'kick' || x.kind === 'wall') && x.t > 0.3).map((c) => peakNear(c, 0.05)).sort((p, q) => p - q);
     expect(hits.length).toBeGreaterThan(3);
     expect(hits[Math.floor(hits.length / 2)] ?? 0).toBeGreaterThan(1.3); // la mediana de los golpes sobresale (+2,3 dB)
+  });
+
+  it('el gol no es un «estruendo»: suena por debajo de los pitidos y sin ruido de banda ancha continuo', () => {
+    const track = buildAudio(sim, style);
+    const mean = rms(track.samples, 0, sim.script.duration);
+    const cues = soundCues(sim, style);
+    const peakIn = (t0: number, len: number): number => {
+      let best = 0;
+      for (let t = t0; t < t0 + len; t += 0.01) best = Math.max(best, rms(track.samples, t, t + 0.02));
+      return best / mean;
+    };
+    const whistle = Math.max(...cues.filter((c) => c.kind === 'whistle').map((c) => peakIn(c.t, 0.3)));
+    for (const g of cues.filter((c) => c.kind === 'goal')) {
+      expect(peakIn(g.t, 2)).toBeLessThan(whistle); // el gol nunca tapa al pitido
+      expect(peakIn(g.t, 2)).toBeLessThan(3.4); // ni siquiera con un golpe de balón encima pasa de +10 dB sobre el nivel medio
+      const whistleInside = cues.some((c) => c.kind === 'whistle' && c.t > g.t + 0.4 && c.t < g.t + 1.9); // un pitido pegado al gol no cuenta como cola
+      if (!whistleInside) expect(rms(track.samples, g.t + 0.6, g.t + 1.8) / mean).toBeLessThan(0.9); // la cola del rugido queda como fondo (antes era un muro de ruido)
+      // Las palmadas son granos sueltos: el nivel de cada 10 ms varía mucho (un ruido continuo apenas varía).
+      const levels: number[] = [];
+      for (let t = g.t + 0.5; t < g.t + 1.8; t += 0.01) levels.push(rms(track.samples, t, t + 0.01));
+      const mean10 = levels.reduce((a, b) => a + b, 0) / levels.length;
+      const sd = Math.sqrt(levels.reduce((a, b) => a + (b - mean10) ** 2, 0) / levels.length);
+      expect(sd / mean10).toBeGreaterThan(0.12);
+    }
   });
 
   it('los pitidos siguen el patrón del árbitro: 1 al empezar, 2 en el descanso y 3 al final', () => {

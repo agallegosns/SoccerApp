@@ -115,16 +115,24 @@ function wall(buf: Float32Array, rand: () => number, t: number, power: number): 
   noise(buf, rand, t, 0.04, [new Biquad('band', 4200, 1.2)], (x) => Math.exp(-x * 200) * 1.1 * p);
 }
 
-/** Un soplido de silbato de árbitro (pito de bolita): tono de ≈ 2,9 kHz con trino, un poco de aire y un armónico. */
+/**
+ * Un soplido de silbato de árbitro (pito de dos cámaras con bolita): dos tonos (≈ 2,85 y 3,55 kHz) que baten entre sí, trino rápido
+ * de la bolita (≈ 32 Hz), un golpe de aire al empezar, un pequeño ascenso de tono al soplar y un eco corto de estadio.
+ */
 function whistleBlast(buf: Float32Array, rand: () => number, t: number, len: number): void {
-  let phase = 0;
-  const breath = new Biquad('band', 3600, 2.5);
-  paint(buf, t, len, (x) => {
-    const trill = 0.78 + 0.22 * Math.sin(2 * Math.PI * 27 * x);
-    const env = smooth(x / 0.012) * smooth((len - x) / 0.05);
-    phase += (2 * Math.PI * (2900 + 70 * Math.sin(2 * Math.PI * 4.5 * x))) / SAMPLE_RATE;
-    const tone = Math.sin(phase) + 0.16 * Math.sin(2 * phase) + 0.07 * Math.sin(3 * phase);
-    return (tone * 0.62 + breath.process(rand() * 2 - 1) * 0.5) * trill * env;
+  let p1 = 0;
+  let p2 = 0;
+  const breath = new Biquad('band', 4300, 1.6);
+  const total = len + 0.12;
+  paint(buf, t, total, (x) => {
+    const env = smooth(x / 0.02) * smooth((len - x) / 0.06) * (x <= len ? 1 : 0);
+    const rise = 1 - 0.045 * Math.exp(-x * 30); // al empezar sube un poco de tono, como un soplido real
+    const trill = 0.7 + 0.3 * Math.sin(2 * Math.PI * 32 * x);
+    p1 += (2 * Math.PI * 2850 * rise * (1 + 0.004 * Math.sin(2 * Math.PI * 5.2 * x))) / SAMPLE_RATE;
+    p2 += (2 * Math.PI * 3550 * rise * (1 + 0.004 * Math.sin(2 * Math.PI * 4.7 * x))) / SAMPLE_RATE;
+    const tone = Math.sin(p1) * 0.62 + Math.sin(p2) * 0.42 + Math.sin(2 * p1) * 0.09;
+    const air = breath.process(rand() * 2 - 1) * (0.2 + 0.5 * Math.exp(-x * 40)); // más aire al arrancar
+    return (tone * trill + air) * env * 0.5;
   });
 }
 
@@ -135,16 +143,47 @@ function whistle(buf: Float32Array, rand: () => number, t: number, blasts: 1 | 2
   else { whistleBlast(buf, rand, t, 0.26); whistleBlast(buf, rand, t + 0.38, 0.26); whistleBlast(buf, rand, t + 0.76, 0.95); }
 }
 
-/** Rugido del público: ruido con dos resonancias vocales (~600 Hz y ~1,6 kHz) que sube de golpe y se apaga poco a poco. */
-function crowd(buf: Float32Array, rand: () => number, t: number, len: number, peak: number, attack: number): void {
-  const a = new Biquad('band', 600, 0.7);
-  const b = new Biquad('band', 1600, 0.8);
-  const top = new Biquad('low', 4200, 0.7);
+/** Una «palmada» corta: ráfaga de ruido de 10 ms en una banda de 1,5–4,5 kHz. */
+function clap(buf: Float32Array, rand: () => number, t: number, gain: number): void {
+  const f = new Biquad('band', 1500 + 3000 * rand(), 1.2);
+  noise(buf, rand, t, 0.014, [f], (x) => Math.exp(-x * 420) * gain);
+}
+
+/** Aplauso: muchas palmadas sueltas (no un ruido continuo) cuya densidad sube y baja. `peak` = densidad máxima (palmadas por segundo). */
+function applause(buf: Float32Array, rand: () => number, t: number, len: number, peak: number, gain: number): void {
+  const dt = 1 / 2000;
+  for (let x = 0; x < len; x += dt) {
+    const rise = smooth(x / 0.35);
+    const fall = Math.exp(-Math.max(0, x - 0.35) * (2.6 / len));
+    if (rand() < peak * rise * fall * dt) clap(buf, rand, t + x, gain * (0.4 + 0.6 * rand()));
+  }
+}
+
+type Vowel = 'a' | 'o';
+const VOWELS: Readonly<Record<Vowel, readonly [number, number]>> = { a: [730, 1090], o: [500, 850] };
+
+/** Coro de voces del público («aaah» de alegría o «ooh» de lamento): varias voces desafinadas con vibrato y resonancias vocales. */
+function voices(buf: Float32Array, rand: () => number, t: number, len: number, peak: number, vowel: Vowel, base: number): void {
+  const [f1, f2] = VOWELS[vowel];
+  const a = new Biquad('band', f1, 5);
+  const b = new Biquad('band', f2, 6);
+  const air = new Biquad('band', 2600, 1);
+  const n = 6;
+  const ratios = Array.from({ length: n }, () => 0.94 + 0.12 * rand());
+  const phases = ratios.map(() => rand());
+  const vib = ratios.map(() => 5 + 1.2 * rand());
+  const accum = phases.slice();
   paint(buf, t, len, (x) => {
-    const n = rand() * 2 - 1;
-    const v = top.process(a.process(n) * 0.9 + b.process(n) * 0.7);
-    const rise = smooth(x / attack);
-    const fall = Math.exp(-Math.max(0, x - attack) * (3.4 / len) * 1.4);
+    let src = 0;
+    for (let k = 0; k < n; k += 1) {
+      const f0 = base * (ratios[k] ?? 1) * (1 + 0.012 * Math.sin(2 * Math.PI * (vib[k] ?? 5) * x)) * (1 + 0.1 * Math.exp(-x * 6)); // empiezan algo más agudas (grito de alegría)
+      accum[k] = ((accum[k] ?? 0) + f0 / SAMPLE_RATE) % 1;
+      src += 2 * (accum[k] ?? 0) - 1;
+    }
+    src /= n;
+    const rise = smooth(x / 0.3);
+    const fall = Math.exp(-Math.max(0, x - 0.3) * (3 / len));
+    const v = a.process(src) * 1.0 + b.process(src) * 0.6 + air.process(rand() * 2 - 1) * 0.05;
     return v * rise * fall * peak;
   });
 }
@@ -160,20 +199,48 @@ function apply(buf: Float32Array, rand: () => number, c: Cue): void {
     case 'wall': wall(buf, rand, c.t, c.power); break;
     case 'whistle': whistle(buf, rand, c.t, c.blasts); break;
     case 'goal':
-      crowd(buf, rand, c.t, 3.2, 0.7, 0.3);
-      bell(buf, c.t + 0.02, 880, 0.2);
-      bell(buf, c.t + 0.16, 1318.5, 0.16);
+      // Gol: aplauso con muchas palmadas + «aaah» de alegría + campanilla. Nada de ruido continuo: se entiende cada capa.
+      voices(buf, rand, c.t, 2.4, 0.5, 'a', 210);
+      applause(buf, rand, c.t + 0.05, 2.6, 110, 0.55);
+      bell(buf, c.t + 0.02, 880, 0.12);
+      bell(buf, c.t + 0.16, 1318.5, 0.1);
       break;
     case 'save':
       noise(buf, rand, c.t, 0.08, [new Biquad('band', 1000, 0.9)], (x) => Math.exp(-x * 50) * 1.2);
-      crowd(buf, rand, c.t + 0.05, 1.1, 0.3, 0.2);
+      voices(buf, rand, c.t + 0.05, 0.9, 0.16, 'o', 190);
       break;
     case 'post':
       paint(buf, c.t, 0.8, (x) => (Math.sin(2 * Math.PI * 1250 * x) + 0.6 * Math.sin(2 * Math.PI * 3100 * x)) * Math.exp(-x * 9) * 0.2);
-      crowd(buf, rand, c.t + 0.05, 1.3, 0.38, 0.15);
+      voices(buf, rand, c.t + 0.05, 1.0, 0.2, 'o', 200);
       break;
-    case 'miss': crowd(buf, rand, c.t, 1.0, 0.9, 0.25); break;
+    case 'miss': voices(buf, rand, c.t, 1.0, 0.4, 'o', 180); break;
     case 'whoosh': noise(buf, rand, Math.max(0, c.t - 0.2), 0.3, [new Biquad('band', 1500, 0.8)], (x) => Math.sin(Math.PI * clamp01(x / 0.3)) * 0.35); break;
+  }
+}
+
+/** Reverberación de estadio (Schroeder: 4 peines + 2 pasa-todo). `wet` = cuánta señal reverberada se suma. Da cuerpo y espacio sin enturbiar. */
+function reverb(buf: Float32Array, wet: number): void {
+  const combs = [1557, 1617, 1491, 1422].map((d) => ({ d: Math.round((d * SAMPLE_RATE) / 44100), line: new Float32Array(Math.round((d * SAMPLE_RATE) / 44100)), i: 0, lp: 0 }));
+  const allpass = [225, 556].map((d) => ({ d, line: new Float32Array(d), i: 0 }));
+  for (let n = 0; n < buf.length; n += 1) {
+    const x = buf[n] ?? 0;
+    let y = 0;
+    for (const c of combs) {
+      const out = c.line[c.i] ?? 0;
+      c.lp += 0.45 * (out - c.lp); // amortigua los agudos de la cola
+      c.line[c.i] = x * 0.3 + c.lp * 0.8;
+      c.i = (c.i + 1) % c.d;
+      y += out;
+    }
+    y *= 0.25;
+    for (const ap of allpass) {
+      const delayed = ap.line[ap.i] ?? 0;
+      const out = delayed - 0.5 * y;
+      ap.line[ap.i] = y + 0.5 * delayed;
+      ap.i = (ap.i + 1) % ap.d;
+      y = out;
+    }
+    buf[n] = x + wet * y;
   }
 }
 
@@ -221,8 +288,8 @@ function limit(buf: Float32Array, ceiling: number): void {
 
 /** Nivel de pico máximo de la pista (–2 dBFS: deja margen para el códec y los picos entre muestras). */
 export const PEAK_CEILING = 0.8;
-/** Nivel medio objetivo de la pista (RMS –18 dBFS ≈ –15 LUFS, un volumen cómodo en TikTok y Instagram sin pasarse). */
-export const TARGET_RMS = 0.12;
+/** Nivel medio objetivo de la pista (RMS –17 dBFS ≈ –15 LUFS, un volumen cómodo en TikTok y Instagram sin pasarse). */
+export const TARGET_RMS = 0.145;
 
 /**
  * Banda sonora procedural y determinista (misma simulación → mismas muestras): golpes de balón, rebotes en la pared, silbatos,
@@ -241,15 +308,16 @@ export function buildAudio(sim: Simulation, style: VideoStyle): AudioTrack {
   const hi = new Biquad('low', 2200, 0.7);
   for (let i = 0; i < buf.length; i += 1) {
     const t = i / SAMPLE_RATE;
-    let level = 0.035 + 0.01 * Math.sin(t * 0.7);
+    let level = 0.025 + 0.008 * Math.sin(t * 0.7);
     for (const b of bumps) {
       const d = t - b.t;
-      if (d > -1.8 && d < 1.2) level += 0.04 * Math.exp(-((d + 0.3) ** 2) / 0.6);
+      if (d > -1.8 && d < 1.2) level += 0.025 * Math.exp(-((d + 0.3) ** 2) / 0.6);
     }
     buf[i] = hi.process(lo.process(rand() * 2 - 1)) * level;
   }
 
   for (const c of cues) apply(buf, rand, c);
+  reverb(buf, 0.35);
 
   // Master: quita lo grave (el altavoz del móvil no lo oye y ensucia), comprime, fija el volumen medio y limita.
   const hp1 = new Biquad('high', 110, 0.7);
