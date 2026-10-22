@@ -56,6 +56,11 @@ export function removeVideo(id: string): void {
   clearScheduled(id);
 }
 
+/** Sustituye todas las fichas (al recibir cambios de otro dispositivo). */
+export function replaceVideos(records: readonly VideoRecord[]): void {
+  commit([...records].sort((a, b) => b.createdAt - a.createdAt));
+}
+
 /** Elimina varias fichas de una vez (una sola escritura). */
 export function removeVideos(ids: readonly string[]): void {
   const set = new Set(ids);

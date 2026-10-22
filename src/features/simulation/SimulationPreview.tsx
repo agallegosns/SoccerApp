@@ -1,8 +1,9 @@
-import { Pause, Play, RotateCcw } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { Pause, Play, RotateCcw, Volume2, VolumeX } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import type { Simulation } from '../../engine/index.ts';
 import type { RenderMeta } from './render.ts';
+import { SAMPLE_RATE, buildAudio } from '../sound/synth.ts';
 import { drawVideoFrame, type VideoStyle } from './renderers.ts';
 import { VIDEO_HEIGHT, VIDEO_WIDTH } from './theme.ts';
 
@@ -26,6 +27,11 @@ export function SimulationPreview({ sim, meta, label, style, crestVersion, seek 
   const [reduced] = useState(prefersReducedMotion);
   const [wantsPlay, setWantsPlay] = useState(!reduced);
   const [seenNonce, setSeenNonce] = useState(seek?.nonce ?? 0);
+  const [soundOn, setSoundOn] = useState(false);
+  const timeRef = useRef(0);
+  useEffect(() => {
+    timeRef.current = time;
+  }, [time]);
   const duration = sim.script.duration;
   const playing = wantsPlay && time < duration;
 
@@ -50,6 +56,35 @@ export function SimulationPreview({ sim, meta, label, style, crestVersion, seek 
       cancelAnimationFrame(raf);
     };
   }, [playing, duration]);
+
+  const audio = useMemo(() => (soundOn ? buildAudio(sim, style) : null), [soundOn, sim, style]);
+  const audioCtx = useRef<AudioContext | null>(null);
+  useEffect(() => {
+    if (audio === null || !playing || typeof AudioContext === 'undefined') return undefined;
+    audioCtx.current ??= new AudioContext({ sampleRate: SAMPLE_RATE });
+    const ctx = audioCtx.current;
+    const buffer = ctx.createBuffer(1, audio.samples.length, audio.sampleRate);
+    buffer.copyToChannel(audio.samples, 0);
+    const node = ctx.createBufferSource();
+    node.buffer = buffer;
+    node.connect(ctx.destination);
+    void ctx.resume().then(() => {
+      node.start(0, Math.min(timeRef.current, duration - 0.01));
+    }).catch((error: unknown) => {
+      console.warn('No se pudo reproducir el sonido', error);
+    });
+    return () => {
+      try {
+        node.stop();
+      } catch {
+        // `stop()` lanza si aún no se inició; no hay nada que detener.
+        node.disconnect();
+      }
+    };
+  }, [audio, playing, duration, seenNonce]);
+  useEffect(() => () => {
+    void audioCtx.current?.close();
+  }, []);
 
   useEffect(() => {
     const ctx = canvasRef.current?.getContext('2d');
@@ -88,6 +123,16 @@ export function SimulationPreview({ sim, meta, label, style, crestVersion, seek 
           aria-label="Volver al principio"
         >
           <RotateCcw aria-hidden="true" size={20} />
+        </button>
+        <button
+          type="button"
+          className="btn"
+          onClick={() => { setSoundOn((v) => !v); }}
+          aria-pressed={soundOn}
+          aria-label={soundOn ? 'Silenciar la vista previa' : 'Activar el sonido de la vista previa'}
+          data-testid="sound-toggle"
+        >
+          {soundOn ? <Volume2 aria-hidden="true" size={20} /> : <VolumeX aria-hidden="true" size={20} />}
         </button>
         <label className="preview__scrub">
           <span className="visually-hidden">Posición del vídeo</span>

@@ -11,3 +11,7 @@ test-results
 e2e/artifacts
 dist-vp9
 dist-base
+
+# Carpetas de trabajo locales (sincronizacion con Claude)
+Claude outputs/
+.sync-tmp/

@@ -45,6 +45,7 @@ El estudio de la captura se hizo en un navegador sin codificador H.264, por eso 
 En el estudio, panel **Personalizar el vídeo** (se guarda en tu navegador y vale para la vista previa, la exportación y los lotes):
 - **Colores de la arena** (Noche, Neón, Césped, Fuego) y **rebotes del balón** (apagado, poco, normal, mucho: la elasticidad de la pared en la física). Los escudos persiguen y golpean el balón, chocan con la pared y entre sí, y los goles salen del juego.
 - **Qué se muestra**: estadísticas, último suceso y estela del balón.
+- **Sonido** (activado por defecto): golpes de balón, rebotes en la pared, silbatos de inicio/descanso/final, rugido del público y campanilla en los goles, paradas, palos y ambiente de grada. Se sintetiza en el navegador (`src/features/sound`), sin grabaciones con derechos, y es el mismo en la vista previa (botón del altavoz) y en el MP4 (AAC, u Opus si el navegador no tiene AAC).
 - **Textos propios**: texto gancho bajo la competición («¿Quién gana? Comenta tu marcador»), marca de agua con tu usuario y texto del gol.
 
 ### Ritmo y escudos
@@ -62,6 +63,12 @@ En el estudio, panel **Personalizar el vídeo** (se guarda en tu navegador y val
   `Jornada · Fecha · Hora · Equipo Local · Equipo Visitante` (como el de la Champions), o un JSON/TXT (openfootball, football-data.org o fixturedownload.com).
   Se guarda sólo en tu navegador. Otros orígenes: ver [docs/football-data-org.md](docs/football-data-org.md) (no activado).
 
+## Subir cambios a GitHub con un doble clic (Windows)
+En la carpeta del proyecto, `subir-a-github.bat`: guarda los cambios, los sube a tu rama (nunca a `main` ni a la rama que publica la web, y solo si el remoto es SoccerApp) y abre la página para crear el Pull Request. Necesita Git instalado y la sesión de GitHub iniciada (la de GitHub Desktop sirve).
+
+## Sincronizar móvil y ordenador (opcional)
+Con el mismo Worker gratuito de Cloudflare, lo que haces en un dispositivo (vídeos, publicado, programado, estadísticas…) aparece en los demás: ver [`docs/SINCRONIZACION.md`](docs/SINCRONIZACION.md). Se activa desde el icono de nube de la cabecera.
+
 ## Estadísticas automáticas (opcional)
 Cada 30 minutos, con un Worker gratuito de Cloudflare propio: ver [`docs/ESTADISTICAS-AUTOMATICAS.md`](docs/ESTADISTICAS-AUTOMATICAS.md). Sin él, las estadísticas se escriben a mano o se importan en CSV.
 
@@ -72,7 +79,7 @@ Cada 30 minutos, con un Worker gratuito de Cloudflare propio: ver [`docs/ESTADIS
 ## Requisitos
 - Node.js ≥ 22 y npm ≥ 10 para desarrollar.
 - Para **exportar vídeo**: un navegador con WebCodecs que codifique **H.264** (Chrome, Edge o Safari recientes). Si no, la app lo explica y desactiva la exportación.
-  El vídeo sale **sin audio** (puedes añadir sonido al publicarlo en TikTok).
+  El vídeo lleva **sonido propio** (ver abajo); si el navegador no puede codificar audio, sale sin sonido y la app lo indica.
 
 ## Comandos
 ```bash
@@ -89,6 +96,7 @@ npm run bench         # rendimiento del dibujado (BENCH_EXPORT=1 añade la medic
 - [TASKS.md](TASKS.md): qué está hecho y **probado**, qué queda **pendiente de verificar** y límites conocidos.
 - [CLAUDE.md](CLAUDE.md): reglas permanentes del proyecto.
 - [docs/DESPLIEGUE.md](docs/DESPLIEGUE.md): publicación en GitHub Pages (preparada, **sin desplegar**).
+- [docs/SINCRONIZACION.md](docs/SINCRONIZACION.md): sincronizar móvil y ordenador con tu Worker de Cloudflare.
 - [docs/ESTADISTICAS-AUTOMATICAS.md](docs/ESTADISTICAS-AUTOMATICAS.md): Worker gratuito que actualiza las estadísticas de TikTok e Instagram cada 30 minutos.
 - [docs/football-data-org.md](docs/football-data-org.md): cómo enchufar football-data.org (no activado).
 

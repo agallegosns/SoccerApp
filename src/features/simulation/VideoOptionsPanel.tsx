@@ -72,6 +72,10 @@ export function VideoOptionsPanel({ options, style, onChange, onReset }: Props) 
           <input type="checkbox" checked={options.showTicker} onChange={(e) => { onChange({ showTicker: e.target.checked }); }} data-testid="opt-ticker" />
           <span>Último suceso (rótulo inferior)</span>
         </label>
+        <label className="check">
+          <input type="checkbox" checked={options.sound} onChange={(e) => { onChange({ sound: e.target.checked }); }} data-testid="opt-sound" />
+          <span>Sonido en el vídeo (balón, silbatos, goles y público)</span>
+        </label>
         {arena && (
           <label className="check">
             <input type="checkbox" checked={options.ballTrail} onChange={(e) => { onChange({ ballTrail: e.target.checked }); }} data-testid="opt-trail" />

@@ -23,6 +23,23 @@ test.describe('accesibilidad de las secciones nuevas (axe, WCAG AA)', () => {
     expect(await violations(page)).toEqual([]);
   });
 
+  test('programado, aviso de publicación, selección y ventana de sincronización', async ({ page }) => {
+    await page.goto('/#/videos');
+    await page.getByTestId('open-video').first().click();
+    await page.getByTestId('schedule-open').click();
+    await page.getByTestId('schedule-input').fill('2020-01-01T10:00');
+    expect(await violations(page), 'diálogo de programar').toEqual([]);
+    await page.getByTestId('schedule-save').click();
+    await expect(page.getByTestId('due-item')).toBeVisible();
+    expect(await violations(page), 'ficha pendiente de confirmar + aviso').toEqual([]);
+    await page.getByRole('link', { name: 'Vídeos', exact: true }).first().click();
+    await page.getByTestId('select-mode').click();
+    await page.getByTestId('select-all').click();
+    expect(await violations(page), 'lista en modo selección con chip').toEqual([]);
+    await page.getByTestId('sync-open').click();
+    expect(await violations(page), 'ventana de sincronización').toEqual([]);
+  });
+
   test('ficha de vídeo, todas las pestañas', async ({ page }) => {
     await page.goto('/#/videos');
     await page.getByTestId('open-video').first().click();

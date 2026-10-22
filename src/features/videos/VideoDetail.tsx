@@ -115,6 +115,7 @@ export function VideoDetail({ record, onOpenStudio }: Props) {
         sim,
         meta,
         style: record.style,
+        sound: record.options.sound,
         title: `Simulación ficticia: ${record.match.home} vs ${record.match.away}`,
         signal: controller.signal,
         onProgress: (p) => {

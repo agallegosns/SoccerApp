@@ -105,6 +105,18 @@ export function writeJson(key: string, value: unknown, store: KeyValueStore | nu
   }
 }
 
+/** Claves guardadas (sin el prefijo de la app) que empiezan por `prefix`. */
+export function listKeys(prefix: string, store: KeyValueStore | null = browserStore()): string[] {
+  if (store === null || !('length' in store) || !('key' in store)) return [];
+  const full = store as Storage;
+  const out: string[] = [];
+  for (let i = 0; i < full.length; i += 1) {
+    const k = full.key(i);
+    if (k !== null && k.startsWith(PREFIX + prefix)) out.push(k.slice(PREFIX.length));
+  }
+  return out;
+}
+
 export function removeKey(key: string, store: KeyValueStore | null = browserStore()): void {
   store?.removeItem(PREFIX + key);
 }

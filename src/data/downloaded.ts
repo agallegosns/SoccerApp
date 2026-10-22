@@ -61,6 +61,17 @@ export function toggleDownloaded(matchId: string): void {
   else markDownloaded(matchId);
 }
 
+/** Sustituye todas las marcas de descargado (al recibir cambios de otro dispositivo). */
+export function replaceDownloaded(ids: readonly string[]): void {
+  current = new Set(ids);
+  try {
+    writeJson(KEY, [...current]);
+  } catch (error) {
+    console.warn('No se pudieron guardar las descargas recibidas', error);
+  }
+  for (const l of listeners) l();
+}
+
 /** Sólo para pruebas: reinicia el estado en memoria. */
 export function resetDownloadedForTests(ids: readonly string[] = []): void {
   current = new Set(ids);

@@ -164,7 +164,7 @@ Leyenda: ✅ hecho y probado · 🟡 hecho, pendiente de verificar · ⬜ por ha
   (los sucesos y el marcador no cambian), sin teletransportes, determinista. Revisado a ojo en una secuencia de capturas de la vista previa.
   🟡 Diferencias con el vídeo de referencia: allí los escudos también rebotan y se chocan con el balón; aquí los escudos lo persiguen con retraso pero no rebotan en la pared. Con ritmo rápido y tramos cortos hay 7–15 rebotes por vídeo; «Muchos» sólo añade los tramos más cortos.
 - ✅ **Personalización del vídeo**: 4 paletas, nivel de rebotes, estadísticas/último suceso/estela, texto gancho, marca de agua y texto del gol; se guardan en el navegador y valen para vista previa, exportación y lotes. Tests unitarios (validación) y e2e (cambian el vídeo, persisten, se restauran).
-  🟡 Otras opciones posibles que no he añadido: velocidad del giro de la cámara, tamaño del balón o de los escudos, música/sonido (el vídeo sale sin audio).
+  🟡 Otras opciones posibles que no he añadido: velocidad del giro de la cámara, tamaño del balón o de los escudos, música/sonido .
 - 🟡 Pendiente de verificar a ojo en un vídeo exportado (exportación real VP9 probada con ffprobe) y **sin desplegar** (hay que pedir un redespliegue).
 
 ## Física del balón (a petición del usuario)
@@ -211,3 +211,15 @@ Leyenda: ✅ hecho y probado · 🟡 hecho, pendiente de verificar · ⬜ por ha
 - ✅ **Aviso «¿Se ha publicado?»** (`DuePrompt.tsx`): al llegar la hora, la app pregunta; «Sí, ya está publicado» → pasa a «Publicado» (y deja de ser programado); «Todavía no» lo oculta 10 min; «Cambiar hora» abre la ficha. 🟡 Solo funciona con la app abierta: no hay servidor que envíe notificaciones push con la app cerrada. Opcional: «Activar aviso» pide permiso de notificaciones del navegador (en iPhone solo con la app instalada en la pantalla de inicio; sin probar en un iPhone real).
 - ✅ **Eliminar desde Vídeos**: botón «Eliminar» en cada tarjeta y modo «Seleccionar» para borrar varias; siempre con confirmación; también limpia sus marcas de publicado/programado.
 - ✅ **Desplazamiento lateral**: causa probable en iPhone = campos con letra menor de 16 px (Safari amplía la página al tocarlos y deja la pantalla desplazable). Todos los campos usan ≥16 px; `html/body` con `overflow-x: clip`; `e2e/layout.spec.ts` ahora falla si algún campo visible es menor de 16 px. 🟡 No se ha podido comprobar en un iPhone real.
+
+
+## Sincronización móvil ⇄ ordenador (2026-10-21)
+- ✅ `src/features/sync/` (`core.ts` fusión por elemento con marca de tiempo y lápidas, `engine.ts`, `collections.ts`, `deviceSync.ts`, `SyncDialog.tsx`) + `POST /sync` en `cloudflare/stats-worker.ts`. Sincroniza fichas de vídeo, publicado, programado, descargado, estadísticas, calendarios importados y escudos. Guía: `docs/SINCRONIZACION.md`.
+- ✅ Probado: 7 pruebas del motor con dos dispositivos contra el Worker real (altas, borrados, conflictos, reloj desfasado, estadísticas fusionadas, sin escrituras inútiles, errores) + 4 del Worker + e2e con dos navegadores (`e2e/device-sync.spec.ts`), accesibilidad y diseño estrecho de la ventana.
+- 🟡 Pendiente de verificar: con el Worker desplegado en Cloudflare de verdad y desde un iPhone. El usuario debe volver a pegar `cloudflare/stats-worker.js` en Cloudflare.
+- Límites conocidos: solo sincroniza con la app abierta (sin push); dos dispositivos escribiendo en el mismo instante podrían pisarse (KV no es transaccional); los calendarios importados y escudos nuevos se ven al recargar.
+
+## Sonido y subida con .bat (2026-10-22)
+- ✅ `src/features/sound` (`cues.ts` sucesos→sonidos, `synth.ts` síntesis determinista) + pista de audio en el MP4 (`exportVideo.ts`, AAC u Opus según soporte) + botón de sonido en la vista previa + opción «Sonido» (por defecto sí). Tests unitarios; `verify:export` comprueba la pista de audio (verificado en el Chromium del sandbox: Opus en MP4, duración igual al vídeo, picos en los goles).
+- 🟡 Pendiente de verificar: AAC real en Chrome/Safari de usuario, y cómo suena en el móvil (el volumen/mezcla se ajusta a oído).
+- ✅ `subir-a-github.bat` (comprobaciones de seguridad, commit, push, abre el PR). 🟡 No se pudo ejecutar aquí (Linux): pendiente de verificar en Windows.

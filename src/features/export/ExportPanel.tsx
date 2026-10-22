@@ -71,6 +71,7 @@ export function ExportPanel({ sim, meta, style, fileName, title, matchId, params
         meta,
         style,
         title,
+        sound: params.options.sound,
         signal: controller.signal,
         onProgress: (progress) => {
           const now = performance.now();
@@ -160,7 +161,7 @@ export function ExportPanel({ sim, meta, style, fileName, title, matchId, params
             <strong>{fileName}</strong>
             <br />
             <span className="muted">
-              {mb(job.result.bytes)} · {job.result.width}×{job.result.height} · {job.result.fps} fps · {job.result.durationSeconds.toFixed(1)} s
+              {mb(job.result.bytes)} · {job.result.width}×{job.result.height} · {job.result.fps} fps · {job.result.durationSeconds.toFixed(1)} s · {job.result.audio === null ? (params.options.sound ? 'sin sonido (este navegador no puede codificar audio)' : 'sin sonido') : `con sonido (${job.result.audio === 'aac' ? 'AAC' : job.result.audio})`}
             </span>
           </p>
           <video className="export__video" src={job.url} controls playsInline muted data-testid="export-video" />
