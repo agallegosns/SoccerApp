@@ -223,3 +223,13 @@ Leyenda: ✅ hecho y probado · 🟡 hecho, pendiente de verificar · ⬜ por ha
 - ✅ `src/features/sound` (`cues.ts` sucesos→sonidos, `synth.ts` síntesis determinista) + pista de audio en el MP4 (`exportVideo.ts`, AAC u Opus según soporte) + botón de sonido en la vista previa + opción «Sonido» (por defecto sí). Tests unitarios; `verify:export` comprueba la pista de audio (verificado en el Chromium del sandbox: Opus en MP4, duración igual al vídeo, picos en los goles).
 - 🟡 Pendiente de verificar: AAC real en Chrome/Safari de usuario, y cómo suena en el móvil (el volumen/mezcla se ajusta a oído).
 - ✅ `subir-a-github.bat` (comprobaciones de seguridad, commit, push, abre el PR). 🟡 No se pudo ejecutar aquí (Linux): pendiente de verificar en Windows.
+
+## Sonido revisado (2026-10-22, a petición del usuario: «no se escucha bien»)
+- **Qué estaba mal (medido):** volumen medio −12 / −10 LUFS con picos de +2 dBFS (la pista se pasaba y el códec la recortaba); el rugido del gol era 5× más fuerte que todo lo demás y tapaba golpes y pitidos; los golpes de balón eran graves de 55–165 Hz que el altavoz del móvil no reproduce;
+  hasta 46 golpes y 39 rebotes en 26 s, muchos a menos de 0,1 s unos de otros y con la misma fuerza (efecto «ametralladora»).
+- ✅ **Rehecho** (`src/features/sound`): golpe de balón en medios con chasquido (240→140 Hz + 520 Hz + 2–3 kHz), rebote en la pared como «tonk» seco (≈ 900 Hz), pitidos de árbitro con trino y aire (inicio 1, descanso 2, final 3), rugido del público con resonancias vocales, campanilla de gol más suave y ambiente más bajo; cada golpe varía un poco de volumen y tono.
+  Golpes/rebotes: se quitan los que son casi roces y los pegados a otro más fuerte (`thin`, separación mínima 0,14 s / 0,12 s). Master: filtro de graves, compresor suave 2,2:1, volumen medio fijo y limitador con anticipación (pico ≤ −2 dBFS).
+- ✅ **Medido** (ffmpeg `ebur128` y `astats`, sobre la pista y sobre el MP4 exportado con Opus): −15,6 LUFS (Arena) / −14,0 LUFS (Táctico), pico real −1,4/−1,5 dBFS (antes +2,1), sin recortes; pitidos ≈ +9 dB y goles ≈ +5 dB sobre el nivel medio; mediana de golpes ≈ +5 dB. El espectrograma muestra golpes separados y pitidos nítidos a 2,9 kHz.
+  Tests nuevos (17 en el módulo): volumen medio, pico, graves, que pitidos/golpes/goles sobresalgan, patrón 1-2-3 de pitidos, separación mínima y `thin`.
+- 🟡 **Pendiente de verificar a oído** en tu móvil: yo no puedo escuchar; todo lo anterior son mediciones. Si algo sigue sin gustarte (volumen de los golpes, el rugido del gol, el tono del pitido…) dime qué y lo ajusto: son constantes en `synth.ts`.
+

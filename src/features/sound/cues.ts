@@ -13,6 +13,30 @@ export type Cue =
   | { readonly t: number; readonly kind: 'miss' }
   | { readonly t: number; readonly kind: 'whoosh' };
 
+/** Separación mínima (s) entre dos golpes de balón o dos choques con la pared; con menos suenan como una ametralladora. */
+export const MIN_GAP: Readonly<Record<'kick' | 'wall', number>> = { kick: 0.14, wall: 0.12 };
+/** Los golpes muy suaves (casi roces) no suenan. */
+export const MIN_POWER = 0.25;
+
+/** Quita los golpes/choques muy flojos o pegados a otro más fuerte (se queda el más fuerte de cada racha). */
+export function thin(cues: readonly Cue[]): Cue[] {
+  const out: Cue[] = cues.filter((c) => c.kind !== 'kick' && c.kind !== 'wall');
+  for (const kind of ['kick', 'wall'] as const) {
+    const kept: Extract<Cue, { kind: 'kick' | 'wall' }>[] = [];
+    for (const c of cues) {
+      if (c.kind !== kind || c.power < MIN_POWER) continue;
+      const last = kept[kept.length - 1];
+      if (last !== undefined && c.t - last.t < MIN_GAP[kind]) {
+        if (c.power > last.power) kept[kept.length - 1] = c;
+      } else {
+        kept.push(c);
+      }
+    }
+    out.push(...kept);
+  }
+  return out;
+}
+
 /** Deriva, de forma pura, los sonidos de una simulación a partir de sus sucesos reales (nada se inventa aparte). */
 export function soundCues(sim: Simulation, style: VideoStyle): Cue[] {
   const cues: Cue[] = [];
@@ -40,5 +64,5 @@ export function soundCues(sim: Simulation, style: VideoStyle): Cue[] {
       else if (s.kind === 'shot') cues.push({ t: s.t0, kind: 'kick', power: 1 });
     }
   }
-  return cues.filter((c) => Number.isFinite(c.t) && c.t >= 0 && c.t < sim.script.duration).sort((a, b) => a.t - b.t);
+  return thin(cues).filter((c) => Number.isFinite(c.t) && c.t >= 0 && c.t < sim.script.duration).sort((a, b) => a.t - b.t);
 }
