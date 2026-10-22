@@ -1,13 +1,15 @@
-import { BufferTarget, CanvasSource, Mp4OutputFormat, Output, Quality, canEncodeVideo, type VideoCodec } from 'mediabunny';
+import { AudioBufferSource, BufferTarget, CanvasSource, Mp4OutputFormat, Output, Quality, canEncodeVideo, getFirstEncodableAudioCodec, type AudioCodec, type VideoCodec } from 'mediabunny';
 
 import type { Simulation } from '../../engine/index.ts';
 import type { RenderMeta } from '../simulation/render.ts';
 import { drawVideoFrame, type VideoStyle } from '../simulation/renderers.ts';
 import { VIDEO_FPS, VIDEO_HEIGHT, VIDEO_WIDTH } from '../simulation/theme.ts';
+import { SAMPLE_RATE, buildAudio } from '../sound/synth.ts';
 import { PRODUCT_CODEC, codecLabel } from './codec.ts';
 import { ExportError, classifyExportError, codecUnsupported, unsupportedBrowser } from './errors.ts';
 
 export const DEFAULT_BITRATE = 6_000_000;
+const AUDIO_BITRATE = 128_000;
 
 export interface ExportProgress {
   /** Fotogramas ya codificados. */
@@ -29,11 +31,15 @@ export interface ExportOptions {
   readonly onProgress?: (progress: ExportProgress) => void;
   /** Título que se guarda en los metadatos del MP4. */
   readonly title?: string;
+  /** Añadir la banda sonora sintetizada (por defecto sí). Si el navegador no puede codificar audio, se exporta sin sonido y `audio` es `null`. */
+  readonly sound?: boolean;
 }
 
 export interface ExportResult {
   readonly blob: Blob;
   readonly codec: VideoCodec;
+  /** Códec de audio del MP4, o `null` si va sin sonido (desactivado o sin soporte en este navegador). */
+  readonly audio: AudioCodec | null;
   readonly width: number;
   readonly height: number;
   readonly fps: number;
@@ -95,6 +101,20 @@ export async function exportVideo(options: ExportOptions): Promise<ExportResult>
   output.addVideoTrack(source, { frameRate: fps });
   if (options.title !== undefined) output.setMetadataTags({ title: options.title, comment: 'Simulación ficticia' });
 
+  let audioSource: AudioBufferSource | null = null;
+  let audioCodec: AudioCodec | null = null;
+  if (options.sound !== false && typeof AudioEncoder !== 'undefined' && typeof AudioBuffer !== 'undefined') {
+    try {
+      audioCodec = await getFirstEncodableAudioCodec(['aac', 'opus'], { numberOfChannels: 1, sampleRate: SAMPLE_RATE, quality: new Quality({ bitrate: AUDIO_BITRATE }) });
+    } catch (error) {
+      console.warn('No se pudo comprobar el soporte de audio; se exporta sin sonido', error);
+    }
+    if (audioCodec !== null) {
+      audioSource = new AudioBufferSource({ codec: audioCodec, quality: new Quality({ bitrate: AUDIO_BITRATE }) });
+      output.addAudioTrack(audioSource);
+    }
+  }
+
   const total = Math.max(1, Math.ceil(sim.script.duration * fps));
   const cancelQuietly = async (): Promise<void> => {
     try {
@@ -106,6 +126,12 @@ export async function exportVideo(options: ExportOptions): Promise<ExportResult>
 
   try {
     await output.start();
+    if (audioSource !== null) {
+      const track = buildAudio(sim, style);
+      const buffer = new AudioBuffer({ length: track.samples.length, sampleRate: track.sampleRate, numberOfChannels: 1 });
+      buffer.copyToChannel(track.samples, 0);
+      await audioSource.add(buffer);
+    }
     for (let i = 0; i < total; i += 1) {
       if (aborted()) throw new ExportError('cancelled', 'Exportación cancelada.');
       drawVideoFrame(ctx, sim, i / fps, meta, style);
@@ -125,6 +151,7 @@ export async function exportVideo(options: ExportOptions): Promise<ExportResult>
   return {
     blob: new Blob([buffer], { type: 'video/mp4' }),
     codec,
+    audio: audioCodec,
     width: VIDEO_WIDTH,
     height: VIDEO_HEIGHT,
     fps,

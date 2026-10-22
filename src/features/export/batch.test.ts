@@ -9,6 +9,7 @@ import { buildZip, zipReadme } from './zip.ts';
 const fakeResult = (seed: number, size = 4): ExportResult => ({
   blob: new Blob([new Uint8Array(size).fill(seed % 250)], { type: 'video/mp4' }),
   codec: 'avc',
+  audio: null,
   width: 1080,
   height: 1920,
   fps: 30,

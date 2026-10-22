@@ -164,7 +164,7 @@ Leyenda: ✅ hecho y probado · 🟡 hecho, pendiente de verificar · ⬜ por ha
   (los sucesos y el marcador no cambian), sin teletransportes, determinista. Revisado a ojo en una secuencia de capturas de la vista previa.
   🟡 Diferencias con el vídeo de referencia: allí los escudos también rebotan y se chocan con el balón; aquí los escudos lo persiguen con retraso pero no rebotan en la pared. Con ritmo rápido y tramos cortos hay 7–15 rebotes por vídeo; «Muchos» sólo añade los tramos más cortos.
 - ✅ **Personalización del vídeo**: 4 paletas, nivel de rebotes, estadísticas/último suceso/estela, texto gancho, marca de agua y texto del gol; se guardan en el navegador y valen para vista previa, exportación y lotes. Tests unitarios (validación) y e2e (cambian el vídeo, persisten, se restauran).
-  🟡 Otras opciones posibles que no he añadido: velocidad del giro de la cámara, tamaño del balón o de los escudos, música/sonido (el vídeo sale sin audio).
+  🟡 Otras opciones posibles que no he añadido: velocidad del giro de la cámara, tamaño del balón o de los escudos, música/sonido .
 - 🟡 Pendiente de verificar a ojo en un vídeo exportado (exportación real VP9 probada con ffprobe) y **sin desplegar** (hay que pedir un redespliegue).
 
 ## Física del balón (a petición del usuario)
@@ -218,3 +218,8 @@ Leyenda: ✅ hecho y probado · 🟡 hecho, pendiente de verificar · ⬜ por ha
 - ✅ Probado: 7 pruebas del motor con dos dispositivos contra el Worker real (altas, borrados, conflictos, reloj desfasado, estadísticas fusionadas, sin escrituras inútiles, errores) + 4 del Worker + e2e con dos navegadores (`e2e/device-sync.spec.ts`), accesibilidad y diseño estrecho de la ventana.
 - 🟡 Pendiente de verificar: con el Worker desplegado en Cloudflare de verdad y desde un iPhone. El usuario debe volver a pegar `cloudflare/stats-worker.js` en Cloudflare.
 - Límites conocidos: solo sincroniza con la app abierta (sin push); dos dispositivos escribiendo en el mismo instante podrían pisarse (KV no es transaccional); los calendarios importados y escudos nuevos se ven al recargar.
+
+## Sonido y subida con .bat (2026-10-22)
+- ✅ `src/features/sound` (`cues.ts` sucesos→sonidos, `synth.ts` síntesis determinista) + pista de audio en el MP4 (`exportVideo.ts`, AAC u Opus según soporte) + botón de sonido en la vista previa + opción «Sonido» (por defecto sí). Tests unitarios; `verify:export` comprueba la pista de audio (verificado en el Chromium del sandbox: Opus en MP4, duración igual al vídeo, picos en los goles).
+- 🟡 Pendiente de verificar: AAC real en Chrome/Safari de usuario, y cómo suena en el móvil (el volumen/mezcla se ajusta a oído).
+- ✅ `subir-a-github.bat` (comprobaciones de seguridad, commit, push, abre el PR). 🟡 No se pudo ejecutar aquí (Linux): pendiente de verificar en Windows.

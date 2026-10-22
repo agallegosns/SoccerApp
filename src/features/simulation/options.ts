@@ -41,6 +41,8 @@ export interface VideoOptions {
   readonly showStats: boolean;
   readonly showTicker: boolean;
   readonly ballTrail: boolean;
+  /** Banda sonora sintetizada (golpes, silbatos, público) en el MP4 exportado. */
+  readonly sound: boolean;
   /** Texto gancho bajo la competición (p. ej. «¿Quién gana?»). */
   readonly hook: string;
   /** Marca de agua al pie (p. ej. «@tu_cuenta»). */
@@ -59,6 +61,7 @@ export const DEFAULT_VIDEO_OPTIONS: VideoOptions = {
   showStats: true,
   showTicker: true,
   ballTrail: true,
+  sound: true,
   hook: '',
   watermark: '',
   goalText: '¡GOL!',
@@ -81,6 +84,7 @@ export function sanitizeOptions(value: unknown): VideoOptions {
     showStats: flag(value['showStats'], d.showStats),
     showTicker: flag(value['showTicker'], d.showTicker),
     ballTrail: flag(value['ballTrail'], d.ballTrail),
+    sound: flag(value['sound'], d.sound),
     hook: text(value['hook'], d.hook, MAX_HOOK),
     watermark: text(value['watermark'], d.watermark, MAX_WATERMARK),
     goalText: text(value['goalText'], d.goalText, MAX_GOAL_TEXT) || d.goalText,

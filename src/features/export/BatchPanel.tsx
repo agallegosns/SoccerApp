@@ -74,6 +74,7 @@ export function BatchPanel({ match, date, currentSeed, style, fixedScore, pace, 
         sim,
         meta: d.meta,
         style: d.style,
+        sound: d.options.sound,
         signal,
         title: `Simulación ficticia: ${d.home} vs ${d.away}`,
         onProgress: (progress) => {

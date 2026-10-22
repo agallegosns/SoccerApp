@@ -129,6 +129,10 @@ async function main(): Promise<void> {
     check('nº de fotogramas = esperado', Number(v?.nb_read_frames) === exported.frames, `${String(v?.nb_read_frames)} vs ${String(exported.frames)}`);
     check('progreso llegó al último fotograma', exported.progressFrames === exported.frames, String(exported.progressFrames));
     check('duración ≈ la de la simulación', Math.abs(Number(p.format.duration) - exported.simDuration) < 0.1, `${Number(p.format.duration).toFixed(2)} s vs ${exported.simDuration.toFixed(2)} s`);
+    const audioOut = execFileSync('ffprobe', ['-v', 'error', '-select_streams', 'a', '-show_entries', 'stream=codec_name,duration', '-of', 'json', file], { encoding: 'utf8' });
+    const audioStreams = (JSON.parse(audioOut) as { streams: { codec_name: string; duration: string }[] }).streams;
+    const a = audioStreams[0];
+    check('pista de audio (AAC u Opus) con la duración del vídeo', a !== undefined && Math.abs(Number(a.duration) - exported.simDuration) < 0.15, a === undefined ? 'sin audio' : `${a.codec_name}, ${Number(a.duration).toFixed(2)} s`);
     const boxes = topLevelBoxes(file);
     check('fastStart (moov antes que mdat)', boxes.indexOf('moov') >= 0 && boxes.indexOf('moov') < boxes.indexOf('mdat'), boxes.join(','));
     check('se decodifica completo sin errores (ffmpeg)', decodeClean(file), 'ffmpeg -f null');
