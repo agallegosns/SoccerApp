@@ -241,3 +241,10 @@ Leyenda: ✅ hecho y probado · 🟡 hecho, pendiente de verificar · ⬜ por ha
 - Tests: 19 en el módulo (incluyen «el gol no es un estruendo»: por debajo de los pitidos, cola ≤ 0,9× el nivel medio, y nivel que varía como granos).
 - 🟡 Sigue sin poder comprobarse **a oído** (no puedo escuchar): todo son mediciones. Se adjunta una muestra para escucharla sin abrir la app.
 
+### Sonido, tercera revisión (2026-10-22): sólo toques del balón y pitidos
+- A petición del usuario («el gol sigue sin oírse bien; elimina el sonido del gol y deja sólo los toques del balón y los pitidos»): **eliminados** el sonido de gol (aplauso, coro de voces y campanilla), el «ooh» de paradas/palos/ocasiones falladas, el «whoosh» de los disparos, el ambiente de grada y la reverberación. Queda lo que ya sonaba bien por separado: toques de balón (`kick`), choques con la pared (`wall`) y pitidos del árbitro (`whistle`).
+  Se borró el código de público (`applause`, `voices`, `bell`, `reverb`) y los tipos de cue `goal/save/post/miss/whoosh`.
+- Medido (Arena, ventana de 20 ms): pitidos ≈ −13 dBFS, toques de balón ≈ −13 dBFS (mediana) y choques con la pared ≈ −16 dBFS: todo bien equilibrado; −15,4 LUFS (Arena) / −13,9 LUFS (Táctico) con pico real −1,5 dBFS (sin recortes). El espectrograma sólo muestra golpes secos y los pitidos (2,85 y 3,55 kHz) con silencio entre medias.
+- Tests: 17 en el módulo (incluye «en un gol no suena nada especial» y que cada toque/pitido supere –24/–16 dBFS).
+- 🟡 Sigue sin poder comprobarse a oído desde aquí. Si más adelante quieres de vuelta algún sonido de ambiente o de gol, se puede reañadir como opción (apagada por defecto).
+

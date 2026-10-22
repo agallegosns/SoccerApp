@@ -45,7 +45,7 @@ El estudio de la captura se hizo en un navegador sin codificador H.264, por eso 
 En el estudio, panel **Personalizar el vídeo** (se guarda en tu navegador y vale para la vista previa, la exportación y los lotes):
 - **Colores de la arena** (Noche, Neón, Césped, Fuego) y **rebotes del balón** (apagado, poco, normal, mucho: la elasticidad de la pared en la física). Los escudos persiguen y golpean el balón, chocan con la pared y entre sí, y los goles salen del juego.
 - **Qué se muestra**: estadísticas, último suceso y estela del balón.
-- **Sonido** (activado por defecto): golpes de balón, rebotes en la pared, silbatos de inicio/descanso/final, rugido del público y campanilla en los goles, paradas, palos y ambiente de grada. Se sintetiza en el navegador (`src/features/sound`), mezclado para el altavoz del móvil (≈ −15 LUFS, sin recortes), sin grabaciones con derechos, y es el mismo en la vista previa (botón del altavoz) y en el MP4 (AAC, u Opus si el navegador no tiene AAC).
+- **Sonido** (activado por defecto): **sólo toques del balón** (golpes y choques con la pared) **y pitidos del árbitro** (1 al empezar y en las faltas, 2 en el descanso, 3 al final). Sin sonido de gol ni de público (decisión del usuario). Se sintetiza en el navegador (`src/features/sound`), mezclado para el altavoz del móvil (≈ −15 LUFS, pico −2 dBFS, sin recortes), sin grabaciones con derechos, y es el mismo en la vista previa (botón del altavoz) y en el MP4 (AAC, u Opus si el navegador no tiene AAC).
 - **Textos propios**: texto gancho bajo la competición («¿Quién gana? Comenta tu marcador»), marca de agua con tu usuario y texto del gol.
 
 ### Ritmo y escudos

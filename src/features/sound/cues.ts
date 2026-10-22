@@ -6,12 +6,7 @@ import type { VideoStyle } from '../simulation/renderers.ts';
 export type Cue =
   | { readonly t: number; readonly kind: 'kick'; readonly power: number }
   | { readonly t: number; readonly kind: 'wall'; readonly power: number }
-  | { readonly t: number; readonly kind: 'whistle'; readonly blasts: 1 | 2 | 3 }
-  | { readonly t: number; readonly kind: 'goal' }
-  | { readonly t: number; readonly kind: 'save' }
-  | { readonly t: number; readonly kind: 'post' }
-  | { readonly t: number; readonly kind: 'miss' }
-  | { readonly t: number; readonly kind: 'whoosh' };
+  | { readonly t: number; readonly kind: 'whistle'; readonly blasts: 1 | 2 | 3 };
 
 /** Separación mínima (s) entre dos golpes de balón o dos choques con la pared; con menos suenan como una ametralladora. */
 export const MIN_GAP: Readonly<Record<'kick' | 'wall', number>> = { kick: 0.14, wall: 0.12 };
@@ -37,7 +32,10 @@ export function thin(cues: readonly Cue[]): Cue[] {
   return out;
 }
 
-/** Deriva, de forma pura, los sonidos de una simulación a partir de sus sucesos reales (nada se inventa aparte). */
+/**
+ * Deriva, de forma pura, los sonidos de una simulación: toques del balón (golpes y choques con la pared) y pitidos del árbitro.
+ * Por decisión del usuario NO hay sonido de gol, ni de público, ni de paradas: sólo eso.
+ */
 export function soundCues(sim: Simulation, style: VideoStyle): Cue[] {
   const cues: Cue[] = [];
   const { events, ball } = sim.script;
@@ -47,11 +45,6 @@ export function soundCues(sim: Simulation, style: VideoStyle): Cue[] {
       case 'halftime': cues.push({ t: e.t, kind: 'whistle', blasts: 2 }); break;
       case 'fulltime': cues.push({ t: e.t, kind: 'whistle', blasts: 3 }); break;
       case 'foul': cues.push({ t: e.t, kind: 'whistle', blasts: 1 }); break;
-      case 'goal': cues.push({ t: e.t, kind: 'goal' }); break;
-      case 'save': cues.push({ t: e.t, kind: 'save' }); break;
-      case 'post': cues.push({ t: e.t, kind: 'post' }); break;
-      case 'miss': cues.push({ t: e.t, kind: 'miss' }); break;
-      case 'shot': cues.push({ t: e.t, kind: 'whoosh' }); break;
       default: break;
     }
   }

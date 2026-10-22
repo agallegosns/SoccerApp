@@ -143,104 +143,11 @@ function whistle(buf: Float32Array, rand: () => number, t: number, blasts: 1 | 2
   else { whistleBlast(buf, rand, t, 0.26); whistleBlast(buf, rand, t + 0.38, 0.26); whistleBlast(buf, rand, t + 0.76, 0.95); }
 }
 
-/** Una «palmada» corta: ráfaga de ruido de 10 ms en una banda de 1,5–4,5 kHz. */
-function clap(buf: Float32Array, rand: () => number, t: number, gain: number): void {
-  const f = new Biquad('band', 1500 + 3000 * rand(), 1.2);
-  noise(buf, rand, t, 0.014, [f], (x) => Math.exp(-x * 420) * gain);
-}
-
-/** Aplauso: muchas palmadas sueltas (no un ruido continuo) cuya densidad sube y baja. `peak` = densidad máxima (palmadas por segundo). */
-function applause(buf: Float32Array, rand: () => number, t: number, len: number, peak: number, gain: number): void {
-  const dt = 1 / 2000;
-  for (let x = 0; x < len; x += dt) {
-    const rise = smooth(x / 0.35);
-    const fall = Math.exp(-Math.max(0, x - 0.35) * (2.6 / len));
-    if (rand() < peak * rise * fall * dt) clap(buf, rand, t + x, gain * (0.4 + 0.6 * rand()));
-  }
-}
-
-type Vowel = 'a' | 'o';
-const VOWELS: Readonly<Record<Vowel, readonly [number, number]>> = { a: [730, 1090], o: [500, 850] };
-
-/** Coro de voces del público («aaah» de alegría o «ooh» de lamento): varias voces desafinadas con vibrato y resonancias vocales. */
-function voices(buf: Float32Array, rand: () => number, t: number, len: number, peak: number, vowel: Vowel, base: number): void {
-  const [f1, f2] = VOWELS[vowel];
-  const a = new Biquad('band', f1, 5);
-  const b = new Biquad('band', f2, 6);
-  const air = new Biquad('band', 2600, 1);
-  const n = 6;
-  const ratios = Array.from({ length: n }, () => 0.94 + 0.12 * rand());
-  const phases = ratios.map(() => rand());
-  const vib = ratios.map(() => 5 + 1.2 * rand());
-  const accum = phases.slice();
-  paint(buf, t, len, (x) => {
-    let src = 0;
-    for (let k = 0; k < n; k += 1) {
-      const f0 = base * (ratios[k] ?? 1) * (1 + 0.012 * Math.sin(2 * Math.PI * (vib[k] ?? 5) * x)) * (1 + 0.1 * Math.exp(-x * 6)); // empiezan algo más agudas (grito de alegría)
-      accum[k] = ((accum[k] ?? 0) + f0 / SAMPLE_RATE) % 1;
-      src += 2 * (accum[k] ?? 0) - 1;
-    }
-    src /= n;
-    const rise = smooth(x / 0.3);
-    const fall = Math.exp(-Math.max(0, x - 0.3) * (3 / len));
-    const v = a.process(src) * 1.0 + b.process(src) * 0.6 + air.process(rand() * 2 - 1) * 0.05;
-    return v * rise * fall * peak;
-  });
-}
-
-/** Campanilla de gol: dos notas (la y mi, una quinta) con sus parciales no armónicos. */
-function bell(buf: Float32Array, t: number, f: number, gain: number): void {
-  paint(buf, t, 1.4, (x) => (Math.sin(2 * Math.PI * f * x) + 0.45 * Math.sin(2 * Math.PI * f * 2.76 * x) + 0.2 * Math.sin(2 * Math.PI * f * 5.4 * x)) * Math.exp(-x * 3.6) * gain);
-}
-
 function apply(buf: Float32Array, rand: () => number, c: Cue): void {
   switch (c.kind) {
     case 'kick': kick(buf, rand, c.t, c.power); break;
     case 'wall': wall(buf, rand, c.t, c.power); break;
     case 'whistle': whistle(buf, rand, c.t, c.blasts); break;
-    case 'goal':
-      // Gol: aplauso con muchas palmadas + «aaah» de alegría + campanilla. Nada de ruido continuo: se entiende cada capa.
-      voices(buf, rand, c.t, 2.4, 0.5, 'a', 210);
-      applause(buf, rand, c.t + 0.05, 2.6, 110, 0.55);
-      bell(buf, c.t + 0.02, 880, 0.12);
-      bell(buf, c.t + 0.16, 1318.5, 0.1);
-      break;
-    case 'save':
-      noise(buf, rand, c.t, 0.08, [new Biquad('band', 1000, 0.9)], (x) => Math.exp(-x * 50) * 1.2);
-      voices(buf, rand, c.t + 0.05, 0.9, 0.16, 'o', 190);
-      break;
-    case 'post':
-      paint(buf, c.t, 0.8, (x) => (Math.sin(2 * Math.PI * 1250 * x) + 0.6 * Math.sin(2 * Math.PI * 3100 * x)) * Math.exp(-x * 9) * 0.2);
-      voices(buf, rand, c.t + 0.05, 1.0, 0.2, 'o', 200);
-      break;
-    case 'miss': voices(buf, rand, c.t, 1.0, 0.4, 'o', 180); break;
-    case 'whoosh': noise(buf, rand, Math.max(0, c.t - 0.2), 0.3, [new Biquad('band', 1500, 0.8)], (x) => Math.sin(Math.PI * clamp01(x / 0.3)) * 0.35); break;
-  }
-}
-
-/** Reverberación de estadio (Schroeder: 4 peines + 2 pasa-todo). `wet` = cuánta señal reverberada se suma. Da cuerpo y espacio sin enturbiar. */
-function reverb(buf: Float32Array, wet: number): void {
-  const combs = [1557, 1617, 1491, 1422].map((d) => ({ d: Math.round((d * SAMPLE_RATE) / 44100), line: new Float32Array(Math.round((d * SAMPLE_RATE) / 44100)), i: 0, lp: 0 }));
-  const allpass = [225, 556].map((d) => ({ d, line: new Float32Array(d), i: 0 }));
-  for (let n = 0; n < buf.length; n += 1) {
-    const x = buf[n] ?? 0;
-    let y = 0;
-    for (const c of combs) {
-      const out = c.line[c.i] ?? 0;
-      c.lp += 0.45 * (out - c.lp); // amortigua los agudos de la cola
-      c.line[c.i] = x * 0.3 + c.lp * 0.8;
-      c.i = (c.i + 1) % c.d;
-      y += out;
-    }
-    y *= 0.25;
-    for (const ap of allpass) {
-      const delayed = ap.line[ap.i] ?? 0;
-      const out = delayed - 0.5 * y;
-      ap.line[ap.i] = y + 0.5 * delayed;
-      ap.i = (ap.i + 1) % ap.d;
-      y = out;
-    }
-    buf[n] = x + wet * y;
   }
 }
 
@@ -289,12 +196,12 @@ function limit(buf: Float32Array, ceiling: number): void {
 /** Nivel de pico máximo de la pista (–2 dBFS: deja margen para el códec y los picos entre muestras). */
 export const PEAK_CEILING = 0.8;
 /** Nivel medio objetivo de la pista (RMS –17 dBFS ≈ –15 LUFS, un volumen cómodo en TikTok y Instagram sin pasarse). */
-export const TARGET_RMS = 0.145;
+export const TARGET_RMS = 0.2;
 
 /**
- * Banda sonora procedural y determinista (misma simulación → mismas muestras): golpes de balón, rebotes en la pared, silbatos,
- * rugido del público en los goles y ambiente de grada. Todo sintetizado aquí; no usa grabaciones con derechos.
- * Mezcla pensada para el móvil: sin graves que el altavoz no reproduce, compresión suave, volumen medio fijo y limitador.
+ * Banda sonora procedural y determinista (misma simulación → mismas muestras): toques del balón (golpes y choques con la pared) y
+ * pitidos del árbitro. Nada más (sin público, sin sonido de gol: decisión del usuario). Todo sintetizado aquí; sin grabaciones con derechos.
+ * Mezcla pensada para el móvil: sin graves que el altavoz no reproduce, compresión suave, volumen fijo y limitador.
  */
 export function buildAudio(sim: Simulation, style: VideoStyle): AudioTrack {
   const duration = sim.script.duration;
@@ -302,22 +209,7 @@ export function buildAudio(sim: Simulation, style: VideoStyle): AudioTrack {
   const rand = rng(sim.script.seed ^ 0x5f3759df);
   const cues = soundCues(sim, style);
 
-  // Ambiente de grada: murmullo suave que sube un poco antes de las ocasiones.
-  const bumps = cues.filter((c) => c.kind === 'whoosh' || c.kind === 'goal' || c.kind === 'save' || c.kind === 'post');
-  const lo = new Biquad('band', 500, 0.5);
-  const hi = new Biquad('low', 2200, 0.7);
-  for (let i = 0; i < buf.length; i += 1) {
-    const t = i / SAMPLE_RATE;
-    let level = 0.025 + 0.008 * Math.sin(t * 0.7);
-    for (const b of bumps) {
-      const d = t - b.t;
-      if (d > -1.8 && d < 1.2) level += 0.025 * Math.exp(-((d + 0.3) ** 2) / 0.6);
-    }
-    buf[i] = hi.process(lo.process(rand() * 2 - 1)) * level;
-  }
-
   for (const c of cues) apply(buf, rand, c);
-  reverb(buf, 0.35);
 
   // Master: quita lo grave (el altavoz del móvil no lo oye y ensucia), comprime, fija el volumen medio y limita.
   const hp1 = new Biquad('high', 110, 0.7);
